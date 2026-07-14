@@ -40,7 +40,10 @@ cd "${DROPLET_PATH}"
 if [[ ! -x .venv/bin/python ]]; then
   echo "No venv yet -- run deploy/provision.sh as root first."; exit 0
 fi
-sudo -u alphafraud ./.venv/bin/pip install --quiet -r requirements.txt
+# PIP_NO_CACHE_DIR silences pip's warning about the root-owned ~/.cache/pip under the
+# alphafraud user (the cache buys nothing here -- deps are already installed after the
+# first provision, so reinstalls are near-instant regardless).
+sudo -u alphafraud env PIP_NO_CACHE_DIR=1 ./.venv/bin/pip install --quiet -r requirements.txt
 sudo chown -R alphafraud:alphafraud "${DROPLET_PATH}"
 sudo systemctl restart alphafraud-web.service
 sudo systemctl --no-pager --lines=2 status alphafraud-web.service || true
