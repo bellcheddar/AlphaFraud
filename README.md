@@ -141,7 +141,7 @@ Python, biotite and tmtools for structure handling and superposition, numpy and 
 
 ## 📝 Licence
 
-Add your licence here.
+Released under the MIT Licence (see [LICENSE](LICENSE)).
 
 ---
 
