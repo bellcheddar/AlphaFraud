@@ -1,0 +1,200 @@
+"""Plotly figure builders. Each returns a JSON string (fig.to_json()) that a template
+embeds and renders with the vendored plotly.min.js. Kept free of Flask so it can also be
+used from the CLI or notebooks.
+
+The signature figure is the "fraud quadrant": AlphaFold confidence (pLDDT) vs. how right it
+actually was (TM-score). High-confidence / low-TM = confidently wrong.
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Optional
+
+import plotly.graph_objects as go
+
+from . import config
+
+# marcdeller.com brand palette (mirrors banner.py and static/brand.css).
+BRAND = {
+    "primary": "#1e73be",
+    "primary_light": "#4a9fd4",
+    "amber": "#fcb900",
+    "green": "#00d084",
+    "red": "#d62728",
+    "ink": "#1c2733",
+    "grid": "rgba(120,140,160,0.18)",
+}
+
+_LAYOUT = dict(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="Inter, system-ui, sans-serif", color=BRAND["ink"], size=13),
+    margin=dict(l=60, r=24, t=48, b=52),
+    colorway=[BRAND["primary"], BRAND["amber"], BRAND["green"], BRAND["primary_light"], BRAND["red"]],
+    hoverlabel=dict(font_size=12),
+)
+
+
+def _fig(fig: go.Figure) -> str:
+    fig.update_layout(**_LAYOUT)
+    fig.update_xaxes(gridcolor=BRAND["grid"], zeroline=False)
+    fig.update_yaxes(gridcolor=BRAND["grid"], zeroline=False)
+    return fig.to_json()
+
+
+# --------------------------------------------------------------------------------------
+# KPIs
+# --------------------------------------------------------------------------------------
+def kpis(entities: list[dict]) -> dict:
+    n = len(entities)
+    cw = sum(1 for e in entities if e.get("confidently_wrong"))
+    novel = sum(1 for e in entities if e.get("is_novel"))
+    novel_wrong = sum(1 for e in entities if e.get("is_novel") and e.get("confidently_wrong"))
+    tms = [e["tm_by_experiment"] for e in entities if e.get("tm_by_experiment") is not None]
+    return {
+        "n_compared": n,
+        "confidently_wrong": cw,
+        "novel": novel,
+        "novel_and_wrong": novel_wrong,
+        "median_tm": round(sorted(tms)[len(tms) // 2], 3) if tms else None,
+    }
+
+
+# --------------------------------------------------------------------------------------
+# Signature scatter
+# --------------------------------------------------------------------------------------
+def fraud_scatter(entities: list[dict]) -> str:
+    fig = go.Figure()
+    # Shade the fraud quadrant: confident (pLDDT > threshold) yet wrong (TM < threshold).
+    fig.add_shape(
+        type="rect", x0=config.CONFIDENT_PLDDT, x1=100, y0=0, y1=config.WRONG_TM,
+        fillcolor="rgba(214,39,40,0.08)", line=dict(width=0), layer="below",
+    )
+    fig.add_annotation(
+        x=(config.CONFIDENT_PLDDT + 100) / 2, y=config.WRONG_TM / 2,
+        text="confidently wrong", showarrow=False,
+        font=dict(color=BRAND["red"], size=12), opacity=0.7,
+    )
+    for novel, color, name in [(1, BRAND["amber"], "novel sequence"), (0, BRAND["primary"], "has pre-cutoff homolog")]:
+        pts = [e for e in entities if bool(e.get("is_novel")) == bool(novel)
+               and e.get("mean_plddt") is not None and e.get("tm_by_experiment") is not None]
+        if not pts:
+            continue
+        fig.add_trace(go.Scatter(
+            x=[e["mean_plddt"] for e in pts],
+            y=[e["tm_by_experiment"] for e in pts],
+            mode="markers",
+            name=name,
+            marker=dict(
+                color=color, size=[8 + 30 * (e.get("fraud_score") or 0) for e in pts],
+                line=dict(width=0.5, color="white"), opacity=0.8,
+            ),
+            customdata=[[e["entity_id"], e.get("uniprot"), e.get("fraud_score"),
+                         e.get("novelty_identity")] for e in pts],
+            hovertemplate=("<b>%{customdata[0]}</b> (%{customdata[1]})<br>"
+                           "pLDDT %{x:.1f} · TM %{y:.3f}<br>"
+                           "FRAUD %{customdata[2]:.3f} · novelty id %{customdata[3]}%<extra></extra>"),
+        ))
+    fig.update_layout(
+        title="AlphaFold confidence vs. agreement with experiment",
+        xaxis_title="mean pLDDT (AlphaFold confidence)",
+        yaxis_title="TM-score to experiment",
+        legend=dict(orientation="h", y=1.08, x=0),
+    )
+    fig.update_xaxes(range=[0, 100])
+    fig.update_yaxes(range=[0, 1])
+    return _fig(fig)
+
+
+def metric_histograms(entities: list[dict]) -> str:
+    from plotly.subplots import make_subplots
+
+    fig = make_subplots(rows=1, cols=3, subplot_titles=("TM-score", "Cα-RMSD (Å)", "lDDT"))
+    fig.add_trace(go.Histogram(x=[e["tm_by_experiment"] for e in entities if e.get("tm_by_experiment") is not None],
+                               marker_color=BRAND["primary"], nbinsx=25), row=1, col=1)
+    fig.add_trace(go.Histogram(x=[e["ca_rmsd"] for e in entities if e.get("ca_rmsd") is not None],
+                               marker_color=BRAND["amber"], nbinsx=25), row=1, col=2)
+    fig.add_trace(go.Histogram(x=[e["lddt"] for e in entities if e.get("lddt") is not None],
+                               marker_color=BRAND["green"], nbinsx=25), row=1, col=3)
+    fig.update_layout(title="Distribution across this batch", showlegend=False)
+    return _fig(fig)
+
+
+# --------------------------------------------------------------------------------------
+# Trend across weeks
+# --------------------------------------------------------------------------------------
+def trend_figure(weekly: list[dict]) -> str:
+    """weekly: list of {label, mean_tm, confidently_wrong, n_compared} oldest->newest."""
+    fig = go.Figure()
+    labels = [w["label"] for w in weekly]
+    fig.add_trace(go.Scatter(x=labels, y=[w.get("mean_tm") for w in weekly], name="mean TM-score",
+                             mode="lines+markers", line=dict(color=BRAND["primary"], width=2), yaxis="y"))
+    fig.add_trace(go.Bar(x=labels, y=[w.get("confidently_wrong") for w in weekly], name="confidently wrong",
+                         marker_color=BRAND["red"], opacity=0.5, yaxis="y2"))
+    fig.update_layout(
+        title="Weekly trend",
+        yaxis=dict(title="mean TM-score", range=[0, 1]),
+        yaxis2=dict(title="# confidently wrong", overlaying="y", side="right", showgrid=False),
+        legend=dict(orientation="h", y=1.12, x=0),
+    )
+    return _fig(fig)
+
+
+# --------------------------------------------------------------------------------------
+# Per-entry figures
+# --------------------------------------------------------------------------------------
+def per_residue_tracks(per_res: dict) -> str:
+    x = per_res.get("af_res_id") or list(range(len(per_res.get("ca_deviation", []))))
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=x, y=per_res.get("ca_deviation", []), name="Cα deviation (Å)",
+                             line=dict(color=BRAND["red"], width=1.5)))
+    fig.add_trace(go.Scatter(x=x, y=[v * 100 for v in per_res.get("lddt", [])], name="per-residue lDDT (×100)",
+                             line=dict(color=BRAND["green"], width=1.5), yaxis="y2"))
+    fig.add_trace(go.Scatter(x=x, y=[p if p is not None else None for p in per_res.get("plddt", [])],
+                             name="pLDDT", line=dict(color=BRAND["primary"], width=1.5, dash="dot"), yaxis="y2"))
+    fig.update_layout(
+        title="Per-residue error vs. AlphaFold confidence",
+        xaxis_title="residue (UniProt/model numbering)",
+        yaxis=dict(title="Cα deviation (Å)"),
+        yaxis2=dict(title="lDDT×100 / pLDDT", overlaying="y", side="right", range=[0, 100], showgrid=False),
+        legend=dict(orientation="h", y=1.12, x=0),
+    )
+    return _fig(fig)
+
+
+def heatmap(matrix: list, title: str, colorscale: Optional[list] = None) -> str:
+    fig = go.Figure(go.Heatmap(z=matrix, colorscale=colorscale or "Viridis", colorbar=dict(thickness=12)))
+    fig.update_layout(title=title, yaxis=dict(autorange="reversed", scaleanchor="x"))
+    return _fig(fig)
+
+
+def pae_honesty_pair(pae: list, observed: list) -> str:
+    from plotly.subplots import make_subplots
+
+    fig = make_subplots(rows=1, cols=2, subplot_titles=("AlphaFold PAE (predicted, Å)",
+                                                        "observed error |Δdistance| (Å)"))
+    fig.add_trace(go.Heatmap(z=pae, colorscale="Inferno", coloraxis="coloraxis"), row=1, col=1)
+    fig.add_trace(go.Heatmap(z=observed, colorscale="Inferno", coloraxis="coloraxis"), row=1, col=2)
+    fig.update_layout(title="Was AlphaFold's self-reported uncertainty honest?",
+                      coloraxis=dict(colorscale="Inferno", colorbar=dict(thickness=12)))
+    fig.update_yaxes(autorange="reversed")
+    return _fig(fig)
+
+
+def calibration_scatter(per_res: dict) -> str:
+    plddt = per_res.get("plddt", [])
+    lddt = per_res.get("lddt", [])
+    xs = [p for p in plddt if p is not None]
+    ys = [l * 100 for p, l in zip(plddt, lddt) if p is not None]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=xs, y=ys, mode="markers",
+                             marker=dict(color=BRAND["primary"], size=5, opacity=0.6)))
+    fig.add_trace(go.Scatter(x=[0, 100], y=[0, 100], mode="lines", name="ideal",
+                             line=dict(color=BRAND["ink"], dash="dash", width=1)))
+    fig.update_layout(title="Calibration: pLDDT vs. actual lDDT",
+                      xaxis_title="pLDDT (predicted)", yaxis_title="per-residue lDDT ×100 (observed)",
+                      showlegend=False)
+    fig.update_xaxes(range=[0, 100])
+    fig.update_yaxes(range=[0, 100])
+    return _fig(fig)

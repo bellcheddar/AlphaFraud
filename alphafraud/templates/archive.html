@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set active = 'archive' %}
+{% block title %}Archive &middot; AlphaFraud{% endblock %}
+
+{% block content %}
+  <h1>Archive</h1>
+  <p class="sub">Every processed release week, newest first.</p>
+  <div class="tablewrap">
+    <table class="sortable">
+      <thead><tr><th>Week</th><th>Discovered</th><th>Compared</th><th>Skipped</th><th>Finished</th></tr></thead>
+      <tbody>
+        {% for w in weeks %}
+        <tr>
+          <td><a href="{{ url_for('week', label=w.label) }}">{{ w.label }}</a></td>
+          <td class="num">{{ w.n_discovered }}</td>
+          <td class="num">{{ w.n_compared }}</td>
+          <td class="num">{{ w.n_skipped }}</td>
+          <td data-sort="{{ w.finished_at }}">{{ (w.finished_at or '')[:16] }}</td>
+        </tr>
+        {% endfor %}
+        {% if not weeks %}<tr><td colspan="5">No runs yet.</td></tr>{% endif %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

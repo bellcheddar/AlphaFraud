@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AlphaFraud</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}">
+</head>
+<body>
+  <header class="site"><div class="wrap"><pre class="banner">{{ banner }}</pre>
+    <div class="tagline">new PDB depositions vs. their blind AlphaFold predictions</div></div></header>
+  <main><div class="wrap">
+    <h1>No data yet</h1>
+    <p class="sub">Run the pipeline to populate the database:</p>
+    <p><code>python3 AlphaFraud.py run --since 2023-01-01 --limit 50</code></p>
+    <p class="hint">Then reload this page. Version {{ version }}.</p>
+  </div></main>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Fire the weekly pipeline every Wednesday 00:30 UTC -- just after the PDB's 00:00 UTC
+# release. Persistent=true catches up if the droplet was off at the scheduled time.
+[Unit]
+Description=Weekly AlphaFraud pipeline schedule (Wed 00:30 UTC)
+
+[Timer]
+OnCalendar=Wed *-*-* 00:30:00 UTC
+Persistent=true
+Unit=alphafraud-run.service
+
+[Install]
+WantedBy=timers.target

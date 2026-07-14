@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% set active = '' %}
+{% block title %}{{ e.entry_id }}_{{ e.chain }} &middot; AlphaFraud{% endblock %}
+
+{% macro figure(fig_json, dom_id) %}
+  {% if fig_json %}
+  <div class="card"><div class="plot" id="{{ dom_id }}"></div></div>
+  <script type="application/json" data-target="{{ dom_id }}">{{ fig_json | safe }}</script>
+  {% endif %}
+{% endmacro %}
+
+{% macro fmt(v) %}{% if v is none %}—{% else %}{{ v }}{% endif %}{% endmacro %}
+
+{% block content %}
+  <h1>
+    {{ e.entry_id }}_{{ e.chain }}
+    {% if e.confidently_wrong %}<span class="badge wrong">confidently wrong</span>{% endif %}
+    {% if e.is_novel %}<span class="badge novel">novel</span>{% endif %}
+  </h1>
+  <p class="sub">
+    {{ e.description or '' }} &middot;
+    {% if e.uniprot %}<a href="https://www.uniprot.org/uniprotkb/{{ e.uniprot }}" target="_blank" rel="noopener">{{ e.uniprot }}</a>{% endif %}
+    {% if e.uniprot_name %}({{ e.uniprot_name }}){% endif %} &middot;
+    <a href="https://www.rcsb.org/structure/{{ e.entry_id }}" target="_blank" rel="noopener">RCSB {{ e.entry_id }}</a> &middot;
+    {% if e.af_entry_id %}<a href="https://alphafold.ebi.ac.uk/entry/{{ e.uniprot }}" target="_blank" rel="noopener">{{ e.af_entry_id }} (v{{ e.af_model_version }})</a>{% endif %}
+  </p>
+
+  <div class="kpis">
+    <div class="kpi good"><div class="n">{{ fmt(metrics.tm_by_experiment) }}</div><div class="l">TM-score</div></div>
+    <div class="kpi"><div class="n">{{ fmt(metrics.lddt) }}</div><div class="l">lDDT</div></div>
+    <div class="kpi"><div class="n">{{ fmt(metrics.ca_rmsd) }}</div><div class="l">Cα-RMSD Å</div></div>
+    <div class="kpi"><div class="n">{{ fmt(metrics.mean_plddt) }}</div><div class="l">mean pLDDT</div></div>
+    <div class="kpi {% if e.confidently_wrong %}alert{% endif %}"><div class="n">{{ fmt(metrics.fraud_score) }}</div><div class="l">FRAUD score</div></div>
+    <div class="kpi"><div class="n">{{ fmt(e.novelty_identity) }}%</div><div class="l">novelty (max id)</div></div>
+  </div>
+
+  {{ figure(figures.tracks, 'tracks') }}
+  <div class="grid2">
+    {% if figures.calibration %}<div>{{ figure(figures.calibration, 'calibration') }}</div>{% endif %}
+    {% if figures.distance %}<div>{{ figure(figures.distance, 'distance') }}</div>{% endif %}
+  </div>
+  {{ figure(figures.pae, 'pae') }}
+
+  {% if domains %}
+  <h2>Per-domain breakdown</h2>
+  <div class="tablewrap">
+    <table class="sortable">
+      <thead><tr><th>Source</th><th>Domain</th><th>Range</th><th>Residues</th><th>TM</th><th>RMSD Å</th><th>mean Cα Δ</th><th>Name</th></tr></thead>
+      <tbody>
+        {% for d in domains %}
+        <tr>
+          <td>{{ d.source }}</td><td>{{ d.label }}</td><td>{{ d.range }}</td>
+          <td class="num">{{ d.n_residues }}</td><td class="num">{{ d.tm }}</td>
+          <td class="num">{{ d.rmsd }}</td><td class="num">{{ d.mean_ca_dev }}</td>
+          <td>{{ d.name or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <h2>All metrics</h2>
+  <div class="metrics-grid">
+    {% for group_name, keys in metric_groups %}
+    <div class="card metric-group">
+      <h3>{{ group_name }}</h3>
+      <table>
+        <tbody>
+          {% for key, label in keys %}
+          {% if key in metrics %}
+          <tr><td>{{ label }}</td><td>{{ fmt(metrics[key]) }}</td></tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+
+  <p class="sub" style="margin-top:20px">
+    Deposited {{ (e.deposit_date or '')[:10] }} · released {{ (e.release_date or '')[:10] }} ·
+    {{ e.method or '' }}{% if e.resolution %} · {{ e.resolution }} Å{% endif %} ·
+    closest pre-cutoff chain: {{ e.closest_pre_cutoff or 'none' }}
+  </p>
+{% endblock %}

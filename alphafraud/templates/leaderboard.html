@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% set active = 'leaderboard' %}
+{% block title %}Worst offenders &middot; AlphaFraud{% endblock %}
+{% macro fmt(v) %}{% if v is none %}—{% else %}{{ v }}{% endif %}{% endmacro %}
+
+{% block content %}
+  <h1>Worst offenders — all time</h1>
+  <p class="sub">Every structure AlphaFold got most wrong, across all processed weeks. Confidently
+  wrong first (high pLDDT, low TM), then by FRAUD score. Novel + wrong is the strongest evidence
+  against "folding is solved".</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n">{{ stats.n or 0 }}</div><div class="l">total compared</div></div>
+    <div class="kpi alert"><div class="n">{{ stats.cw or 0 }}</div><div class="l">confidently wrong</div></div>
+    <div class="kpi"><div class="n">{{ stats.novel or 0 }}</div><div class="l">novel sequences</div></div>
+    <div class="kpi good"><div class="n">{% if stats.avg_tm %}{{ '%.3f'|format(stats.avg_tm) }}{% else %}—{% endif %}</div><div class="l">mean TM-score</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="tableSearch" placeholder="filter by PDB id, UniProt, protein…">
+    <label><input type="checkbox" id="wrongOnly"> confidently wrong only</label>
+    <label><input type="checkbox" id="novelOnly"> novel only</label>
+  </div>
+  <div class="tablewrap">
+    <table id="dataTable" class="sortable">
+      <thead><tr>
+        <th>PDB</th><th>UniProt</th><th>Protein</th><th>Week</th><th>Novelty %</th>
+        <th>pLDDT</th><th>TM</th><th>lDDT</th><th>FRAUD</th><th>Flag</th>
+      </tr></thead>
+      <tbody>
+        {% for e in entities %}
+        <tr class="{% if e.confidently_wrong %}wrong{% endif %}" data-wrong="{{ 1 if e.confidently_wrong else 0 }}" data-novel="{{ 1 if e.is_novel else 0 }}">
+          <td><a href="{{ url_for('entry', entity_id=e.entity_id) }}">{{ e.entry_id }}_{{ e.chain }}</a></td>
+          <td>{% if e.uniprot %}<a href="https://www.uniprot.org/uniprotkb/{{ e.uniprot }}" target="_blank" rel="noopener">{{ e.uniprot }}</a>{% endif %}</td>
+          <td>{{ (e.description or '')[:42] }}</td>
+          <td data-sort="{{ e.release_date }}">{{ (e.release_date or '')[:10] }}</td>
+          <td class="num" data-sort="{{ e.novelty_identity if e.novelty_identity is not none else 999 }}">{{ fmt(e.novelty_identity) }}{% if e.is_novel %} <span class="badge novel">novel</span>{% endif %}</td>
+          <td class="num" data-sort="{{ e.mean_plddt if e.mean_plddt is not none else -1 }}">{{ fmt(e.mean_plddt) }}</td>
+          <td class="num" data-sort="{{ e.tm_by_experiment if e.tm_by_experiment is not none else -1 }}">{{ fmt(e.tm_by_experiment) }}</td>
+          <td class="num" data-sort="{{ e.lddt if e.lddt is not none else -1 }}">{{ fmt(e.lddt) }}</td>
+          <td class="num" data-sort="{{ e.fraud_score if e.fraud_score is not none else -1 }}">{{ fmt(e.fraud_score) }}</td>
+          <td>{% if e.confidently_wrong %}<span class="badge wrong">wrong</span>{% else %}<span class="badge ok">ok</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

@@ -1,0 +1,17 @@
+# Managed environment
+.venv/
+__pycache__/
+*.pyc
+
+# Local secrets / server target
+.env
+
+# Cached structures & generated data (can be large; regenerated from the APIs)
+data/
+alphafraud.db
+alphafraud.db-journal
+alphafraud.db-wal
+alphafraud.db-shm
+
+# macOS
+.DS_Store

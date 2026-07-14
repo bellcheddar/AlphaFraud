@@ -1,0 +1,20 @@
+# systemd oneshot: the weekly AlphaFraud pipeline. Triggered by alphafraud-run.timer.
+# Runs after the Wednesday 00:00 UTC PDB release; resumes from the last processed run.
+[Unit]
+Description=AlphaFraud weekly pipeline (discover + compare new PDB depositions)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=alphafraud
+Group=alphafraud
+WorkingDirectory=/opt/alphafraud
+EnvironmentFile=-/opt/alphafraud/.env
+ExecStart=/opt/alphafraud/.venv/bin/python /opt/alphafraud/AlphaFraud.py run
+# The web app reads the same SQLite live, so no restart is needed after a run.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/alphafraud

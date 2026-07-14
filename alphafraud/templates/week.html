@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% set active = 'latest' %}
+{% block title %}AlphaFraud &middot; {{ label }}{% endblock %}
+
+{% macro figure(fig_json, dom_id) %}
+  {% if fig_json %}
+  <div class="card"><div class="plot" id="{{ dom_id }}"></div></div>
+  <script type="application/json" data-target="{{ dom_id }}">{{ fig_json | safe }}</script>
+  {% endif %}
+{% endmacro %}
+
+{% macro fmt(v, dash='—') %}{% if v is none %}{{ dash }}{% else %}{{ v }}{% endif %}{% endmacro %}
+
+{% block content %}
+  <h1>Release week {{ label }}</h1>
+  <p class="sub">
+    {% for w in weeks %}<a href="{{ url_for('week', label=w.label) }}">{{ w.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+  </p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n">{{ kpis.n_compared }}</div><div class="l">structures compared</div></div>
+    <div class="kpi {% if kpis.confidently_wrong %}alert{% endif %}"><div class="n">{{ kpis.confidently_wrong }}</div><div class="l">confidently wrong</div></div>
+    <div class="kpi"><div class="n">{{ kpis.novel }}</div><div class="l">novel sequences</div></div>
+    <div class="kpi {% if kpis.novel_and_wrong %}alert{% endif %}"><div class="n">{{ kpis.novel_and_wrong }}</div><div class="l">novel &amp; wrong</div></div>
+    <div class="kpi good"><div class="n">{{ fmt(kpis.median_tm) }}</div><div class="l">median TM-score</div></div>
+  </div>
+
+  {{ figure(figures.scatter, 'scatter') }}
+  {{ figure(figures.histograms, 'histograms') }}
+  {{ figure(figures.trend, 'trend') }}
+
+  <h2>All matched structures</h2>
+  <div class="toolbar">
+    <input type="search" id="tableSearch" placeholder="filter by PDB id, UniProt, gene, description…">
+    <label><input type="checkbox" id="wrongOnly"> confidently wrong only</label>
+    <label><input type="checkbox" id="novelOnly"> novel only</label>
+  </div>
+  <div class="tablewrap">
+    <table id="dataTable" class="sortable">
+      <thead>
+        <tr>
+          <th>PDB</th><th>UniProt</th><th>Protein</th><th>Method</th><th>Å</th><th>Deposited</th>
+          <th>Novelty %</th><th>pLDDT</th><th>TM</th><th>lDDT</th><th>GDT_TS</th><th>RMSD</th><th>FRAUD</th><th>Flag</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entities %}
+        <tr class="{% if e.confidently_wrong %}wrong{% endif %}" data-wrong="{{ 1 if e.confidently_wrong else 0 }}" data-novel="{{ 1 if e.is_novel else 0 }}">
+          <td><a href="{{ url_for('entry', entity_id=e.entity_id) }}">{{ e.entry_id }}_{{ e.chain }}</a></td>
+          <td>{% if e.uniprot %}<a href="https://www.uniprot.org/uniprotkb/{{ e.uniprot }}" target="_blank" rel="noopener">{{ e.uniprot }}</a>{% else %}—{% endif %}</td>
+          <td>{{ (e.description or '')[:42] }}</td>
+          <td>{{ e.method or '—' }}</td>
+          <td class="num" data-sort="{{ e.resolution if e.resolution is not none else 99 }}">{{ fmt(e.resolution) }}</td>
+          <td data-sort="{{ e.deposit_date }}">{{ (e.deposit_date or '')[:10] }}</td>
+          <td class="num" data-sort="{{ e.novelty_identity if e.novelty_identity is not none else 999 }}">{{ fmt(e.novelty_identity) }}{% if e.is_novel %} <span class="badge novel">novel</span>{% endif %}</td>
+          <td class="num" data-sort="{{ e.mean_plddt if e.mean_plddt is not none else -1 }}">{{ fmt(e.mean_plddt) }}</td>
+          <td class="num" data-sort="{{ e.tm_by_experiment if e.tm_by_experiment is not none else -1 }}">{{ fmt(e.tm_by_experiment) }}</td>
+          <td class="num" data-sort="{{ e.lddt if e.lddt is not none else -1 }}">{{ fmt(e.lddt) }}</td>
+          <td class="num" data-sort="{{ e.gdt_ts if e.gdt_ts is not none else -1 }}">{{ fmt(e.gdt_ts) }}</td>
+          <td class="num" data-sort="{{ e.ca_rmsd if e.ca_rmsd is not none else -1 }}">{{ fmt(e.ca_rmsd) }}</td>
+          <td class="num" data-sort="{{ e.fraud_score if e.fraud_score is not none else -1 }}">{{ fmt(e.fraud_score) }}</td>
+          <td>{% if e.confidently_wrong %}<span class="badge wrong">wrong</span>{% else %}<span class="badge ok">ok</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">Click a column header to sort. FRAUD = confidence-weighted error; a structure is
+  flagged <b>confidently wrong</b> when mean pLDDT &gt; 70 yet TM-score &lt; 0.5.</p>
+{% endblock %}

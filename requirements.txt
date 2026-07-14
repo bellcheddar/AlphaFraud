@@ -1,0 +1,13 @@
+# AlphaFraud runtime dependencies -- all pip-only, no compiled toolchain needed on the droplet.
+requests>=2.31          # RCSB + AlphaFold DB HTTP calls
+tenacity>=8.2           # retry/backoff for the three external APIs
+biotite>=0.41           # structure IO, superposition, alignment, SSE (annotate_sse), backbone torsions
+tmtools>=0.2.0          # TM-align bindings: TM-score + RMSD + rotation
+numpy>=1.24
+scipy>=1.10             # Voronoi (CAD-score), correlations
+pandas>=2.0
+plotly>=5.20            # figure JSON for the web app
+flask>=3.0              # web app
+gunicorn>=21.2          # prod WSGI server (Linux droplet)
+jinja2>=3.1             # templates (pulled in by flask, pinned for clarity)
+python-dotenv>=1.0      # .env: droplet SSH target, docroot, server name

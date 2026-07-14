@@ -1,0 +1,24 @@
+# systemd unit for the AlphaFraud web app (gunicorn behind nginx). Always on.
+# Installed to /etc/systemd/system/alphafraud-web.service by provision.sh.
+[Unit]
+Description=AlphaFraud web app (gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=alphafraud
+Group=alphafraud
+WorkingDirectory=/opt/alphafraud
+EnvironmentFile=-/opt/alphafraud/.env
+ExecStart=/opt/alphafraud/.venv/bin/gunicorn --config /opt/alphafraud/deploy/gunicorn.conf.py wsgi:app
+Restart=on-failure
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/alphafraud
+
+[Install]
+WantedBy=multi-user.target
