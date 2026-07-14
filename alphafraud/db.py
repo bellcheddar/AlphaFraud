@@ -81,9 +81,12 @@ def _now() -> str:
 
 @contextmanager
 def connect() -> Iterator[sqlite3.Connection]:
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(config.DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    # Wait (up to 30s) for another writer rather than erroring -- lets a long backfill and
+    # the weekly timer run (and the web app's reads) share the database without conflict.
+    conn.execute("PRAGMA busy_timeout=30000")
     try:
         yield conn
         conn.commit()
