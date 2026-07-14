@@ -80,7 +80,17 @@ def cmd_run(args) -> int:
 def cmd_backfill(args) -> int:
     from alphafraud import pipeline
 
-    pipeline.run(_parse_date(getattr(args, "from")), _parse_date(args.to), limit=args.limit)
+    if args.all:
+        pipeline.backfill_all(tm_threshold=args.tm_threshold, limit_per_chunk=args.limit)
+        return 0
+    if not getattr(args, "from") or not args.to:
+        banner.err("backfill needs --from and --to (or --all).")
+        return 1
+    since, until = _parse_date(getattr(args, "from")), _parse_date(args.to)
+    if args.two_tier:
+        pipeline.backfill_two_tier(since, until, tm_threshold=args.tm_threshold, limit=args.limit)
+    else:
+        pipeline.run(since, until, limit=args.limit)
     return 0
 
 
@@ -130,9 +140,15 @@ def main(argv=None) -> int:
     p_run.set_defaults(func=cmd_run)
 
     p_bf = sub.add_parser("backfill", help="process a historical window")
-    p_bf.add_argument("--from", required=True, help="YYYY-MM-DD")
-    p_bf.add_argument("--to", required=True, help="YYYY-MM-DD")
-    p_bf.add_argument("--limit", type=int)
+    p_bf.add_argument("--from", help="YYYY-MM-DD (start of window)")
+    p_bf.add_argument("--to", help="YYYY-MM-DD (end of window)")
+    p_bf.add_argument("--all", action="store_true",
+                      help="two-tier backfill of the entire post-cutoff archive (monthly chunks)")
+    p_bf.add_argument("--two-tier", action="store_true",
+                      help="TM-score screen everything, full metrics only below --tm-threshold")
+    p_bf.add_argument("--tm-threshold", type=float, default=0.7,
+                      help="TM-score below which an entity gets the full metric suite (default 0.7)")
+    p_bf.add_argument("--limit", type=int, help="max entities (per chunk when --all)")
     p_bf.set_defaults(func=cmd_backfill)
 
     sub.add_parser("status", help="database summary + leaderboard").set_defaults(func=cmd_status)

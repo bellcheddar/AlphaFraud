@@ -192,11 +192,13 @@ def list_weeks() -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def entities_for_week(label: str, compared_only: bool = True) -> list[dict]:
-    q = """SELECT * FROM entities WHERE run_id IN (SELECT id FROM runs WHERE label=?)"""
-    if compared_only:
-        q += " AND status='compared'"
-    q += " ORDER BY fraud_score DESC"
+# Both tiers count as "analysed": 'screened' (TM-only) and 'compared' (full metrics).
+ANALYSED = "status IN ('screened','compared')"
+
+
+def entities_for_week(label: str) -> list[dict]:
+    q = (f"SELECT * FROM entities WHERE run_id IN (SELECT id FROM runs WHERE label=?) "
+         f"AND {ANALYSED} ORDER BY fraud_score DESC")
     with connect() as conn:
         return [dict(r) for r in conn.execute(q, (label,)).fetchall()]
 
@@ -208,7 +210,7 @@ def get_entity(entity_id: str) -> Optional[dict]:
 
 
 def leaderboard(limit: int = 100, novel_only: bool = False) -> list[dict]:
-    q = "SELECT * FROM entities WHERE status='compared'"
+    q = f"SELECT * FROM entities WHERE {ANALYSED}"
     if novel_only:
         q += " AND is_novel=1"
     # Worst first: confidently wrong, then high fraud score, then low TM.
@@ -226,7 +228,7 @@ def weekly_aggregates() -> list[dict]:
                       SUM(e.confidently_wrong) AS confidently_wrong,
                       COUNT(*) AS n_compared
                FROM entities e JOIN runs r ON e.run_id = r.id
-               WHERE e.status='compared'
+               WHERE e.status IN ('screened','compared')
                GROUP BY r.label ORDER BY r.label ASC"""
         ).fetchall()
         return [dict(r) for r in rows]
@@ -235,8 +237,9 @@ def weekly_aggregates() -> list[dict]:
 def overall_stats() -> dict:
     with connect() as conn:
         row = conn.execute(
-            """SELECT COUNT(*) n, SUM(confidently_wrong) cw, SUM(is_novel) novel,
-                      AVG(tm_by_experiment) avg_tm, AVG(lddt) avg_lddt
-               FROM entities WHERE status='compared'"""
+            f"""SELECT COUNT(*) n, SUM(confidently_wrong) cw, SUM(is_novel) novel,
+                       AVG(tm_by_experiment) avg_tm, AVG(lddt) avg_lddt,
+                       SUM(status='compared') fully
+                FROM entities WHERE {ANALYSED}"""
         ).fetchone()
         return dict(row) if row else {}

@@ -48,12 +48,14 @@ def _fig(fig: go.Figure) -> str:
 # --------------------------------------------------------------------------------------
 def kpis(entities: list[dict]) -> dict:
     n = len(entities)
+    fully = sum(1 for e in entities if e.get("status") == "compared")
     cw = sum(1 for e in entities if e.get("confidently_wrong"))
     novel = sum(1 for e in entities if e.get("is_novel"))
     novel_wrong = sum(1 for e in entities if e.get("is_novel") and e.get("confidently_wrong"))
     tms = [e["tm_by_experiment"] for e in entities if e.get("tm_by_experiment") is not None]
     return {
-        "n_compared": n,
+        "n_analysed": n,
+        "n_fully": fully,
         "confidently_wrong": cw,
         "novel": novel,
         "novel_and_wrong": novel_wrong,

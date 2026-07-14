@@ -25,6 +25,14 @@
     {% if e.af_entry_id %}<a href="https://alphafold.ebi.ac.uk/entry/{{ e.uniprot }}" target="_blank" rel="noopener">{{ e.af_entry_id }} (v{{ e.af_model_version }})</a>{% endif %}
   </p>
 
+  {% if e.status == 'screened' %}
+  <div class="card" style="border-left:4px solid var(--amber)">
+    <b>Screen-only record.</b> This structure passed the fast TM-score screen (TM {{ fmt(metrics.tm_by_experiment) }})
+    and AlphaFold agrees well with experiment, so the full metric suite, novelty score and heatmaps were not
+    computed. Full analysis is reserved for the disagreements (TM below the screening threshold).
+  </div>
+  {% endif %}
+
   <div class="kpis">
     <div class="kpi good"><div class="n">{{ fmt(metrics.tm_by_experiment) }}</div><div class="l">TM-score</div></div>
     <div class="kpi"><div class="n">{{ fmt(metrics.lddt) }}</div><div class="l">lDDT</div></div>

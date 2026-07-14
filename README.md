@@ -71,8 +71,16 @@ python3 AlphaFraud.py run --since 2024-01-01 --until 2024-01-10 --limit 6 --dry-
 # Process a window for real (omit --since to resume from the last run)
 python3 AlphaFraud.py run --since 2024-01-01 --limit 50
 
-# Backfill a historical range
+# Backfill a historical range (full metrics on everything)
 python3 AlphaFraud.py backfill --from 2023-01-01 --to 2023-12-31
+
+# Two-tier backfill: fast TM-score screen on everything, full metrics only on the
+# disagreements (TM below --tm-threshold). Far cheaper on time, disk and API load.
+python3 AlphaFraud.py backfill --from 2023-01-01 --to 2023-12-31 --two-tier --tm-threshold 0.7
+
+# Two-tier backfill of the ENTIRE post-cutoff archive (~96k entities, monthly chunks,
+# resumable). Screens all, fully analyses only the tail AlphaFold got wrong.
+python3 AlphaFraud.py backfill --all --two-tier
 
 # Database summary + worst-offenders leaderboard
 python3 AlphaFraud.py status
@@ -85,7 +93,7 @@ python3 AlphaFraud.py serve --port 8000
 |---|---|
 | `init` | Create directories, the SQLite schema, and vendor `plotly.min.js` |
 | `run` | Discover, match, score and store one deposit window (`--since`, `--until`, `--limit`, `--dry-run`) |
-| `backfill` | Process a historical window (`--from`, `--to`) |
+| `backfill` | Process a historical window (`--from`, `--to`); `--two-tier` screens by TM-score and fully analyses only disagreements below `--tm-threshold`; `--all` covers the entire post-cutoff archive in resumable monthly chunks |
 | `status` | Print a database summary and the current leaderboard |
 | `serve` | Run the Flask app locally (`--port`, `--debug`) |
 

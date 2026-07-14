@@ -100,6 +100,21 @@ def _tm_scores(exp: Chain, af: Chain) -> dict:
     }
 
 
+def screen(exp: Chain, af: Chain, mean_plddt: Optional[float]) -> dict:
+    """Tier-1 screen: TM-score only (one TM-align), plus a cheap proxy FRAUD and the
+    confidently-wrong flag from mean pLDDT alone. No PAE, novelty, domains or O(n^2)
+    metrics -- fast enough to run across the whole archive. Tier 2 recomputes the true
+    FRAUD (per-residue, confidence-weighted) only for the disagreements this surfaces."""
+    tm = _tm_scores(exp, af)
+    tm_exp = tm["tm_by_experiment"]
+    proxy_fraud = round((mean_plddt / 100.0) * (1.0 - tm_exp), 4) if mean_plddt is not None else None
+    confidently_wrong = bool(
+        mean_plddt is not None and mean_plddt > config.CONFIDENT_PLDDT and tm_exp < config.WRONG_TM
+    )
+    return {**tm, "mean_plddt": mean_plddt, "fraud_score": proxy_fraud,
+            "confidently_wrong": confidently_wrong}
+
+
 def _gdt(dev: np.ndarray, thresholds) -> float:
     return float(np.mean([np.mean(dev <= t) for t in thresholds]) * 100.0)
 
