@@ -58,11 +58,6 @@ nav.main a {
 }
 nav.main a:hover { background: rgba(255,255,255,.12); text-decoration: none; }
 nav.main a.active { background: var(--bg); color: var(--primary); }
-nav.main .spacer { flex: 1; }
-button.theme {
-  background: rgba(255,255,255,.15); color: #fff; border: 0; border-radius: 8px;
-  padding: 7px 12px; cursor: pointer; font-size: 13px; margin-bottom: 8px;
-}
 
 main { padding: 26px 0 60px; }
 h1, h2, h3 { line-height: 1.25; }

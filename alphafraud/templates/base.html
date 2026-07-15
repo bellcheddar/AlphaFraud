@@ -18,8 +18,6 @@
         <a href="{{ url_for('index') }}" {% if active=='latest' %}class="active"{% endif %}>All structures</a>
         <a href="{{ url_for('leaderboard') }}" {% if active=='leaderboard' %}class="active"{% endif %}>Worst offenders</a>
         <a href="{{ url_for('archive') }}" {% if active=='archive' %}class="active"{% endif %}>Archive</a>
-        <span class="spacer"></span>
-        <button class="theme" onclick="toggleTheme()">◐ theme</button>
       </nav>
     </div>
   </header>

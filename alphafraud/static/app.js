@@ -2,23 +2,8 @@
 (function () {
   "use strict";
 
-  // ---- Theme ----
-  function applyTheme(t) {
-    document.documentElement.setAttribute("data-theme", t);
-    try { localStorage.setItem("af-theme", t); } catch (e) {}
-  }
-  window.toggleTheme = function () {
-    var cur = document.documentElement.getAttribute("data-theme");
-    if (!cur) {
-      cur = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
-    applyTheme(cur === "dark" ? "light" : "dark");
-    renderPlots(); // re-render so Plotly picks up new font colors
-  };
-  try {
-    var saved = localStorage.getItem("af-theme");
-    if (saved) document.documentElement.setAttribute("data-theme", saved);
-  } catch (e) {}
+  // Theme follows the viewer's OS setting via CSS @media (prefers-color-scheme); there is
+  // no manual switcher.
 
   // ---- Plotly ----
   // Set the width explicitly from the container. autosize/responsive proved unreliable on
