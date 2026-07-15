@@ -67,7 +67,28 @@ def kpis(entities: list[dict]) -> dict:
 # --------------------------------------------------------------------------------------
 # Signature scatter
 # --------------------------------------------------------------------------------------
+def _downsample_points(entities: list[dict], cap: int = 6000) -> tuple[list[dict], int]:
+    """Keep the scatter light and WebGL-free: retain every 'interesting' point (confidently
+    wrong or novel) and randomly sample the dense, well-predicted cluster down to `cap`.
+    Returns (points, n_sampled_omitted)."""
+    if len(entities) <= cap:
+        return entities, 0
+    import random
+
+    must = [e for e in entities if e.get("confidently_wrong") or e.get("is_novel")]
+    rest = [e for e in entities if not (e.get("confidently_wrong") or e.get("is_novel"))]
+    budget = cap - len(must)
+    if budget <= 0:
+        kept = random.sample(must, cap)
+    elif len(rest) > budget:
+        kept = must + random.sample(rest, budget)
+    else:
+        kept = must + rest
+    return kept, len(entities) - len(kept)
+
+
 def fraud_scatter(entities: list[dict]) -> str:
+    points, omitted = _downsample_points(entities)
     fig = go.Figure()
     # Shade the fraud quadrant: confident (pLDDT > threshold) yet wrong (TM < threshold).
     fig.add_shape(
@@ -79,18 +100,17 @@ def fraud_scatter(entities: list[dict]) -> str:
         text="confidently wrong", showarrow=False,
         font=dict(color=BRAND["red"], size=12), opacity=0.7,
     )
-    # WebGL renderer once the cloud gets large (the cumulative "All" view can be ~100k points).
-    Trace = go.Scattergl if len(entities) > 3000 else go.Scatter
     for novel, color, name in [(1, BRAND["amber"], "novel sequence"), (0, BRAND["primary"], "has pre-cutoff homolog")]:
-        pts = [e for e in entities if bool(e.get("is_novel")) == bool(novel)
+        pts = [e for e in points if bool(e.get("is_novel")) == bool(novel)
                and e.get("mean_plddt") is not None and e.get("tm_by_experiment") is not None]
         if not pts:
             continue
-        kwargs = dict(
+        fig.add_trace(go.Scatter(
             x=[e["mean_plddt"] for e in pts],
             y=[e["tm_by_experiment"] for e in pts],
             mode="markers",
             name=name,
+            cliponaxis=False,   # render markers fully even at the axis edges (pLDDT~100, TM~1)
             marker=dict(
                 color=color, size=[8 + 30 * (e.get("fraud_score") or 0) for e in pts],
                 line=dict(width=0.5, color="white"), opacity=0.8,
@@ -100,10 +120,11 @@ def fraud_scatter(entities: list[dict]) -> str:
             hovertemplate=("<b>%{customdata[0]}</b> (%{customdata[1]})<br>"
                            "pLDDT %{x:.1f} · TM %{y:.3f}<br>"
                            "FRAUD %{customdata[2]:.3f} · novelty id %{customdata[3]}%<extra></extra>"),
-        )
-        if Trace is go.Scatter:
-            kwargs["cliponaxis"] = False   # render edge markers fully (not supported by scattergl)
-        fig.add_trace(Trace(**kwargs))
+        ))
+    if omitted:
+        fig.add_annotation(x=0, y=1.02, xref="paper", yref="paper", showarrow=False,
+                           xanchor="left", font=dict(size=11, color=BRAND["muted"] if "muted" in BRAND else "#5b6b7a"),
+                           text=f"all confidently-wrong & novel shown; {omitted:,} well-predicted points sampled out")
     fig.update_layout(
         title="AlphaFold confidence vs. agreement with experiment",
         xaxis_title="mean pLDDT (AlphaFold confidence)",
