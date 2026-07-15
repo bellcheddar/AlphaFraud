@@ -16,8 +16,9 @@ Routes:
 from __future__ import annotations
 
 import json
+import os
 
-from flask import Flask, abort, jsonify, render_template
+from flask import Flask, abort, jsonify, render_template, url_for
 
 from . import __version__, banner, db, report
 
@@ -77,6 +78,18 @@ METRIC_GROUPS = [
 def create_app() -> Flask:
     app = Flask(__name__)
     db.init_schema()
+
+    @app.context_processor
+    def _asset_helper():
+        # Append the file's mtime as ?v= so a redeploy busts the browser cache even though
+        # nginx serves /static/ with a 7-day expiry (query string changes -> fresh fetch).
+        def asset(filename):
+            try:
+                v = int(os.path.getmtime(os.path.join(app.static_folder, filename)))
+            except OSError:
+                v = 0
+            return url_for("static", filename=filename, v=v)
+        return {"asset": asset}
 
     @app.route("/")
     def index():

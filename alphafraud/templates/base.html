@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}AlphaFraud{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}">
-  <script src="{{ url_for('static', filename='plotly.min.js') }}"></script>
-  <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+  <link rel="stylesheet" href="{{ asset('brand.css') }}">
+  <script src="{{ asset('plotly.min.js') }}"></script>
+  <script defer src="{{ asset('app.js') }}"></script>
 </head>
 <body>
   <header class="site">
