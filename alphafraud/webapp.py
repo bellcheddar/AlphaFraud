@@ -78,7 +78,9 @@ METRIC_GROUPS = [
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    db.init_schema()
+    # The web app is a pure reader -- it does NOT init the schema (that would be a write on
+    # every gunicorn restart, contending with a running backfill). The schema is created by
+    # `AlphaFraud.py init` (provisioning) and by every pipeline run.
 
     @app.context_processor
     def _asset_helper():

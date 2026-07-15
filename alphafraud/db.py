@@ -83,9 +83,11 @@ def _now() -> str:
 def connect() -> Iterator[sqlite3.Connection]:
     conn = sqlite3.connect(config.DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    # Wait (up to 30s) for another writer rather than erroring -- lets a long backfill and
-    # the weekly timer run (and the web app's reads) share the database without conflict.
+    # WAL is a PERSISTENT property of the database file -- set once in init_schema(), never
+    # here. Running `PRAGMA journal_mode=WAL` on every connection needs a brief write lock,
+    # and when a deploy restarts the web service (which also opens the DB) that collided
+    # with the backfill's writes and surfaced as "attempt to write a readonly database".
+    # busy_timeout is per-connection and harmless -- wait for a writer rather than erroring.
     conn.execute("PRAGMA busy_timeout=30000")
     try:
         yield conn
@@ -96,27 +98,45 @@ def connect() -> Iterator[sqlite3.Connection]:
 
 def init_schema() -> None:
     with connect() as conn:
+        conn.execute("PRAGMA journal_mode=WAL")   # persisted in the DB header; set once
         conn.executescript(SCHEMA)
+
+
+def _retry_write(action, attempts: int = 6, base_delay: float = 0.4):
+    """Retry a DB write through a transient OperationalError (a locked/readonly window, e.g.
+    a concurrent web-service restart) instead of letting a multi-day backfill crash."""
+    import time
+    for i in range(attempts):
+        try:
+            return action()
+        except sqlite3.OperationalError:
+            if i == attempts - 1:
+                raise
+            time.sleep(base_delay * (i + 1))
 
 
 # --------------------------------------------------------------------------------------
 # Runs
 # --------------------------------------------------------------------------------------
 def start_run(label: str, since: str, until: str) -> int:
-    with connect() as conn:
-        cur = conn.execute(
-            "INSERT INTO runs(label, since, until, started_at, status) VALUES (?,?,?,?, 'running')",
-            (label, since, until, _now()),
-        )
-        return int(cur.lastrowid)
+    def _do():
+        with connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO runs(label, since, until, started_at, status) VALUES (?,?,?,?, 'running')",
+                (label, since, until, _now()),
+            )
+            return int(cur.lastrowid)
+    return _retry_write(_do)
 
 
 def finish_run(run_id: int, n_discovered: int, n_compared: int, n_skipped: int) -> None:
-    with connect() as conn:
-        conn.execute(
-            "UPDATE runs SET finished_at=?, n_discovered=?, n_compared=?, n_skipped=?, status='done' WHERE id=?",
-            (_now(), n_discovered, n_compared, n_skipped, run_id),
-        )
+    def _do():
+        with connect() as conn:
+            conn.execute(
+                "UPDATE runs SET finished_at=?, n_discovered=?, n_compared=?, n_skipped=?, status='done' WHERE id=?",
+                (_now(), n_discovered, n_compared, n_skipped, run_id),
+            )
+    _retry_write(_do)
 
 
 def entity_exists(entity_id: str) -> bool:
@@ -165,8 +185,11 @@ def upsert_entity(rec: dict) -> None:
     }
     cols = ", ".join(row)
     placeholders = ", ".join(f":{c}" for c in row)
-    with connect() as conn:
-        conn.execute(f"INSERT OR REPLACE INTO entities ({cols}) VALUES ({placeholders})", row)
+
+    def _do():
+        with connect() as conn:
+            conn.execute(f"INSERT OR REPLACE INTO entities ({cols}) VALUES ({placeholders})", row)
+    _retry_write(_do)
 
 
 def _as_int(v) -> Optional[int]:
