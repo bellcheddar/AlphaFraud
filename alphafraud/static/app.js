@@ -7,23 +7,45 @@
 
   // ---- Plotly ----
   // Set the width explicitly from the container. autosize/responsive proved unreliable on
-  // narrow (mobile) widths -- Plotly kept a desktop width and overflowed the viewport -- so
-  // we pin layout.width to the element's own width and re-render on resize.
+  // We pin layout.width to the plot element's own width (autosize/responsive proved
+  // unreliable on narrow widths). On mobile we also fix the aspect ratio and shrink/stack
+  // the title, legends and axis fonts so nothing clips or overlaps.
   function renderPlots() {
     if (typeof Plotly === "undefined") return;
+    var vw = document.documentElement.clientWidth || window.innerWidth || 360;
+    var mobile = vw < 620;
     document.querySelectorAll("script[data-target]").forEach(function (s) {
       var el = document.getElementById(s.getAttribute("data-target"));
       if (!el) return;
       var fig;
-      try { fig = JSON.parse(s.textContent); } catch (e) { return; }
+      try { fig = JSON.parse(s.textContent); } catch (e) { return; }   // fresh clone each call
       var layout = fig.layout || {};
-      // Cap width to the viewport (minus the wrap+card horizontal padding, ~72px). Once a
-      // plot has overshot the viewport the page itself is over-wide, so el.clientWidth reads
-      // too large -- the viewport is the only stable reference for the ceiling.
-      var vw = document.documentElement.clientWidth || window.innerWidth || 360;
-      var w = Math.min(el.clientWidth || vw, vw - 72);
+      var w = el.clientWidth || (vw - 32);
       layout.width = w;
       layout.autosize = false;
+
+      if (mobile) {
+        // Squarer aspect so bubbles aren't vertically squished on a narrow screen.
+        layout.height = Math.max(320, Math.round(w * 0.95));
+        var hasL2 = !!layout.legend2, hasL = !!layout.legend;
+        layout.margin = { l: 46, r: 14, t: hasL2 ? 120 : (hasL ? 92 : 54), b: 58 };
+        if (layout.title) {
+          layout.title.font = Object.assign({}, layout.title.font, { size: 13 });
+          layout.title.x = 0.5; layout.title.xanchor = "center"; layout.title.y = 0.985;
+        }
+        // Stack the two legends (colour above size) instead of side by side.
+        if (hasL) layout.legend = Object.assign({}, layout.legend,
+          { x: 0, xanchor: "left", y: hasL2 ? 1.19 : 1.12, font: { size: 10 } });
+        if (hasL2) layout.legend2 = Object.assign({}, layout.legend2,
+          { x: 0, xanchor: "left", y: 1.09, font: { size: 10 } });
+        ["xaxis", "yaxis", "xaxis2", "yaxis2"].forEach(function (ax) {
+          if (layout[ax] && layout[ax].title) {
+            layout[ax].title.font = Object.assign({}, layout[ax].title.font, { size: 11 });
+          }
+        });
+      } else if (!layout.height) {
+        layout.height = 440;
+      }
       Plotly.react(el, fig.data, layout, { displayModeBar: false, responsive: false });
     });
   }
