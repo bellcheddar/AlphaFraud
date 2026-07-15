@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import date
 
 from flask import Flask, abort, jsonify, render_template, url_for
 
@@ -93,10 +94,9 @@ def create_app() -> Flask:
 
     @app.route("/")
     def index():
-        label = db.latest_run_label()
-        if not label:
+        if not db.latest_run_label():
             return render_template("empty.html", banner=banner.BANNER_ART, version=__version__)
-        return _render_week(label)
+        return _render_all()
 
     @app.route("/week/<label>")
     def week(label):
@@ -141,6 +141,34 @@ def create_app() -> Flask:
     return app
 
 
+TABLE_CAP = 500   # rows shown in the cumulative "All" table (the rest live in weeks/leaderboard)
+
+
+def _render_all():
+    """The default landing page: cumulative view across every processed week."""
+    rows = db.all_entities_scalar()          # all analysed entities, worst-FRAUD first
+    weekly = db.weekly_aggregates()
+    figures = {
+        "scatter": report.fraud_scatter(rows),
+        "histograms": report.metric_histograms(rows),
+        "trend": report.trend_figure(weekly) if len(weekly) > 1 else None,
+    }
+    return render_template(
+        "week.html",
+        banner=banner.BANNER_ART,
+        label="All",
+        is_all=True,
+        today=date.today().isoformat(),
+        total_count=len(rows),
+        table_cap=TABLE_CAP,
+        entities=rows[:TABLE_CAP],
+        kpis=report.kpis(rows),
+        figures=figures,
+        weeks=db.list_weeks(),
+        version=__version__,
+    )
+
+
 def _render_week(label):
     entities = db.entities_for_week(label)
     weeks = db.list_weeks()
@@ -156,6 +184,7 @@ def _render_week(label):
         "week.html",
         banner=banner.BANNER_ART,
         label=label,
+        is_all=False,
         entities=entities,
         kpis=report.kpis(entities),
         figures=figures,

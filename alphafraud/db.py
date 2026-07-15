@@ -212,6 +212,24 @@ def entities_for_week(label: str) -> list[dict]:
         return [dict(r) for r in conn.execute(q, (label,)).fetchall()]
 
 
+# Scalar columns only (no JSON blobs) -- cheap to pull for every analysed entity, which
+# the cumulative "All" view needs for its scatter, histograms, KPIs and top-N table.
+_SCALAR_COLS = (
+    "entity_id, entry_id, chain, uniprot, description, deposit_date, resolution, method, "
+    "novelty_identity, is_novel, mean_plddt, tm_by_experiment, lddt, gdt_ts, ca_rmsd, "
+    "fraud_score, confidently_wrong, status"
+)
+
+
+def all_entities_scalar() -> list[dict]:
+    """Every analysed entity (both tiers), scalar columns only, worst-FRAUD first."""
+    with connect() as conn:
+        rows = conn.execute(
+            f"SELECT {_SCALAR_COLS} FROM entities WHERE {ANALYSED} ORDER BY fraud_score DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def get_entity(entity_id: str) -> Optional[dict]:
     with connect() as conn:
         row = conn.execute("SELECT * FROM entities WHERE entity_id=?", (entity_id,)).fetchone()

@@ -13,12 +13,18 @@
 {% macro r2(v) %}{% if v is none %}—{% elif v is number %}{{ '%.2f'|format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
 
 {% block content %}
+  {% if is_all %}
+  <h1>All structures</h1>
+  <p class="sub">Cumulative across every processed release week, to {{ today }}.</p>
+  {% else %}
   <h1>Release week {{ label }}</h1>
+  {% endif %}
   <div class="week-select">
-    <label for="weekpick">Jump to week:</label>
+    <label for="weekpick">Jump to:</label>
     <select id="weekpick" onchange="if(this.value)window.location=this.value">
+      <option value="{{ url_for('index') }}" {% if is_all %}selected{% endif %}>All structures</option>
       {% for w in weeks %}
-      <option value="{{ url_for('week', label=w.label) }}" {% if w.label == label %}selected{% endif %}>{{ w.label }} ({{ w.n_compared }})</option>
+      <option value="{{ url_for('week', label=w.label) }}" {% if not is_all and w.label == label %}selected{% endif %}>{{ w.label }} ({{ w.n_compared }})</option>
       {% endfor %}
     </select>
   </div>
@@ -35,7 +41,10 @@
   {{ figure(figures.histograms, 'histograms') }}
   {{ figure(figures.trend, 'trend') }}
 
-  <h2>All matched structures</h2>
+  <h2>Matched structures</h2>
+  {% if is_all and total_count > table_cap %}
+  <p class="hint">Showing the top {{ table_cap }} of {{ total_count }} by FRAUD score. Open a specific week above, or the <a href="{{ url_for('leaderboard') }}">worst-offenders leaderboard</a>, for the full ranked list.</p>
+  {% endif %}
   <div class="toolbar">
     <input type="search" id="tableSearch" placeholder="filter by PDB id, UniProt, gene, description…">
     <label><input type="checkbox" id="wrongOnly"> confidently wrong only</label>

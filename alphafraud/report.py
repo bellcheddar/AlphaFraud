@@ -79,17 +79,18 @@ def fraud_scatter(entities: list[dict]) -> str:
         text="confidently wrong", showarrow=False,
         font=dict(color=BRAND["red"], size=12), opacity=0.7,
     )
+    # WebGL renderer once the cloud gets large (the cumulative "All" view can be ~100k points).
+    Trace = go.Scattergl if len(entities) > 3000 else go.Scatter
     for novel, color, name in [(1, BRAND["amber"], "novel sequence"), (0, BRAND["primary"], "has pre-cutoff homolog")]:
         pts = [e for e in entities if bool(e.get("is_novel")) == bool(novel)
                and e.get("mean_plddt") is not None and e.get("tm_by_experiment") is not None]
         if not pts:
             continue
-        fig.add_trace(go.Scatter(
+        kwargs = dict(
             x=[e["mean_plddt"] for e in pts],
             y=[e["tm_by_experiment"] for e in pts],
             mode="markers",
             name=name,
-            cliponaxis=False,   # render markers fully even at the axis edges (pLDDT~100, TM~1)
             marker=dict(
                 color=color, size=[8 + 30 * (e.get("fraud_score") or 0) for e in pts],
                 line=dict(width=0.5, color="white"), opacity=0.8,
@@ -99,7 +100,10 @@ def fraud_scatter(entities: list[dict]) -> str:
             hovertemplate=("<b>%{customdata[0]}</b> (%{customdata[1]})<br>"
                            "pLDDT %{x:.1f} · TM %{y:.3f}<br>"
                            "FRAUD %{customdata[2]:.3f} · novelty id %{customdata[3]}%<extra></extra>"),
-        ))
+        )
+        if Trace is go.Scatter:
+            kwargs["cliponaxis"] = False   # render edge markers fully (not supported by scattergl)
+        fig.add_trace(Trace(**kwargs))
     fig.update_layout(
         title="AlphaFold confidence vs. agreement with experiment",
         xaxis_title="mean pLDDT (AlphaFold confidence)",
@@ -121,7 +125,7 @@ def metric_histograms(entities: list[dict]) -> str:
                                marker_color=BRAND["amber"], nbinsx=25), row=1, col=2)
     fig.add_trace(go.Histogram(x=[e["lddt"] for e in entities if e.get("lddt") is not None],
                                marker_color=BRAND["green"], nbinsx=25), row=1, col=3)
-    fig.update_layout(title="Distribution across this batch", showlegend=False)
+    fig.update_layout(title="Metric distributions", showlegend=False)
     return _fig(fig)
 
 
