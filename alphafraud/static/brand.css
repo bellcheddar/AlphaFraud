@@ -122,6 +122,15 @@ footer.site { border-top: 1px solid var(--border); color: var(--muted); font-siz
 footer.site code { font-family: var(--mono); background: var(--card); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); }
 .hint { color: var(--muted); font-size: 13px; }
 
+/* Download-CSV buttons under plots and tables */
+.dlbar { text-align: right; margin-top: 8px; }
+.dl {
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 6px; padding: 5px 11px; font-size: 12px; cursor: pointer; font-family: inherit;
+}
+.dl:hover { color: var(--primary); border-color: var(--primary); }
+.plot-caption { margin: 8px 0 0; }
+
 @media (max-width: 560px) {
   .wrap { padding: 0 14px; }
   header.site { padding: 14px 0 0; }

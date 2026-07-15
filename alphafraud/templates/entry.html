@@ -4,7 +4,10 @@
 
 {% macro figure(fig_json, dom_id) %}
   {% if fig_json %}
-  <div class="card"><div class="plot" id="{{ dom_id }}"></div></div>
+  <div class="card">
+    <div class="plot" id="{{ dom_id }}"></div>
+    <div class="dlbar"><button class="dl" onclick="downloadPlotCsv('{{ dom_id }}','{{ e.entry_id }}_{{ dom_id }}.csv')">⬇ Download CSV</button></div>
+  </div>
   <script type="application/json" data-target="{{ dom_id }}">{{ fig_json | safe }}</script>
   {% endif %}
 {% endmacro %}
@@ -53,7 +56,7 @@
   {% if domains %}
   <h2>Per-domain breakdown</h2>
   <div class="tablewrap">
-    <table class="sortable">
+    <table id="domainsTable" class="sortable">
       <thead><tr><th>Source</th><th>Domain</th><th>Range</th><th>Residues</th><th>TM</th><th>RMSD Å</th><th>mean Cα Δ</th><th>Name</th></tr></thead>
       <tbody>
         {% for d in domains %}
@@ -67,6 +70,7 @@
       </tbody>
     </table>
   </div>
+  <div class="dlbar"><button class="dl" onclick="downloadTableCsv('domainsTable','{{ e.entry_id }}_domains.csv')">⬇ Download CSV</button></div>
   {% endif %}
 
   <h2>All metrics</h2>

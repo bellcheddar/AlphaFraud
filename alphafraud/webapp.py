@@ -164,6 +164,7 @@ def _render_all():
         entities=rows[:TABLE_CAP],
         kpis=report.kpis(rows),
         figures=figures,
+        scatter_note=report.sampling_note(rows),
         weeks=db.list_weeks(),
         version=__version__,
     )
@@ -188,6 +189,7 @@ def _render_week(label):
         entities=entities,
         kpis=report.kpis(entities),
         figures=figures,
+        scatter_note=report.sampling_note(entities),
         weeks=weeks,
         version=__version__,
     )

@@ -88,6 +88,54 @@
     });
   }
 
+  // ---- CSV export ----
+  function csvEscape(v) {
+    v = (v == null ? "" : String(v));
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+  function triggerCsv(rows, filename) {
+    var csv = rows.map(function (r) { return r.map(csvEscape).join(","); }).join("\n");
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = filename || "alphafraud.csv";
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  }
+  window.downloadTableCsv = function (tableId, filename) {
+    var t = document.getElementById(tableId);
+    if (!t || !t.tHead || !t.tBodies[0]) return;
+    var rows = [[]];
+    Array.prototype.forEach.call(t.tHead.rows[0].cells, function (c) { rows[0].push(c.textContent.trim()); });
+    Array.prototype.forEach.call(t.tBodies[0].rows, function (tr) {
+      if (tr.style.display === "none") return;   // respect the active filter
+      var row = [];
+      Array.prototype.forEach.call(tr.cells, function (c) { row.push(c.textContent.trim()); });
+      rows.push(row);
+    });
+    triggerCsv(rows, filename);
+  };
+  window.downloadPlotCsv = function (plotId, filename) {
+    var el = document.getElementById(plotId);
+    if (!el || !el.data) return;
+    var data = el.data, rows = [];
+    if (data.some(function (t) { return t.z; })) {            // heatmap -> dump the z matrix
+      data.filter(function (t) { return t.z; })[0].z.forEach(function (r) { rows.push(r.slice()); });
+    } else {
+      var hasCd = data.some(function (t) { return t.customdata; });
+      rows.push(hasCd ? ["trace", "x", "y", "label"] : ["trace", "x", "y"]);
+      data.forEach(function (t) {
+        var x = t.x || [], y = t.y || [], cd = t.customdata || [], n = Math.max(x.length, y.length);
+        for (var i = 0; i < n; i++) {
+          if (x[i] == null && y[i] == null) continue;         // skips the empty size-legend traces
+          var row = [t.name || "", x[i], y[i]];
+          if (hasCd) row.push(cd[i] ? cd[i][0] : "");
+          rows.push(row);
+        }
+      });
+    }
+    triggerCsv(rows, filename);
+  };
+
   document.addEventListener("DOMContentLoaded", function () {
     renderPlots();
     document.querySelectorAll("table.sortable").forEach(initTable);

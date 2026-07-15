@@ -95,10 +95,11 @@ def fraud_scatter(entities: list[dict]) -> str:
         type="rect", x0=config.CONFIDENT_PLDDT, x1=102, y0=0, y1=config.WRONG_TM,
         fillcolor="rgba(214,39,40,0.08)", line=dict(width=0), layer="below",
     )
+    # Label sits at the inside-bottom of the box so it never overlaps the data points.
     fig.add_annotation(
-        x=(config.CONFIDENT_PLDDT + 100) / 2, y=config.WRONG_TM / 2,
+        x=(config.CONFIDENT_PLDDT + 102) / 2, y=0.015, yanchor="bottom",
         text="confidently wrong", showarrow=False,
-        font=dict(color=BRAND["red"], size=12), opacity=0.7,
+        font=dict(color=BRAND["red"], size=12), opacity=0.75,
     )
     for novel, color, name in [(1, BRAND["amber"], "novel sequence"), (0, BRAND["primary"], "has pre-cutoff homolog")]:
         pts = [e for e in points if bool(e.get("is_novel")) == bool(novel)
@@ -123,19 +124,32 @@ def fraud_scatter(entities: list[dict]) -> str:
                            "pLDDT %{x:.1f} · TM %{y:.3f}<br>"
                            "FRAUD %{customdata[2]:.3f} · novelty id %{customdata[3]}%<extra></extra>"),
         ))
-    if omitted:
-        fig.add_annotation(x=0, y=1.02, xref="paper", yref="paper", showarrow=False,
-                           xanchor="left", font=dict(size=11, color=BRAND["muted"] if "muted" in BRAND else "#5b6b7a"),
-                           text=f"all confidently-wrong & novel shown; {omitted:,} well-predicted points sampled out")
+    # Second legend, to the right of the colour legend, explaining that marker size = FRAUD.
+    for frac in (0.1, 0.5):
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode="markers", name=f"FRAUD {frac}", legend="legend2",
+            marker=dict(color="rgba(120,140,160,0.75)", size=6 + 20 * frac, line=dict(width=0.4, color="white")),
+        ))
     fig.update_layout(
         title="AlphaFold confidence vs. agreement with experiment",
         xaxis_title="mean pLDDT (AlphaFold confidence)",
         yaxis_title="TM-score to experiment",
-        legend=dict(orientation="h", y=1.08, x=0),
+        legend=dict(orientation="h", y=1.09, x=0, itemsizing="constant"),
+        legend2=dict(orientation="h", y=1.09, x=0.58, itemsizing="trace",
+                     title=dict(text="marker size:"), font=dict(size=11)),
     )
     fig.update_xaxes(range=[0, 102])       # headroom so pLDDT~100 markers sit inside the frame
     fig.update_yaxes(range=[0, 1.03])
     return _fig(fig)
+
+
+def sampling_note(entities: list[dict]) -> str:
+    """Caption for the scatter card when the dense cluster was sampled (empty otherwise)."""
+    _, omitted = _downsample_points(entities)
+    if omitted:
+        return (f"All confidently-wrong and novel points are shown; {omitted:,} well-predicted "
+                "points were sampled out for legibility.")
+    return ""
 
 
 def metric_histograms(entities: list[dict]) -> str:

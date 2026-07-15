@@ -2,9 +2,13 @@
 {% set active = 'latest' %}
 {% block title %}AlphaFraud &middot; {{ label }}{% endblock %}
 
-{% macro figure(fig_json, dom_id) %}
+{% macro figure(fig_json, dom_id, caption='') %}
   {% if fig_json %}
-  <div class="card"><div class="plot" id="{{ dom_id }}"></div></div>
+  <div class="card">
+    <div class="plot" id="{{ dom_id }}"></div>
+    {% if caption %}<p class="hint plot-caption">{{ caption }}</p>{% endif %}
+    <div class="dlbar"><button class="dl" onclick="downloadPlotCsv('{{ dom_id }}','{{ dom_id }}.csv')">⬇ Download CSV</button></div>
+  </div>
   <script type="application/json" data-target="{{ dom_id }}">{{ fig_json | safe }}</script>
   {% endif %}
 {% endmacro %}
@@ -37,7 +41,7 @@
     <div class="kpi good"><div class="n">{{ fmt(kpis.median_tm) }}</div><div class="l">median TM-score</div></div>
   </div>
 
-  {{ figure(figures.scatter, 'scatter') }}
+  {{ figure(figures.scatter, 'scatter', scatter_note) }}
   {{ figure(figures.histograms, 'histograms') }}
   {{ figure(figures.trend, 'trend') }}
 
@@ -80,6 +84,7 @@
       </tbody>
     </table>
   </div>
+  <div class="dlbar"><button class="dl" onclick="downloadTableCsv('dataTable','alphafraud_structures.csv')">⬇ Download CSV</button></div>
   <p class="hint">Click a column header to sort. FRAUD = confidence-weighted error; a structure is
   flagged <b>confidently wrong</b> when mean pLDDT &gt; 70 yet TM-score &lt; 0.5.</p>
 {% endblock %}
