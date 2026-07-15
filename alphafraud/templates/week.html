@@ -10,12 +10,18 @@
 {% endmacro %}
 
 {% macro fmt(v, dash='—') %}{% if v is none %}{{ dash }}{% else %}{{ v }}{% endif %}{% endmacro %}
+{% macro r2(v) %}{% if v is none %}—{% elif v is number %}{{ '%.2f'|format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
 
 {% block content %}
   <h1>Release week {{ label }}</h1>
-  <p class="sub">
-    {% for w in weeks %}<a href="{{ url_for('week', label=w.label) }}">{{ w.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
-  </p>
+  <div class="week-select">
+    <label for="weekpick">Jump to week:</label>
+    <select id="weekpick" onchange="if(this.value)window.location=this.value">
+      {% for w in weeks %}
+      <option value="{{ url_for('week', label=w.label) }}" {% if w.label == label %}selected{% endif %}>{{ w.label }} ({{ w.n_compared }})</option>
+      {% endfor %}
+    </select>
+  </div>
 
   <div class="kpis">
     <div class="kpi"><div class="n">{{ kpis.n_analysed }}</div><div class="l">structures analysed{% if kpis.n_fully < kpis.n_analysed %} <span class="hint">({{ kpis.n_fully }} full)</span>{% endif %}</div></div>
@@ -50,15 +56,15 @@
           <td>{% if e.uniprot %}<a href="https://www.uniprot.org/uniprotkb/{{ e.uniprot }}" target="_blank" rel="noopener">{{ e.uniprot }}</a>{% else %}—{% endif %}</td>
           <td>{{ (e.description or '')[:42] }}</td>
           <td>{{ e.method or '—' }}</td>
-          <td class="num" data-sort="{{ e.resolution if e.resolution is not none else 99 }}">{{ fmt(e.resolution) }}</td>
+          <td class="num" data-sort="{{ e.resolution if e.resolution is not none else 99 }}">{{ r2(e.resolution) }}</td>
           <td data-sort="{{ e.deposit_date }}">{{ (e.deposit_date or '')[:10] }}</td>
-          <td class="num" data-sort="{{ e.novelty_identity if e.novelty_identity is not none else 999 }}">{{ fmt(e.novelty_identity) }}{% if e.is_novel %} <span class="badge novel">novel</span>{% endif %}</td>
-          <td class="num" data-sort="{{ e.mean_plddt if e.mean_plddt is not none else -1 }}">{{ fmt(e.mean_plddt) }}</td>
-          <td class="num" data-sort="{{ e.tm_by_experiment if e.tm_by_experiment is not none else -1 }}">{{ fmt(e.tm_by_experiment) }}</td>
-          <td class="num" data-sort="{{ e.lddt if e.lddt is not none else -1 }}">{{ fmt(e.lddt) }}</td>
-          <td class="num" data-sort="{{ e.gdt_ts if e.gdt_ts is not none else -1 }}">{{ fmt(e.gdt_ts) }}</td>
-          <td class="num" data-sort="{{ e.ca_rmsd if e.ca_rmsd is not none else -1 }}">{{ fmt(e.ca_rmsd) }}</td>
-          <td class="num" data-sort="{{ e.fraud_score if e.fraud_score is not none else -1 }}">{{ fmt(e.fraud_score) }}</td>
+          <td class="num" data-sort="{{ e.novelty_identity if e.novelty_identity is not none else 999 }}">{{ r2(e.novelty_identity) }}{% if e.is_novel %} <span class="badge novel">novel</span>{% endif %}</td>
+          <td class="num" data-sort="{{ e.mean_plddt if e.mean_plddt is not none else -1 }}">{{ r2(e.mean_plddt) }}</td>
+          <td class="num" data-sort="{{ e.tm_by_experiment if e.tm_by_experiment is not none else -1 }}">{{ r2(e.tm_by_experiment) }}</td>
+          <td class="num" data-sort="{{ e.lddt if e.lddt is not none else -1 }}">{{ r2(e.lddt) }}</td>
+          <td class="num" data-sort="{{ e.gdt_ts if e.gdt_ts is not none else -1 }}">{{ r2(e.gdt_ts) }}</td>
+          <td class="num" data-sort="{{ e.ca_rmsd if e.ca_rmsd is not none else -1 }}">{{ r2(e.ca_rmsd) }}</td>
+          <td class="num" data-sort="{{ e.fraud_score if e.fraud_score is not none else -1 }}">{{ r2(e.fraud_score) }}</td>
           <td>{% if e.confidently_wrong %}<span class="badge wrong">wrong</span>{% else %}<span class="badge ok">ok</span>{% endif %}</td>
         </tr>
         {% endfor %}

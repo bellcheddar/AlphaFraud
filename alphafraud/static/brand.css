@@ -30,6 +30,7 @@
 body {
   margin: 0; font-family: var(--sans); color: var(--ink); background: var(--bg);
   line-height: 1.5; -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;   /* the page body must never scroll horizontally (wide content self-manages) */
 }
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -42,10 +43,15 @@ header.site {
 }
 header.site .wrap { display: block; }
 pre.banner {
-  font-family: var(--mono); font-size: 11px; line-height: 1.15; margin: 0;
-  color: #fff; overflow-x: auto; white-space: pre; opacity: .96;
+  font-family: var(--mono);
+  /* Scale with viewport width so the fixed-width ASCII art always fits, phone to desktop. */
+  font-size: clamp(4.5px, 2.02vw, 12px); line-height: 1.12; margin: 0;
+  color: #fff; overflow-x: hidden; white-space: pre; opacity: .96;
 }
-.tagline { color: #dce9f6; font-size: 13px; margin: 4px 0 14px; }
+.tagline { color: #dce9f6; font-size: 13px; margin: 4px 0 6px; }
+.tagline:last-of-type { margin-bottom: 14px; }
+.tagline a { color: #fff; text-decoration: underline; }
+.tagline a:hover { color: var(--amber); }
 nav.main { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
 nav.main a {
   color: #eaf2fb; padding: 9px 14px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px;
@@ -90,7 +96,8 @@ thead th:hover { color: var(--ink); }
 thead th.sorted-asc::after { content: " ▲"; color: var(--primary); }
 thead th.sorted-desc::after { content: " ▼"; color: var(--primary); }
 tbody tr:hover { background: rgba(30,115,190,.05); }
-td.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Left-justify numeric cells so every table (archive, week, leaderboard, entry) matches. */
+td.num { text-align: left; font-variant-numeric: tabular-nums; }
 tr.wrong { background: rgba(214,39,40,.06); }
 tr.wrong:hover { background: rgba(214,39,40,.10); }
 
@@ -105,8 +112,30 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
 .metric-group h3 { font-size: 14px; margin: 0 0 8px; color: var(--primary); }
 .metric-group table td:first-child { color: var(--muted); }
-.metric-group table td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.metric-group table td:last-child { text-align: left; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Week selector dropdown (replaces the inline list of week links). */
+.week-select { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+.week-select select {
+  padding: 7px 30px 7px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); color: var(--ink); font: inherit; cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%235b6b7a' stroke-width='1.6'/></svg>");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
 
 footer.site { border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; padding: 22px 0 40px; }
 footer.site code { font-family: var(--mono); background: var(--card); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); }
 .hint { color: var(--muted); font-size: 13px; }
+
+@media (max-width: 560px) {
+  .wrap { padding: 0 14px; }
+  header.site { padding: 14px 0 0; }
+  .tagline { font-size: 12px; margin-bottom: 4px; }
+  .tagline:last-of-type { margin-bottom: 12px; }
+  h1 { font-size: 19px; }
+  .plot { min-height: 300px; }
+  .kpi { padding: 13px; }
+  .kpi .n { font-size: 24px; }
+  th, td { padding: 8px 9px; }
+  nav.main a { padding: 8px 11px; font-size: 13px; }
+}

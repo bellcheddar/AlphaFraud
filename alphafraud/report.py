@@ -27,6 +27,7 @@ BRAND = {
 }
 
 _LAYOUT = dict(
+    autosize=True,   # always size to the container (critical for narrow mobile widths)
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="Inter, system-ui, sans-serif", color=BRAND["ink"], size=13),
@@ -70,7 +71,7 @@ def fraud_scatter(entities: list[dict]) -> str:
     fig = go.Figure()
     # Shade the fraud quadrant: confident (pLDDT > threshold) yet wrong (TM < threshold).
     fig.add_shape(
-        type="rect", x0=config.CONFIDENT_PLDDT, x1=100, y0=0, y1=config.WRONG_TM,
+        type="rect", x0=config.CONFIDENT_PLDDT, x1=102, y0=0, y1=config.WRONG_TM,
         fillcolor="rgba(214,39,40,0.08)", line=dict(width=0), layer="below",
     )
     fig.add_annotation(
@@ -88,6 +89,7 @@ def fraud_scatter(entities: list[dict]) -> str:
             y=[e["tm_by_experiment"] for e in pts],
             mode="markers",
             name=name,
+            cliponaxis=False,   # render markers fully even at the axis edges (pLDDT~100, TM~1)
             marker=dict(
                 color=color, size=[8 + 30 * (e.get("fraud_score") or 0) for e in pts],
                 line=dict(width=0.5, color="white"), opacity=0.8,
@@ -104,8 +106,8 @@ def fraud_scatter(entities: list[dict]) -> str:
         yaxis_title="TM-score to experiment",
         legend=dict(orientation="h", y=1.08, x=0),
     )
-    fig.update_xaxes(range=[0, 100])
-    fig.update_yaxes(range=[0, 1])
+    fig.update_xaxes(range=[0, 102])       # headroom so pLDDT~100 markers sit inside the frame
+    fig.update_yaxes(range=[0, 1.03])
     return _fig(fig)
 
 
@@ -150,16 +152,17 @@ def per_residue_tracks(per_res: dict) -> str:
     x = per_res.get("af_res_id") or list(range(len(per_res.get("ca_deviation", []))))
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=x, y=per_res.get("ca_deviation", []), name="Cα deviation (Å)",
-                             line=dict(color=BRAND["red"], width=1.5)))
+                             cliponaxis=False, line=dict(color=BRAND["red"], width=1.5)))
     fig.add_trace(go.Scatter(x=x, y=[v * 100 for v in per_res.get("lddt", [])], name="per-residue lDDT (×100)",
-                             line=dict(color=BRAND["green"], width=1.5), yaxis="y2"))
+                             cliponaxis=False, line=dict(color=BRAND["green"], width=1.5), yaxis="y2"))
     fig.add_trace(go.Scatter(x=x, y=[p if p is not None else None for p in per_res.get("plddt", [])],
-                             name="pLDDT", line=dict(color=BRAND["primary"], width=1.5, dash="dot"), yaxis="y2"))
+                             name="pLDDT", cliponaxis=False,
+                             line=dict(color=BRAND["primary"], width=1.5, dash="dot"), yaxis="y2"))
     fig.update_layout(
         title="Per-residue error vs. AlphaFold confidence",
         xaxis_title="residue (UniProt/model numbering)",
         yaxis=dict(title="Cα deviation (Å)"),
-        yaxis2=dict(title="lDDT×100 / pLDDT", overlaying="y", side="right", range=[0, 100], showgrid=False),
+        yaxis2=dict(title="lDDT×100 / pLDDT", overlaying="y", side="right", range=[0, 103], showgrid=False),
         legend=dict(orientation="h", y=1.12, x=0),
     )
     return _fig(fig)
@@ -190,13 +193,13 @@ def calibration_scatter(per_res: dict) -> str:
     xs = [p for p in plddt if p is not None]
     ys = [l * 100 for p, l in zip(plddt, lddt) if p is not None]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=xs, y=ys, mode="markers",
+    fig.add_trace(go.Scatter(x=xs, y=ys, mode="markers", cliponaxis=False,
                              marker=dict(color=BRAND["primary"], size=5, opacity=0.6)))
     fig.add_trace(go.Scatter(x=[0, 100], y=[0, 100], mode="lines", name="ideal",
                              line=dict(color=BRAND["ink"], dash="dash", width=1)))
     fig.update_layout(title="Calibration: pLDDT vs. actual lDDT",
                       xaxis_title="pLDDT (predicted)", yaxis_title="per-residue lDDT ×100 (observed)",
                       showlegend=False)
-    fig.update_xaxes(range=[0, 100])
-    fig.update_yaxes(range=[0, 100])
+    fig.update_xaxes(range=[-2, 102])
+    fig.update_yaxes(range=[-2, 102])
     return _fig(fig)

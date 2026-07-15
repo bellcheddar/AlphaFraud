@@ -12,9 +12,10 @@
   <header class="site">
     <div class="wrap">
       <pre class="banner">{{ banner }}</pre>
-      <div class="tagline">new PDB depositions vs. their blind AlphaFold predictions &mdash; a running test of "is folding solved?"</div>
+      <div class="tagline">New PDB Depositions vs. Their Blind AlphaFold Predictions &mdash; A Running Test of &ldquo;Is Folding Solved?&rdquo;</div>
+      <div class="tagline">Built by <a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a>, contact: <a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a></div>
       <nav class="main">
-        <a href="{{ url_for('index') }}" {% if active=='latest' %}class="active"{% endif %}>Latest week</a>
+        <a href="{{ url_for('index') }}" {% if active=='latest' %}class="active"{% endif %}>All structures</a>
         <a href="{{ url_for('leaderboard') }}" {% if active=='leaderboard' %}class="active"{% endif %}>Worst offenders</a>
         <a href="{{ url_for('archive') }}" {% if active=='archive' %}class="active"{% endif %}>Archive</a>
         <span class="spacer"></span>
@@ -32,7 +33,8 @@
       AlphaFraud v{{ version }} &mdash; watches the RCSB PDB (weekly, Wed 00:00 UTC) for human
       structures deposited after AlphaFold2's <code>2018-04-30</code> training cutoff and compares each
       to its blind AlphaFold DB model. Data: RCSB PDB &amp; AlphaFold DB (EBI). Built by
-      <a href="https://marcdeller.com">marcdeller.com</a>.
+      <a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a>.
+      Contact <a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a>.
     </div>
   </footer>
 </body>

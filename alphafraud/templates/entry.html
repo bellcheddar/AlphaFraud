@@ -10,6 +10,7 @@
 {% endmacro %}
 
 {% macro fmt(v) %}{% if v is none %}—{% else %}{{ v }}{% endif %}{% endmacro %}
+{% macro r2(v) %}{% if v is none %}—{% elif v is number %}{{ '%.2f'|format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
 
 {% block content %}
   <h1>
@@ -27,19 +28,19 @@
 
   {% if e.status == 'screened' %}
   <div class="card" style="border-left:4px solid var(--amber)">
-    <b>Screen-only record.</b> This structure passed the fast TM-score screen (TM {{ fmt(metrics.tm_by_experiment) }})
+    <b>Screen-only record.</b> This structure passed the fast TM-score screen (TM {{ r2(metrics.tm_by_experiment) }})
     and AlphaFold agrees well with experiment, so the full metric suite, novelty score and heatmaps were not
     computed. Full analysis is reserved for the disagreements (TM below the screening threshold).
   </div>
   {% endif %}
 
   <div class="kpis">
-    <div class="kpi good"><div class="n">{{ fmt(metrics.tm_by_experiment) }}</div><div class="l">TM-score</div></div>
-    <div class="kpi"><div class="n">{{ fmt(metrics.lddt) }}</div><div class="l">lDDT</div></div>
-    <div class="kpi"><div class="n">{{ fmt(metrics.ca_rmsd) }}</div><div class="l">Cα-RMSD Å</div></div>
-    <div class="kpi"><div class="n">{{ fmt(metrics.mean_plddt) }}</div><div class="l">mean pLDDT</div></div>
-    <div class="kpi {% if e.confidently_wrong %}alert{% endif %}"><div class="n">{{ fmt(metrics.fraud_score) }}</div><div class="l">FRAUD score</div></div>
-    <div class="kpi"><div class="n">{{ fmt(e.novelty_identity) }}%</div><div class="l">novelty (max id)</div></div>
+    <div class="kpi good"><div class="n">{{ r2(metrics.tm_by_experiment) }}</div><div class="l">TM-score</div></div>
+    <div class="kpi"><div class="n">{{ r2(metrics.lddt) }}</div><div class="l">lDDT</div></div>
+    <div class="kpi"><div class="n">{{ r2(metrics.ca_rmsd) }}</div><div class="l">Cα-RMSD Å</div></div>
+    <div class="kpi"><div class="n">{{ r2(metrics.mean_plddt) }}</div><div class="l">mean pLDDT</div></div>
+    <div class="kpi {% if e.confidently_wrong %}alert{% endif %}"><div class="n">{{ r2(metrics.fraud_score) }}</div><div class="l">FRAUD score</div></div>
+    <div class="kpi"><div class="n">{{ r2(e.novelty_identity) }}%</div><div class="l">novelty (max id)</div></div>
   </div>
 
   {{ figure(figures.tracks, 'tracks') }}
@@ -58,8 +59,8 @@
         {% for d in domains %}
         <tr>
           <td>{{ d.source }}</td><td>{{ d.label }}</td><td>{{ d.range }}</td>
-          <td class="num">{{ d.n_residues }}</td><td class="num">{{ d.tm }}</td>
-          <td class="num">{{ d.rmsd }}</td><td class="num">{{ d.mean_ca_dev }}</td>
+          <td class="num">{{ d.n_residues }}</td><td class="num">{{ r2(d.tm) }}</td>
+          <td class="num">{{ r2(d.rmsd) }}</td><td class="num">{{ r2(d.mean_ca_dev) }}</td>
           <td>{{ d.name or '' }}</td>
         </tr>
         {% endfor %}
@@ -77,7 +78,7 @@
         <tbody>
           {% for key, label in keys %}
           {% if key in metrics %}
-          <tr><td>{{ label }}</td><td>{{ fmt(metrics[key]) }}</td></tr>
+          <tr><td>{{ label }}</td><td>{{ r2(metrics[key]) }}</td></tr>
           {% endif %}
           {% endfor %}
         </tbody>

@@ -21,6 +21,9 @@
   } catch (e) {}
 
   // ---- Plotly ----
+  // Set the width explicitly from the container. autosize/responsive proved unreliable on
+  // narrow (mobile) widths -- Plotly kept a desktop width and overflowed the viewport -- so
+  // we pin layout.width to the element's own width and re-render on resize.
   function renderPlots() {
     if (typeof Plotly === "undefined") return;
     document.querySelectorAll("script[data-target]").forEach(function (s) {
@@ -28,9 +31,23 @@
       if (!el) return;
       var fig;
       try { fig = JSON.parse(s.textContent); } catch (e) { return; }
-      Plotly.react(el, fig.data, fig.layout, { responsive: true, displayModeBar: false });
+      var layout = fig.layout || {};
+      // Cap width to the viewport (minus the wrap+card horizontal padding, ~72px). Once a
+      // plot has overshot the viewport the page itself is over-wide, so el.clientWidth reads
+      // too large -- the viewport is the only stable reference for the ceiling.
+      var vw = document.documentElement.clientWidth || window.innerWidth || 360;
+      var w = Math.min(el.clientWidth || vw, vw - 72);
+      layout.width = w;
+      layout.autosize = false;
+      Plotly.react(el, fig.data, layout, { displayModeBar: false, responsive: false });
     });
   }
+
+  var _rt;
+  window.addEventListener("resize", function () {
+    clearTimeout(_rt);
+    _rt = setTimeout(renderPlots, 150);
+  });
 
   // ---- Tables: sort + filter ----
   function cellValue(row, idx) {
