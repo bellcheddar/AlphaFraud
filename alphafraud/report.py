@@ -112,8 +112,10 @@ def fraud_scatter(entities: list[dict]) -> str:
             name=name,
             cliponaxis=False,   # render markers fully even at the axis edges (pLDDT~100, TM~1)
             marker=dict(
-                color=color, size=[8 + 30 * (e.get("fraud_score") or 0) for e in pts],
-                line=dict(width=0.5, color="white"), opacity=0.8,
+                color=color, size=[6 + 20 * (e.get("fraud_score") or 0) for e in pts],
+                line=dict(width=0.4, color="white"),
+                # Lower opacity so overlapping points read as density in the big cumulative cloud.
+                opacity=(0.5 if len(points) > 3000 else 0.8),
             ),
             customdata=[[e["entity_id"], e.get("uniprot"), e.get("fraud_score"),
                          e.get("novelty_identity")] for e in pts],
