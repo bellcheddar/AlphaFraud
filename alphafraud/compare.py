@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import math
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -36,6 +37,12 @@ from .structio import Chain
 
 _STD_AA = set("ACDEFGHIKLMNPQRSTVWY")
 _BLOSUM = SubstitutionMatrix.std_protein_matrix()
+
+# tmtools wraps the TM-align C code, which uses static/global buffers and is NOT
+# thread-safe -- concurrent calls from the backfill's worker threads deadlock. TM-align
+# runs in milliseconds, so serialising just this call costs nothing while the real
+# bottleneck (per-entity downloads) still runs fully in parallel.
+_TMALIGN_LOCK = threading.Lock()
 
 
 # --------------------------------------------------------------------------------------
@@ -88,7 +95,8 @@ def _d0(length: int) -> float:
 def _tm_scores(exp: Chain, af: Chain) -> dict:
     import tmtools
 
-    res = tmtools.tm_align(exp.ca_coords, af.ca_coords, _sanitize(exp.sequence), _sanitize(af.sequence))
+    with _TMALIGN_LOCK:
+        res = tmtools.tm_align(exp.ca_coords, af.ca_coords, _sanitize(exp.sequence), _sanitize(af.sequence))
     by_exp = float(res.tm_norm_chain1)
     by_af = float(res.tm_norm_chain2)
     return {
