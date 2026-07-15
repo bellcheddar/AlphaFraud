@@ -5,6 +5,8 @@ the transient 5xx / rate-limit responses these public APIs occasionally return.
 
 from __future__ import annotations
 
+import os
+import threading
 from typing import Any, Optional
 
 import requests
@@ -83,9 +85,14 @@ def download(url: str, dest, skip_if_exists: bool = True):
         return None
     resp.raise_for_status()
     dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(dest.suffix + ".part")
-    with open(tmp, "wb") as fh:
-        for chunk in resp.iter_content(chunk_size=1 << 16):
-            fh.write(chunk)
-    tmp.replace(dest)
+    # Unique temp name per writer so parallel workers downloading the same file (e.g. an
+    # AlphaFold model for a shared UniProt) never clobber each other's partial write.
+    tmp = dest.with_suffix(f"{dest.suffix}.{os.getpid()}.{threading.get_ident()}.part")
+    try:
+        with open(tmp, "wb") as fh:
+            for chunk in resp.iter_content(chunk_size=1 << 16):
+                fh.write(chunk)
+        tmp.replace(dest)
+    finally:
+        tmp.unlink(missing_ok=True) if tmp.exists() else None
     return dest

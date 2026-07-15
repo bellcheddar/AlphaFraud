@@ -5,6 +5,7 @@ robust per-entity -- one bad structure logs an error row and the run continues.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -221,10 +222,12 @@ def screen_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: bo
 
 
 def backfill_two_tier(since: date, until: date, tm_threshold: float = 0.7,
-                      limit: Optional[int] = None, cleanup: bool = True) -> dict:
+                      limit: Optional[int] = None, cleanup: bool = True,
+                      workers: int = 1) -> dict:
     """Two-tier backfill over (since, until]: screen every entity with a fast TM-score,
     then run the full metric suite only on those below `tm_threshold` (the disagreements).
-    Resumable -- already-processed entities are skipped."""
+    Resumable -- already-processed entities are skipped. `workers` > 1 runs each tier over
+    a thread pool (the per-entity work is download-bound, so this scales well)."""
     db.init_schema()
     config.ensure_dirs()
     label = until.isoformat()
@@ -240,45 +243,52 @@ def backfill_two_tier(since: date, until: date, tm_threshold: float = 0.7,
     run_id = db.start_run(label, since.isoformat(), until.isoformat())
     metas = pdb.fetch_entity_metadata(fresh)
 
-    # --- Tier 1: screen all ---
-    screened = skipped = errored = 0
-    candidates: list[str] = []
-    for eid in fresh:
+    def _do_screen(eid: str):
         meta = metas.get(eid)
         if meta is None:
             _skip(eid, None, run_id, "metadata lookup failed")
-            skipped += 1
-            continue
+            return eid, "skipped"
         try:
-            outcome = screen_entity(eid, meta, run_id, cleanup=cleanup)
+            return eid, screen_entity(eid, meta, run_id, cleanup=cleanup)
         except Exception as exc:
             _record_error(eid, meta, run_id, exc)
+            return eid, "error"
+
+    def _do_full(eid: str):
+        meta = metas.get(eid)
+        try:
+            return eid, process_entity(eid, meta, run_id, cleanup=cleanup)
+        except Exception as exc:
+            _record_error(eid, meta, run_id, exc)
+            return eid, "error"
+
+    # --- Tier 1: screen all ---
+    screened = skipped = errored = 0
+    candidates: list[str] = []
+    for eid, outcome in _run_pool(_do_screen, fresh, workers):
+        if outcome == "screened":
+            screened += 1
+            row = db.get_entity(eid)
+            tm = row.get("tm_by_experiment") if row else None
+            if tm is not None and tm < tm_threshold:
+                candidates.append(eid)
+        elif outcome == "error":
             errored += 1
-            continue
-        if outcome != "screened":
+        else:
             skipped += 1
-            continue
-        screened += 1
-        row = db.get_entity(eid)
-        tm = row.get("tm_by_experiment") if row else None
-        if tm is not None and tm < tm_threshold:
-            candidates.append(eid)
 
     banner.info(f"[screen] {screened} screened, {len(candidates)} below TM {tm_threshold} → full analysis")
 
     # --- Tier 2: full metrics on the disagreements ---
     promoted = 0
-    for eid in candidates:
-        meta = metas.get(eid)
-        try:
-            if process_entity(eid, meta, run_id, cleanup=cleanup) == "compared":
-                promoted += 1
-                e = db.get_entity(eid)
-                flag = " ⚠ CONFIDENTLY WRONG" if e and e.get("confidently_wrong") else ""
-                banner.ok(f"[full] {eid}  TM={e.get('tm_by_experiment')}  lDDT={e.get('lddt')}  "
-                          f"novelty={e.get('novelty_identity')}%{flag}")
-        except Exception as exc:
-            _record_error(eid, meta, run_id, exc)
+    for eid, outcome in _run_pool(_do_full, candidates, workers):
+        if outcome == "compared":
+            promoted += 1
+            e = db.get_entity(eid)
+            if e and e.get("confidently_wrong"):
+                banner.ok(f"[full] {eid}  TM={e.get('tm_by_experiment')}  "
+                          f"pLDDT={e.get('mean_plddt')}  ⚠ CONFIDENTLY WRONG")
+        elif outcome == "error":
             errored += 1
 
     db.finish_run(run_id, len(ids), screened, skipped + errored)
@@ -288,17 +298,29 @@ def backfill_two_tier(since: date, until: date, tm_threshold: float = 0.7,
             "skipped": skipped + errored}
 
 
-def backfill_all(tm_threshold: float = 0.7, limit_per_chunk: Optional[int] = None) -> None:
+def _run_pool(fn, items, workers):
+    """Yield fn(item) for each item, sequentially if workers<=1 else over a thread pool."""
+    if workers <= 1 or len(items) <= 1:
+        for it in items:
+            yield fn(it)
+        return
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for result in ex.map(fn, items):
+            yield result
+
+
+def backfill_all(tm_threshold: float = 0.7, limit_per_chunk: Optional[int] = None,
+                 workers: int = 1) -> None:
     """Two-tier backfill of the entire post-cutoff archive, in monthly chunks (resumable)."""
-    banner.warn("Full-archive backfill: ~96k entities. This runs for hours/days and is "
-                "resumable -- safe to interrupt and re-run.")
+    banner.warn(f"Full-archive backfill (~96k entities, {workers} worker(s)). Runs for "
+                "hours and is resumable -- safe to interrupt and re-run.")
     cur = config.AF_TRAINING_CUTOFF
     today = date.today()
     totals = {"screened": 0, "promoted": 0, "skipped": 0}
     while cur < today:
         nxt = min(_add_month(cur), today)
         banner.step(f"=== chunk {cur} … {nxt} ===")
-        r = backfill_two_tier(cur, nxt, tm_threshold, limit_per_chunk, cleanup=True)
+        r = backfill_two_tier(cur, nxt, tm_threshold, limit_per_chunk, cleanup=True, workers=workers)
         for k in totals:
             totals[k] += r.get(k, 0)
         cur = nxt

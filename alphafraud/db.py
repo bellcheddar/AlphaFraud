@@ -187,10 +187,16 @@ def latest_run_label() -> Optional[str]:
 
 
 def list_weeks() -> list[dict]:
+    # Aggregate by label so a chunk that was interrupted and resumed (two run rows for the
+    # same month) shows once, with summed counts.
     with connect() as conn:
         rows = conn.execute(
-            """SELECT label, until, n_discovered, n_compared, n_skipped, finished_at
-               FROM runs WHERE status='done' ORDER BY label DESC"""
+            """SELECT label,
+                      SUM(n_discovered) n_discovered,
+                      SUM(n_compared)   n_compared,
+                      SUM(n_skipped)    n_skipped,
+                      MAX(finished_at)  finished_at
+               FROM runs WHERE status='done' GROUP BY label ORDER BY label DESC"""
         ).fetchall()
         return [dict(r) for r in rows]
 

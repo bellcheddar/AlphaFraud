@@ -81,14 +81,16 @@ def cmd_backfill(args) -> int:
     from alphafraud import pipeline
 
     if args.all:
-        pipeline.backfill_all(tm_threshold=args.tm_threshold, limit_per_chunk=args.limit)
+        pipeline.backfill_all(tm_threshold=args.tm_threshold, limit_per_chunk=args.limit,
+                              workers=args.workers)
         return 0
     if not getattr(args, "from") or not args.to:
         banner.err("backfill needs --from and --to (or --all).")
         return 1
     since, until = _parse_date(getattr(args, "from")), _parse_date(args.to)
     if args.two_tier:
-        pipeline.backfill_two_tier(since, until, tm_threshold=args.tm_threshold, limit=args.limit)
+        pipeline.backfill_two_tier(since, until, tm_threshold=args.tm_threshold,
+                                   limit=args.limit, workers=args.workers)
     else:
         pipeline.run(since, until, limit=args.limit)
     return 0
@@ -149,6 +151,8 @@ def main(argv=None) -> int:
     p_bf.add_argument("--tm-threshold", type=float, default=0.7,
                       help="TM-score below which an entity gets the full metric suite (default 0.7)")
     p_bf.add_argument("--limit", type=int, help="max entities (per chunk when --all)")
+    p_bf.add_argument("--workers", type=int, default=1,
+                      help="parallel download/analysis workers (default 1; try 6 for backfill)")
     p_bf.set_defaults(func=cmd_backfill)
 
     sub.add_parser("status", help="database summary + leaderboard").set_defaults(func=cmd_status)
