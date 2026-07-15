@@ -131,6 +131,22 @@ footer.site code { font-family: var(--mono); background: var(--card); padding: 1
 .dl:hover { color: var(--primary); border-color: var(--primary); }
 .plot-caption { margin: 8px 0 0; }
 
+/* Full-width explanatory panel below each plot (lay-friendly, expert-appropriate) */
+.explain {
+  margin: -6px 0 18px; padding: 14px 18px; background: var(--card);
+  border: 1px solid var(--border); border-left: 3px solid var(--primary-light);
+  border-radius: 0 var(--radius) var(--radius) 0; box-shadow: var(--shadow); font-size: 13.5px;
+}
+.explain h4 { margin: 0 0 7px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--primary); }
+.explain p { margin: 0 0 8px; color: var(--ink); }
+.explain p:last-child { margin-bottom: 0; }
+.explain dfn { font-style: normal; font-weight: 600; color: var(--ink); }
+.explain .takehome {
+  margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--border);
+  font-weight: 600; color: var(--primary-dark, #155a9c);
+}
+:root[data-theme="dark"] .explain .takehome { color: var(--primary-light); }
+
 @media (max-width: 560px) {
   .wrap { padding: 0 14px; }
   header.site { padding: 14px 0 0; }

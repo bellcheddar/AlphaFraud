@@ -25,7 +25,11 @@ SSH_OPTS=()
 echo "==> Syncing code to ${DROPLET_SSH}:${DROPLET_PATH}"
 # ${arr[@]+"${arr[@]}"} expands to nothing when empty without tripping `set -u`
 # (needed for macOS's bash 3.2, where "${arr[@]}" on an empty array is an error).
-rsync -az --delete ${SSH_OPTS[@]+"${SSH_OPTS[@]}"} \
+# --chown sets ownership on the transferred code only. We deliberately do NOT chown the
+# whole tree afterwards: data/ and alphafraud.db are excluded here, so a deploy never
+# touches the live database while a backfill has it open (a blanket `chown -R` over the
+# open DB was the likely cause of a mid-run "readonly database" crash).
+rsync -az --delete --chown=alphafraud:alphafraud ${SSH_OPTS[@]+"${SSH_OPTS[@]}"} \
   --exclude '.venv/' --exclude 'data/' --exclude '__pycache__/' \
   --exclude '*.pyc' --exclude '.git/' --exclude '.env' \
   --exclude 'alphafraud.db' --exclude 'alphafraud.db-*' \
@@ -44,7 +48,6 @@ fi
 # alphafraud user (the cache buys nothing here -- deps are already installed after the
 # first provision, so reinstalls are near-instant regardless).
 sudo -u alphafraud env PIP_NO_CACHE_DIR=1 ./.venv/bin/pip install --quiet -r requirements.txt
-sudo chown -R alphafraud:alphafraud "${DROPLET_PATH}"
 sudo systemctl restart alphafraud-web.service
 sudo systemctl --no-pager --lines=2 status alphafraud-web.service || true
 REMOTE

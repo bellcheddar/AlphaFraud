@@ -31,7 +31,9 @@ _LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="Inter, system-ui, sans-serif", color=BRAND["ink"], size=13),
-    margin=dict(l=60, r=24, t=48, b=52),
+    # Generous top margin so the title clears the legend row and subplot titles.
+    margin=dict(l=60, r=24, t=88, b=56),
+    title=dict(y=0.97, yanchor="top", x=0.02, xanchor="left", font=dict(size=15)),
     colorway=[BRAND["primary"], BRAND["amber"], BRAND["green"], BRAND["primary_light"], BRAND["red"]],
     hoverlabel=dict(font_size=12),
 )

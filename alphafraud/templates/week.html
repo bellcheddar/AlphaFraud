@@ -42,8 +42,40 @@
   </div>
 
   {{ figure(figures.scatter, 'scatter', scatter_note) }}
+  <div class="explain">
+    <h4>How to read this</h4>
+    <p>Every point is one experimental protein structure. The <dfn>horizontal axis</dfn> is AlphaFold's own
+    confidence in its prediction (mean pLDDT, 0&ndash;100). The <dfn>vertical axis</dfn> is how well that blind
+    prediction actually matches the experiment (TM-score, 0&ndash;1; above 0.5 means the same fold, above 0.9
+    near-identical). <dfn>Marker size</dfn> grows with the FRAUD score (confidence-weighted error).</p>
+    <p><dfn>Cutoff:</dfn> the shaded red box is the "confidently wrong" zone &mdash; AlphaFold was confident
+    (mean pLDDT above 70) yet the fold is wrong (TM-score below 0.5). A predictor that had truly solved folding
+    would leave that box empty.</p>
+    <p class="takehome">Take-home: {{ kpis.confidently_wrong }} of {{ kpis.n_analysed }} structures
+    ({{ (100 * kpis.confidently_wrong / kpis.n_analysed) | round(1) if kpis.n_analysed else 0 }}%) are
+    confidently wrong; median TM-score is {{ kpis.median_tm }}.</p>
+  </div>
+
   {{ figure(figures.histograms, 'histograms') }}
+  <div class="explain">
+    <h4>What the metrics mean</h4>
+    <p><dfn>TM-score</dfn> (0&ndash;1): overall fold match &mdash; above 0.5 is the same fold, above 0.9
+    near-identical. <dfn>C&alpha;-RMSD</dfn> (&Aring;): average backbone distance after best-fit superposition
+    &mdash; lower is better (under 2&nbsp;&Aring; is excellent). <dfn>lDDT</dfn> (0&ndash;1): local accuracy
+    measured without superposition &mdash; above 0.8 is good. Each bar counts how many structures fall in that range.</p>
+    <p class="takehome">Take-home: median TM-score {{ kpis.median_tm }} &mdash;
+    {{ 'most predictions match the experimental fold well, with a long tail that do not' if kpis.median_tm and kpis.median_tm > 0.7 else 'a substantial fraction disagree with the experimental fold' }}.</p>
+  </div>
+
+  {% if figures.trend %}
   {{ figure(figures.trend, 'trend') }}
+  <div class="explain">
+    <h4>Trend over time</h4>
+    <p>The <dfn>blue line</dfn> is the mean TM-score of the structures deposited in each release week; the
+    <dfn>red bars</dfn> count how many were confidently wrong. This tracks whether AlphaFold's accuracy on
+    brand-new structures is holding steady, improving, or slipping as the PDB keeps growing.</p>
+  </div>
+  {% endif %}
 
   <h2>Matched structures</h2>
   {% if is_all and total_count > table_cap %}

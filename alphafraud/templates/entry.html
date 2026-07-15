@@ -46,12 +46,56 @@
     <div class="kpi"><div class="n">{{ r2(e.novelty_identity) }}%</div><div class="l">novelty (max id)</div></div>
   </div>
 
+  {% if figures.tracks %}
   {{ figure(figures.tracks, 'tracks') }}
-  <div class="grid2">
-    {% if figures.calibration %}<div>{{ figure(figures.calibration, 'calibration') }}</div>{% endif %}
-    {% if figures.distance %}<div>{{ figure(figures.distance, 'distance') }}</div>{% endif %}
+  <div class="explain">
+    <h4>Per-residue accuracy vs. confidence</h4>
+    <p>Reading along the protein chain: <dfn>red</dfn> is how far each residue sits from the experiment
+    (C&alpha; deviation in &Aring;, higher = worse); <dfn>green</dfn> is local accuracy (lDDT&times;100);
+    <dfn>blue dotted</dfn> is AlphaFold's own confidence (pLDDT). Stretches where confidence stays high but the
+    red line is large are exactly where AlphaFold is <dfn>confidently wrong</dfn>.</p>
+    <p class="takehome">Take-home: mean confidence pLDDT {{ r2(metrics.mean_plddt) }} vs. overall accuracy
+    lDDT {{ r2(metrics.lddt) }} and TM-score {{ r2(metrics.tm_by_experiment) }}.</p>
   </div>
+  {% endif %}
+
+  {% if figures.calibration %}
+  {{ figure(figures.calibration, 'calibration') }}
+  <div class="explain">
+    <h4>Is the confidence honest?</h4>
+    <p>Each point is one residue: AlphaFold's predicted confidence (pLDDT, horizontal) against its actual
+    accuracy (lDDT&times;100, vertical). Points on the dashed diagonal are perfectly calibrated; points well
+    below it are <dfn>overconfident</dfn> &mdash; AlphaFold was surer than it should have been.</p>
+    <p class="takehome">Take-home: pLDDT&ndash;lDDT correlation
+    {{ metrics.plddt_lddt_pearson if metrics.plddt_lddt_pearson is not none else '—' }}
+    (near 1 = well calibrated; near or below 0 = confidence unrelated to, or opposite, real accuracy).</p>
+  </div>
+  {% endif %}
+
+  {% if figures.distance %}
+  {{ figure(figures.distance, 'distance') }}
+  <div class="explain">
+    <h4>Where the shape differs</h4>
+    <p>The difference between the experimental and predicted residue&ndash;residue distance maps (&Aring;).
+    Bright regions mark pairs of residues whose separation AlphaFold got wrong &mdash; often a whole domain
+    placed in the wrong position relative to the rest of the structure.</p>
+    <p class="takehome">Take-home: mean distance-map difference {{ r2(metrics.distance_matrix_mean_diff) }}&nbsp;&Aring;.</p>
+  </div>
+  {% endif %}
+
+  {% if figures.pae %}
   {{ figure(figures.pae, 'pae') }}
+  <div class="explain">
+    <h4>Did AlphaFold know it was wrong?</h4>
+    <p><dfn>Left</dfn>: AlphaFold's own predicted error (PAE, &Aring;) for each residue pair.
+    <dfn>Right</dfn>: the error we actually measured. Where the right panel is much brighter than the left,
+    AlphaFold underestimated its own error.</p>
+    <p class="takehome">Take-home: mean predicted error {{ r2(metrics.mean_pae) }}&nbsp;&Aring; vs. mean observed
+    error {{ r2(metrics.mean_observed_error) }}&nbsp;&Aring;;
+    {{ (100 * metrics.pae_overconfident_frac) | round(1) if metrics.pae_overconfident_frac is not none else '—' }}%
+    of residue pairs were more wrong than AlphaFold predicted.</p>
+  </div>
+  {% endif %}
 
   {% if domains %}
   <h2>Per-domain breakdown</h2>
