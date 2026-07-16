@@ -20,6 +20,7 @@
   {% if is_all %}
   <h1>All structures</h1>
   <p class="sub">Cumulative across every processed release week, to {{ today }}.</p>
+  <p class="sub hint">💡 Pick a week from the <strong>Jump to</strong> menu below (or the <a href="{{ url_for('archive') }}">Archive</a> tab) to see that week's <strong>notable releases</strong> — the novel and confidently-wrong highlights called out for each release.</p>
   {% else %}
   <h1>Release week {{ label }}</h1>
   {% endif %}

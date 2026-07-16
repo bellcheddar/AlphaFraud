@@ -25,13 +25,13 @@ from flask import Flask, abort, jsonify, render_template, request, url_for
 
 from . import __version__, banner, config, db, report
 
-# Real app pages (the /week/ and /entry/ prefixes are handled separately).
-_PAGE_ROUTES = {"/", "/leaderboard", "/analysis", "/archive"}
 # User-agents we do NOT count as human visitors (crawlers, scanners, HTTP libraries, headless).
 _BOT_UA = re.compile(
     r"bot|crawl|spider|slurp|scan|http-client|python-requests|curl|wget|libredtail|websiphon|"
     r"semrush|ahrefs|bytespider|facebookexternalhit|headless|okhttp|dataprovider|censys|masscan|"
-    r"zgrab|nuclei|petalbot|amazonbot|go-http", re.I)
+    r"zgrab|nuclei|petalbot|amazonbot|go-http|infrawat|cyberconvoy|internet-?measurement|libwww|"
+    r"aiohttp|perl|paloalto|palo alto|cortex|visionheight|flowiq|genomecrawler|nokia|"
+    r"claude-user|claude-code|python/|\(cow\)", re.I)
 
 # Metric groups drive the tidy tables on the entry page (label -> metric keys).
 METRIC_GROUPS = [
@@ -92,27 +92,33 @@ def create_app() -> Flask:
     # every gunicorn restart, contending with a running backfill). The schema is created by
     # `AlphaFraud.py init` (provisioning) and by every pipeline run.
 
-    @app.before_request
-    def _track_visit():
-        # Count unique HUMAN visitors for the header stats panel. A public server is hammered
-        # by crawlers and vulnerability scanners (Amazonbot, PetalBot, Go-http-client probing
-        # /.env, /login, ...), so we count only real app pages requested by non-bot UAs.
-        if request.path not in _PAGE_ROUTES and not request.path.startswith(("/week/", "/entry/")):
-            return
+    def _human_visitor_id():
+        # A hashed client IP, but ONLY for requests that look human. A public server is hammered
+        # by crawlers and vulnerability scanners (Amazonbot alone: >1300 hits/day), many of which
+        # either use an unfamiliar UA or spoof a real browser hitting `/` once -- indistinguishable
+        # from a person by user-agent alone. So the real filter is applied at the CALL SITE: we only
+        # record a visitor from /api/stats, which the page's JavaScript fetches on load. Blind
+        # scanners GET a page and leave without executing JS, so they never reach it. This is a
+        # proof-of-JS-execution gate; the UA blocklist below just strips the JS-capable bots.
         ua = request.headers.get("User-Agent", "")
         if not ua or _BOT_UA.search(ua):
-            return
+            return None
         ip = (request.headers.get("X-Real-IP")
               or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
               or request.remote_addr or "")
-        if ip:
-            try:
-                db.record_visit(hashlib.sha256(("af:" + ip).encode()).hexdigest()[:16])
-            except Exception:
-                pass
+        if not ip:
+            return None
+        return hashlib.sha256(("af:" + ip).encode()).hexdigest()[:16]
 
     @app.route("/api/stats")
     def api_stats():
+        # Recording the visit here (not on the page route) is the human gate -- see _human_visitor_id.
+        vid = _human_visitor_id()
+        if vid:
+            try:
+                db.record_visit(vid)
+            except Exception:
+                pass
         rss_mb = None
         try:                                   # this worker's resident memory (Linux)
             with open("/proc/self/status") as fh:
