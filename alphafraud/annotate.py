@@ -82,6 +82,26 @@ CATH_CLASS_NAMES = {
     "4": "Few Secondary Structures", "6": "Special",
 }
 
+# CATH architecture (class.arch) -> human name. Only the well-established architectures are
+# named; anything unlisted falls back to its bare code (better a code than a wrong name).
+CATH_ARCH_NAMES = {
+    "1.10": "Orthogonal Bundle", "1.20": "Up-down Bundle", "1.25": "Alpha Horseshoe",
+    "1.40": "Alpha Solenoid", "1.50": "Alpha/Alpha Barrel",
+    "2.10": "Ribbon", "2.30": "Roll", "2.40": "Beta Barrel", "2.60": "Sandwich",
+    "2.70": "Distorted Sandwich", "2.130": "Beta Propeller",
+    "3.10": "Roll", "3.20": "Alpha-Beta Barrel (TIM)", "3.30": "2-Layer Sandwich",
+    "3.40": "3-Layer(aba) Sandwich", "3.60": "4-Layer Sandwich",
+    "3.80": "Alpha-Beta Horseshoe", "3.90": "Alpha-Beta Complex", "4.10": "Irregular",
+}
+
+
+def cath_arch_label(code: Optional[str]) -> Optional[str]:
+    """'2.60' -> 'Sandwich (2.60)'. Unknown codes render as 'CATH 2.20'."""
+    if not code:
+        return None
+    name = CATH_ARCH_NAMES.get(code)
+    return f"{name} ({code})" if name else f"CATH {code}"
+
 
 def fetch(entities: list[dict]) -> dict[str, Annotation]:
     """entities: rows with entity_id, entry_id, chain, uniprot. Returns entity_id -> Annotation."""

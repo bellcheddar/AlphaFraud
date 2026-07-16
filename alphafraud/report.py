@@ -355,17 +355,46 @@ _CATH_COLORS = {
 }
 
 
-def analysis_sunburst(sb: dict) -> Optional[str]:
-    """CATH fold hierarchy as a treemap (rectangular tiles read far better than radial text)."""
-    if not sb.get("ids"):
+def analysis_cath_folds(cf: dict) -> Optional[str]:
+    """Confidently-wrong counts by CATH architecture: named, sorted horizontal bars coloured
+    by CATH class. The '92% have no fold' fact is stated in the title, not drawn as a tile --
+    a ranked bar of the classified minority is far more legible than the old treemap."""
+    bars = cf.get("bars") or []
+    if not bars:
         return None
-    fig = go.Figure(go.Treemap(
-        ids=sb["ids"], labels=sb["labels"], parents=sb["parents"], values=sb["values"],
-        branchvalues="total", textinfo="label+value", tiling=dict(pad=2),
-        marker=dict(colors=list(range(len(sb["ids"]))), colorscale="Blues", line=dict(width=1, color="white")),
-        hovertemplate="<b>%{label}</b><br>%{value} confidently wrong<extra></extra>",
+    bars = bars[::-1]   # Plotly draws bottom-up; reverse so the largest sits at the top
+    counts = [b["count"] for b in bars]
+    labels = [b["label"] for b in bars]
+    colors = [_CATH_COLORS.get(b["class_name"], "#5b6b7a") for b in bars]
+    customdata = [[b["class_name"], b.get("top_topo") or "—"] for b in bars]
+    fig = go.Figure(go.Bar(
+        y=labels, x=counts, orientation="h", marker_color=colors, showlegend=False,
+        text=counts, textposition="outside", cliponaxis=False,
+        customdata=customdata,
+        hovertemplate=("<b>%{y}</b><br>%{x} confidently wrong<br>CATH class: "
+                       "%{customdata[0]}<br>most common fold: %{customdata[1]}<extra></extra>"),
     ))
-    fig.update_layout(title="Confidently-wrong by CATH fold hierarchy (Class → Architecture → Topology)")
+    total = cf.get("total_cw", 0)
+    n_uncl = cf.get("n_unclassified", 0)
+    pct = cf.get("pct_unclassified", 0)
+    n_cls = cf.get("n_classified", 0)
+    fig.update_layout(
+        title=(f"Confidently-wrong by CATH architecture<br>"
+               f"<sub>{n_uncl:,}/{total:,} ({pct:.0f}%) have no CATH fold — amyloids, peptides, "
+               f"disordered. The {n_cls:,} with a known architecture:</sub>"),
+        xaxis_title="structures confidently wrong",
+        margin=dict(l=210, r=48, t=92, b=52),
+    )
+    # A compact class-colour legend (bars carry per-point colour, so add proxy legend traces).
+    for cls_name, col in [("Mainly Alpha", _CATH_COLORS["Mainly Alpha"]),
+                          ("Mainly Beta", _CATH_COLORS["Mainly Beta"]),
+                          ("Alpha Beta", _CATH_COLORS["Alpha Beta"]),
+                          ("Few Secondary Structures", _CATH_COLORS["Few Secondary Structures"])]:
+        if any(b["class_name"] == cls_name for b in bars):
+            fig.add_trace(go.Bar(y=[None], x=[None], orientation="h", name=cls_name,
+                                 marker_color=col, showlegend=True, hoverinfo="skip"))
+    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0,
+                                  font=dict(size=11)), barmode="overlay")
     return _fig(fig)
 
 

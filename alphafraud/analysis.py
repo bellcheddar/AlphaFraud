@@ -152,41 +152,51 @@ def _enrichment(rows: list[dict], key: str, name_key: Optional[str] = None, min_
     return out
 
 
-def _cath_sunburst(rows: list[dict]) -> dict:
-    """Nested CATH Class -> Architecture -> Topology counts among the confidently-wrong set."""
+def _cath_folds(rows: list[dict], cap: int = 12) -> dict:
+    """Confidently-wrong structures grouped by CATH architecture.
+
+    The overwhelming finding is that most confident failures have *no* CATH fold at all
+    (amyloids, peptides, disordered regions), so we surface that as a headline stat and plot
+    only the classified minority -- ranked, named, coloured by CATH class -- which is far more
+    legible than a treemap dominated by one giant 'unclassified' tile of cryptic codes.
+    """
     cw = [r for r in rows if r["confidently_wrong"]]
-    ids, labels, parents, values = [], [], [], []
-    seen = set()
+    total = len(cw)
+    n_unclassified = sum(1 for r in cw if not r.get("cath_arch"))
+    n_classified = total - n_unclassified
 
-    def add(node_id, label, parent, value):
-        if node_id in seen:
-            return
-        seen.add(node_id)
-        ids.append(node_id); labels.append(label); parents.append(parent); values.append(value)
-
-    counts = defaultdict(int)
+    by_arch = defaultdict(lambda: {"count": 0, "class": None, "topos": Counter()})
     for r in cw:
-        cls = r.get("cath_class") or "unclassified"
-        arch = r.get("cath_arch") or (cls if cls == "unclassified" else None)
-        topo = r.get("cath_topo")
-        counts[("class", cls)] += 1
-        if arch:
-            counts[("arch", cls, arch)] += 1
-        if topo:
-            counts[("topo", cls, arch, topo)] += 1
-    for keytuple, val in counts.items():
-        if keytuple[0] == "class":
-            cls = keytuple[1]
-            add(f"c:{cls}", annotate.CATH_CLASS_NAMES.get(cls, cls), "",
-                sum(v for k, v in counts.items() if k[0] == "class" and k[1] == cls))
-    for keytuple, val in counts.items():
-        if keytuple[0] == "arch":
-            _, cls, arch = keytuple
-            add(f"a:{arch}", arch, f"c:{cls}", val)
-        elif keytuple[0] == "topo":
-            _, cls, arch, topo = keytuple
-            add(f"t:{topo}", topo, f"a:{arch}", val)
-    return {"ids": ids, "labels": labels, "parents": parents, "values": values}
+        arch = r.get("cath_arch")
+        if not arch:
+            continue
+        b = by_arch[arch]
+        b["count"] += 1
+        b["class"] = r.get("cath_class")
+        if r.get("cath_topo"):
+            b["topos"][r["cath_topo"]] += 1
+
+    bars = []
+    for arch, b in by_arch.items():
+        cls = b["class"]
+        top_topo = b["topos"].most_common(1)[0][0] if b["topos"] else None
+        bars.append({
+            "code": arch,
+            "label": annotate.cath_arch_label(arch),
+            "class_code": cls,
+            "class_name": annotate.CATH_CLASS_NAMES.get(cls, "unclassified"),
+            "count": b["count"],
+            "top_topo": top_topo,
+        })
+    bars.sort(key=lambda x: x["count"], reverse=True)
+    return {
+        "total_cw": total,
+        "n_unclassified": n_unclassified,
+        "pct_unclassified": round(100 * n_unclassified / total, 0) if total else 0,
+        "n_classified": n_classified,
+        "n_architectures": len(bars),
+        "bars": bars[:cap],
+    }
 
 
 def _themes(rows: list[dict]) -> dict:
@@ -464,7 +474,7 @@ def rebuild_snapshot() -> dict:
         "n_cw": sum(1 for r in rows if r["confidently_wrong"]),
         "enrichment_cath_class": enr_class,
         "enrichment_scop2": enr_scop2[:30],
-        "sunburst": _cath_sunburst(rows),
+        "cath_folds": _cath_folds(rows),
         "themes": _themes(rows),
         "correlates": _correlates(rows),
         "heterogeneity": _heterogeneity(rows),

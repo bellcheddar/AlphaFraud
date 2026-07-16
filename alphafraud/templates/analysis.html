@@ -82,15 +82,20 @@
 
   {# ---- Fold hierarchy + themes ---- #}
   <div class="grid2">
-    <div>{{ figure(figures.sunburst, 'sunburst') }}</div>
+    <div>{{ figure(figures.cath_folds, 'cathFolds') }}</div>
     <div>{{ figure(figures.themes, 'themes') }}</div>
   </div>
   <div class="explain">
-    <h4>Shared themes</h4>
-    <p>The confidently-wrong set is dominated by proteins AlphaFold predicts as compact folds but which the
-    experiment shows in a different state: <dfn>amyloid</dfn> fibrils, <dfn>large assemblies</dfn> (AlphaFold DB
-    models the isolated monomer), <dfn>disordered</dfn> regions, coiled-coils, and engineered/designed constructs.
-    Flags combine literature/name keywords with structural signals (large Rg change, low secondary-structure agreement).</p>
+    <h4>Folds &amp; shared themes</h4>
+    <p><dfn>CATH architecture (left):</dfn> the striking result is that the large majority of confident failures have
+    <em>no CATH fold at all</em> — they are amyloids, short peptides and disordered regions that AlphaFold renders as
+    crisp but wrong structures (this fraction is stated in the chart title). The bars show only the classified minority,
+    ranked by count and coloured by CATH class; each bar is a named architecture (e.g. <em>Sandwich</em>,
+    <em>Orthogonal Bundle</em>), and the hover gives the most common specific fold within it.</p>
+    <p><dfn>Shared themes (right):</dfn> the same set, tagged by cause — <dfn>amyloid</dfn> fibrils,
+    <dfn>large assemblies</dfn> (AlphaFold DB models the isolated monomer), <dfn>disordered</dfn> regions, coiled-coils,
+    and engineered/designed constructs. Flags combine literature/name keywords with structural signals (large Rg change,
+    low secondary-structure agreement).</p>
   </div>
 
   {# ---- Sequence-family clustering (full-width, detailed panel) ---- #}

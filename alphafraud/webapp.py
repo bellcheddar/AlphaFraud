@@ -185,7 +185,7 @@ def create_app() -> Flask:
                     snap.get("enrichment_cath_class") or [], "AlphaFold blind spots by CATH class"),
                 "enrich_scop2": report.analysis_enrichment(
                     snap.get("enrichment_scop2") or [], "AlphaFold blind spots by SCOP2 superfamily"),
-                "sunburst": report.analysis_sunburst(snap.get("sunburst") or {}),
+                "cath_folds": report.analysis_cath_folds(snap.get("cath_folds") or {}),
                 "themes": report.analysis_themes(snap.get("themes") or {}),
                 "clusters": report.analysis_cluster_heatmap(snap.get("clusters") or {}),
                 "embedding": report.analysis_embedding(snap.get("embedding") or {}),
