@@ -312,6 +312,10 @@ sudo systemctl start alphafraud-run.service
 <td data-label="Role">Weekly pipeline and its Wednesday 00:30 UTC schedule</td>
 </tr>
 <tr>
+<td data-label="File"><code>deploy/alphafraud-backfill.service</code></td>
+<td data-label="Role">Supervised one-time full-archive backfill; auto-restarts on crash, survives reboot (<code>systemctl enable --now alphafraud-backfill</code>)</td>
+</tr>
+<tr>
 <td data-label="File"><code>deploy/nginx-alphafraud.conf</code></td>
 <td data-label="Role">nginx reverse-proxy site (templated with the server name)</td>
 </tr>
@@ -331,7 +335,7 @@ sudo systemctl start alphafraud-run.service
 <li><span class="emd-check">&#11036;</span> <strong>Percentages on the KPI tiles</strong> — show each headline count as a share of the batch (e.g. confidently wrong: 586 / 37,007 = 1.6%), not just the raw number</li>
 <li><span class="emd-check">&#11036;</span> <strong>Worst-offenders structural deep dive</strong> — a panel characterising the confidently-wrong set by CATH / SCOP fold and family class, and clustering it by sequence similarity, to expose shared structural themes (amyloids, disordered regions, large assemblies)</li>
 <li><span class="emd-check">&#11036;</span> <strong>Hover-to-preview structures</strong> — a live 3D preview (experimental vs AlphaFold) on hover over a scatter point or a table row</li>
-<li><span class="emd-check">&#11036;</span> <strong>Supervised backfill service</strong> — run the archive backfill as a systemd unit that auto-restarts on crash or reboot, replacing the detached <code>nohup</code> process</li>
+<li><span class="emd-check">&#9989;</span> <strong>Supervised backfill service</strong> — the archive backfill runs as a systemd unit (<code>alphafraud-backfill.service</code>) that auto-restarts on crash and survives reboots, replacing the detached <code>nohup</code> process</li>
 <li><span class="emd-check">&#11036;</span> <strong>Multi-chain / complex accuracy</strong> — compare assemblies with QS-score and interface lDDT (AlphaFold DB models are monomer-only today, so interfaces are untested)</li>
 <li><span class="emd-check">&#11036;</span> <strong>Accuracy by method and resolution</strong> — break results down by X-ray / cryo-EM / NMR and by resolution to see where AlphaFold struggles most</li>
 <li><span class="emd-check">&#11036;</span> <strong>Map multi-domain and engineered chains</strong> — compare antibodies, fusions and constructs per-domain instead of skipping chains without a single UniProt accession</li>

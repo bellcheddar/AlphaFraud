@@ -146,6 +146,7 @@ After that, `deploy/deploy.sh` pushes code updates and restarts the web service,
 | `deploy/release.sh` | One-shot: commit, push to GitHub, then deploy to the droplet |
 | `deploy/alphafraud-web.service` | gunicorn web app (always on) |
 | `deploy/alphafraud-run.service` + `.timer` | Weekly pipeline and its Wednesday 00:30 UTC schedule |
+| `deploy/alphafraud-backfill.service` | Supervised one-time full-archive backfill; auto-restarts on crash, survives reboot (`systemctl enable --now alphafraud-backfill`) |
 | `deploy/nginx-alphafraud.conf` | nginx reverse-proxy site (templated with the server name) |
 
 ## 🧱 Stack
@@ -165,7 +166,7 @@ Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.
 - [ ] **Percentages on the KPI tiles** — show each headline count as a share of the batch (e.g. confidently wrong: 586 / 37,007 = 1.6%), not just the raw number
 - [ ] **Worst-offenders structural deep dive** — a panel characterising the confidently-wrong set by CATH / SCOP fold and family class, and clustering it by sequence similarity, to expose shared structural themes (amyloids, disordered regions, large assemblies)
 - [ ] **Hover-to-preview structures** — a live 3D preview (experimental vs AlphaFold) on hover over a scatter point or a table row
-- [ ] **Supervised backfill service** — run the archive backfill as a systemd unit that auto-restarts on crash or reboot, replacing the detached `nohup` process
+- [x] **Supervised backfill service** — the archive backfill runs as a systemd unit (`alphafraud-backfill.service`) that auto-restarts on crash and survives reboots, replacing the detached `nohup` process
 - [ ] **Multi-chain / complex accuracy** — compare assemblies with QS-score and interface lDDT (AlphaFold DB models are monomer-only today, so interfaces are untested)
 - [ ] **Accuracy by method and resolution** — break results down by X-ray / cryo-EM / NMR and by resolution to see where AlphaFold struggles most
 - [ ] **Map multi-domain and engineered chains** — compare antibodies, fusions and constructs per-domain instead of skipping chains without a single UniProt accession
