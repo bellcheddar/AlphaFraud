@@ -10,10 +10,11 @@
   wrong first (high pLDDT, low TM), then by FRAUD score. Novel + wrong is the strongest evidence
   against "folding is solved".</p>
 
+  {% set total = stats.n or 0 %}
   <div class="kpis">
-    <div class="kpi"><div class="n">{{ stats.n or 0 }}</div><div class="l">total compared</div></div>
-    <div class="kpi alert"><div class="n">{{ stats.cw or 0 }}</div><div class="l">confidently wrong</div></div>
-    <div class="kpi"><div class="n">{{ stats.novel or 0 }}</div><div class="l">novel sequences</div></div>
+    <div class="kpi"><div class="n">{{ '{:,}'.format(total) }}</div><div class="l">total analysed</div></div>
+    <div class="kpi alert"><div class="n">{{ '{:,}'.format(stats.cw or 0) }}{% if total %}<span class="pct">{{ (100 * (stats.cw or 0) / total) | round(1) }}%</span>{% endif %}</div><div class="l">confidently wrong</div></div>
+    <div class="kpi"><div class="n">{{ '{:,}'.format(stats.novel or 0) }}{% if total %}<span class="pct">{{ (100 * (stats.novel or 0) / total) | round(1) }}%</span>{% endif %}</div><div class="l">novel sequences</div></div>
     <div class="kpi good"><div class="n">{% if stats.avg_tm %}{{ '%.3f'|format(stats.avg_tm) }}{% else %}—{% endif %}</div><div class="l">mean TM-score</div></div>
   </div>
 

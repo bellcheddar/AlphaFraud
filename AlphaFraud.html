@@ -276,7 +276,7 @@ sudo systemctl start alphafraud-run.service
 <h2>✅ To Do</h2>
 <p>Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.</p>
 <ul class="emd-tasklist">
-<li><span class="emd-check">&#11036;</span> <strong>Percentages on the KPI tiles</strong> — show each headline count as a share of the batch (e.g. confidently wrong: 586 / 37,007 = 1.6%), not just the raw number</li>
+<li><span class="emd-check">&#9989;</span> <strong>Percentages on the KPI tiles</strong> — each headline count also shows its share of the batch (e.g. confidently wrong: 586 = 1.6%), on the dashboard, week and leaderboard views</li>
 <li><span class="emd-check">&#11036;</span> <strong>Worst-offenders structural deep dive</strong> — a panel characterising the confidently-wrong set by CATH / SCOP fold and family class, and clustering it by sequence similarity, to expose shared structural themes (amyloids, disordered regions, large assemblies)</li>
 <li><span class="emd-check">&#11036;</span> <strong>Hover-to-preview structures</strong> — a live 3D preview (experimental vs AlphaFold) on hover over a scatter point or a table row</li>
 <li><span class="emd-check">&#9989;</span> <strong>Supervised backfill service</strong> — the archive backfill runs as a systemd unit (<code>alphafraud-backfill.service</code>) that auto-restarts on crash and survives reboots, replacing the detached <code>nohup</code> process</li>

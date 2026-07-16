@@ -34,10 +34,10 @@
   </div>
 
   <div class="kpis">
-    <div class="kpi"><div class="n">{{ kpis.n_analysed }}</div><div class="l">structures analysed{% if kpis.n_fully < kpis.n_analysed %} <span class="hint">({{ kpis.n_fully }} full)</span>{% endif %}</div></div>
-    <div class="kpi {% if kpis.confidently_wrong %}alert{% endif %}"><div class="n">{{ kpis.confidently_wrong }}</div><div class="l">confidently wrong</div></div>
-    <div class="kpi"><div class="n">{{ kpis.novel }}</div><div class="l">novel sequences</div></div>
-    <div class="kpi {% if kpis.novel_and_wrong %}alert{% endif %}"><div class="n">{{ kpis.novel_and_wrong }}</div><div class="l">novel &amp; wrong</div></div>
+    <div class="kpi"><div class="n">{{ '{:,}'.format(kpis.n_analysed) }}</div><div class="l">structures analysed{% if kpis.n_fully < kpis.n_analysed %} <span class="hint">({{ '{:,}'.format(kpis.n_fully) }} full · {{ kpis.full_pct }}%)</span>{% endif %}</div></div>
+    <div class="kpi {% if kpis.confidently_wrong %}alert{% endif %}"><div class="n">{{ '{:,}'.format(kpis.confidently_wrong) }}{% if kpis.confidently_wrong_pct is not none %}<span class="pct">{{ kpis.confidently_wrong_pct }}%</span>{% endif %}</div><div class="l">confidently wrong</div></div>
+    <div class="kpi"><div class="n">{{ '{:,}'.format(kpis.novel) }}{% if kpis.novel_pct is not none %}<span class="pct">{{ kpis.novel_pct }}%</span>{% endif %}</div><div class="l">novel sequences</div></div>
+    <div class="kpi {% if kpis.novel_and_wrong %}alert{% endif %}"><div class="n">{{ '{:,}'.format(kpis.novel_and_wrong) }}{% if kpis.novel_and_wrong_pct is not none %}<span class="pct">{{ kpis.novel_and_wrong_pct }}%</span>{% endif %}</div><div class="l">novel &amp; wrong</div></div>
     <div class="kpi good"><div class="n">{{ fmt(kpis.median_tm) }}</div><div class="l">median TM-score</div></div>
   </div>
 
