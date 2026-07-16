@@ -262,30 +262,55 @@ def analysis_enrichment(enr: list, title: str, cap: int = 15) -> Optional[str]:
     return _fig(fig)
 
 
+# Distinct qualitative colours per CATH class so classes never collide (e.g. two blues).
+_CATH_COLORS = {
+    "Mainly Alpha": "#d62728", "Mainly Beta": "#1e73be", "Alpha Beta": "#00d084",
+    "Few Secondary Structures": "#fcb900", "Special": "#9b51e0", "unclassified": "#9aa7b3",
+}
+
+
 def analysis_sunburst(sb: dict) -> Optional[str]:
+    """CATH fold hierarchy as a treemap (rectangular tiles read far better than radial text)."""
     if not sb.get("ids"):
         return None
-    fig = go.Figure(go.Sunburst(
+    fig = go.Figure(go.Treemap(
         ids=sb["ids"], labels=sb["labels"], parents=sb["parents"], values=sb["values"],
-        branchvalues="total", insidetextorientation="radial",
+        branchvalues="total", textinfo="label+value", tiling=dict(pad=2),
         marker=dict(colors=list(range(len(sb["ids"]))), colorscale="Blues", line=dict(width=1, color="white")),
         hovertemplate="<b>%{label}</b><br>%{value} confidently wrong<extra></extra>",
     ))
-    fig.update_layout(title="Confidently-wrong by CATH fold hierarchy")
+    fig.update_layout(title="Confidently-wrong by CATH fold hierarchy (Class → Architecture → Topology)")
     return _fig(fig)
 
 
 def analysis_cluster_heatmap(cl: dict) -> Optional[str]:
     if cl.get("n", 0) < 4:
         return None
+    n = cl["n"]
     fig = go.Figure(go.Heatmap(
         z=cl["matrix"], x=cl["order_labels"], y=cl["order_labels"], colorscale="Viridis",
-        colorbar=dict(title="% id", thickness=12),
-        hovertemplate="%{y} vs %{x}<br>%{z:.0f}% identity<extra></extra>",
+        colorbar=dict(title="% identity", thickness=12),
+        hovertemplate="%{y} ↔ %{x}<br>%{z:.0f}% identity<extra></extra>",
     ))
-    fig.update_layout(title=f"Sequence-identity clustering of the worst offenders (n={cl['n']})",
-                      yaxis=dict(autorange="reversed", scaleanchor="x"),
-                      xaxis=dict(showticklabels=False), margin=dict(l=60, r=24, t=88, b=40))
+    # Outline each sequence-family block on the diagonal and label it in the left margin.
+    shapes, annos = [], []
+    pal = [BRAND["amber"], BRAND["green"], BRAND["red"], BRAND["primary_light"], "#9b51e0", "#ff6900"]
+    for k, b in enumerate(cl.get("blocks", [])):
+        col = pal[k % len(pal)]
+        s, e = b["start"] - 0.5, b["end"] + 0.5
+        shapes.append(dict(type="rect", x0=s, x1=e, y0=s, y1=e,
+                           line=dict(color=col, width=2), fillcolor="rgba(0,0,0,0)"))
+        if b["size"] >= 3:
+            annos.append(dict(xref="paper", x=-0.008, y=(b["start"] + b["end"]) / 2, xanchor="right",
+                              yanchor="middle", showarrow=False,
+                              text=f"{b['label']} ({b['size']})", font=dict(size=10, color=col)))
+    fig.update_layout(
+        title=f"Sequence-identity clustering of the worst offenders (n={n})",
+        xaxis=dict(showticklabels=False, title="worst offenders, ordered by sequence similarity →"),
+        yaxis=dict(showticklabels=False, autorange="reversed",
+                   title="← families (outlined & labelled)"),
+        shapes=shapes, annotations=annos, margin=dict(l=150, r=24, t=88, b=56),
+    )
     return _fig(fig)
 
 
@@ -297,8 +322,9 @@ def analysis_embedding(emb: dict) -> Optional[str]:
         idx = [i for i, c in enumerate(emb["cath_class"]) if c == cls]
         fig.add_trace(go.Scatter(
             x=[emb["x"][i] for i in idx], y=[emb["y"][i] for i in idx], mode="markers", name=cls,
-            marker=dict(size=[6 + 22 * (emb["fraud"][i] or 0) for i in idx],
-                        line=dict(width=0.4, color="white"), opacity=0.75),
+            marker=dict(color=_CATH_COLORS.get(cls, "#5b6b7a"),
+                        size=[6 + 22 * (emb["fraud"][i] or 0) for i in idx],
+                        line=dict(width=0.4, color="white"), opacity=0.78),
             customdata=[[emb["label"][i]] for i in idx],
             hovertemplate="<b>%{customdata[0]}</b><extra></extra>",
         ))

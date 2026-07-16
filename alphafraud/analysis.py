@@ -334,13 +334,46 @@ def _sequence_clusters(rows: list[dict], cap: int = 90) -> dict:
     clusters = fcluster(Z, t=0.7, criterion="distance").tolist()
     ident_pct = np.round((1.0 - D) * 100, 1)
     labels = [f"{pool[k]['entry_id']}_{pool[k]['chain']}" for k in order]
+    ordered_cluster = [int(clusters[k]) for k in order]
+    ordered_desc = [(pool[k].get("description") or pool[k].get("uniprot_name") or "") for k in order]
+
+    # Contiguous cluster blocks (the dendrogram order groups clusters), each labelled by the
+    # most common significant word across its members -> "the transthyretin block", etc.
+    blocks, i = [], 0
+    while i < n:
+        j = i
+        while j + 1 < n and ordered_cluster[j + 1] == ordered_cluster[i]:
+            j += 1
+        if j - i + 1 >= 2:
+            blocks.append({"start": i, "end": j, "size": j - i + 1,
+                           "label": _dominant_word(ordered_desc[i : j + 1])})
+        i = j + 1
     return {
         "n": n,
         "order_labels": labels,
         "matrix": ident_pct[np.ix_(order, order)].tolist(),
-        "clusters": [int(clusters[k]) for k in order],
+        "clusters": ordered_cluster,
+        "blocks": blocks,
         "n_clusters": len(set(clusters)),
     }
+
+
+_STOPWORDS = {"protein", "chain", "human", "domain", "family", "type", "subunit", "factor",
+              "complex", "the", "and", "receptor", "binding", "like", "containing", "isoform",
+              "beta", "alpha", "putative", "uncharacterized", "member", "region", "terminal"}
+
+
+def _dominant_word(descs: list) -> str:
+    words = Counter()
+    for d in descs:
+        for w in re.findall(r"[A-Za-z][A-Za-z0-9-]{3,}", d or ""):
+            wl = w.lower()
+            if wl not in _STOPWORDS:
+                words[wl] += 1
+    if not words:
+        return "mixed"
+    top, n = words.most_common(1)[0]
+    return top if n >= 2 else "mixed"
 
 
 def _failure_embedding(rows: list[dict], cap: int = 800) -> dict:

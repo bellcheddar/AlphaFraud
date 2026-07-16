@@ -93,16 +93,32 @@
     Flags combine literature/name keywords with structural signals (large Rg change, low secondary-structure agreement).</p>
   </div>
 
-  {# ---- Clustering + embedding ---- #}
+  {# ---- Sequence-family clustering (full-width, detailed panel) ---- #}
   {{ figure(figures.clusters, 'clusters') }}
+  <div class="explain">
+    <h4>How to read the similarity heatmap</h4>
+    <p>This compares the worst offenders <em>to each other by sequence</em>. Every structure is aligned against
+    every other; each cell is their <dfn>percent sequence identity</dfn> (dark = unrelated, bright yellow = near-identical).
+    The rows and columns are re-ordered so that similar sequences sit next to each other, which makes
+    <dfn>homology families</dfn> appear as bright square blocks running down the diagonal.</p>
+    <p>The <dfn>coloured boxes</dfn> outline the families the algorithm found; each is labelled in the left margin by
+    its most common protein name and size, e.g. <em>transthyretin (5)</em>. A big bright block means AlphaFold's blind
+    spot is really one family caught many times (many fibrils of the same protein); scattered singletons mean the
+    failures are structurally diverse. Bright cells <em>off</em> the diagonal flag similarity between different families.</p>
+    <p class="metric"><dfn>How it is built:</dfn> pairwise global alignment (biotite, BLOSUM62) gives identity;
+    distance <span class="eq">d = 1 − identity</span>; grouped by SciPy average-linkage hierarchical clustering and cut
+    at 30% identity. <span class="eq">families = fcluster(linkage(d), t=0.7)</span>. Capped at the top ~90 offenders by FRAUD.</p>
+  </div>
+
+  {# ---- Failure-mode map + short overview ---- #}
   {{ figure(figures.embedding, 'embedding') }}
   <div class="explain">
-    <h4>Families and failure modes</h4>
-    <p>The <dfn>identity heatmap</dfn> clusters the worst offenders by pairwise sequence identity (biotite global
-    alignment → SciPy average-linkage), so homology families (e.g. an amyloid family) appear as bright blocks. The
-    <dfn>failure-mode map</dfn> is a 2-D PCA of each structure's metric fingerprint (TM, lDDT, RMSD, Rg-change, SS
-    agreement, contact overlap, PAE-overconfidence), separating <em>how</em> AlphaFold failed: global-fold-wrong vs
-    domain-hinge vs local-melt. Point size = FRAUD; colour = CATH class; hover shows the PDB id.</p>
+    <h4>Families &amp; failure modes — the two views</h4>
+    <p>The heatmap above splits the offenders by <dfn>sequence</dfn> (who is related to whom); this map splits them by
+    <dfn>failure mode</dfn> (how AlphaFold got it wrong). It is a 2-D PCA of each structure's metric fingerprint
+    (TM-score, lDDT, RMSD, radius-of-gyration change, secondary-structure agreement, contact overlap, PAE
+    overconfidence), so nearby points failed in similar ways — global-fold-wrong vs domain-hinge vs local-melt.
+    Point size = FRAUD; colour = CATH class; hover shows the PDB id.</p>
   </div>
 
   {# ---- Correlates ---- #}
