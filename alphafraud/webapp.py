@@ -18,11 +18,20 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from datetime import date
 
 from flask import Flask, abort, jsonify, render_template, request, url_for
 
 from . import __version__, banner, config, db, report
+
+# Real app pages (the /week/ and /entry/ prefixes are handled separately).
+_PAGE_ROUTES = {"/", "/leaderboard", "/analysis", "/archive"}
+# User-agents we do NOT count as human visitors (crawlers, scanners, HTTP libraries, headless).
+_BOT_UA = re.compile(
+    r"bot|crawl|spider|slurp|scan|http-client|python-requests|curl|wget|libredtail|websiphon|"
+    r"semrush|ahrefs|bytespider|facebookexternalhit|headless|okhttp|dataprovider|censys|masscan|"
+    r"zgrab|nuclei|petalbot|amazonbot|go-http", re.I)
 
 # Metric groups drive the tidy tables on the entry page (label -> metric keys).
 METRIC_GROUPS = [
@@ -85,9 +94,13 @@ def create_app() -> Flask:
 
     @app.before_request
     def _track_visit():
-        # Count unique visitors (hashed IP) for the header stats panel. Page views only.
-        p = request.path
-        if p.startswith("/static") or p.startswith("/api") or p == "/healthz":
+        # Count unique HUMAN visitors for the header stats panel. A public server is hammered
+        # by crawlers and vulnerability scanners (Amazonbot, PetalBot, Go-http-client probing
+        # /.env, /login, ...), so we count only real app pages requested by non-bot UAs.
+        if request.path not in _PAGE_ROUTES and not request.path.startswith(("/week/", "/entry/")):
+            return
+        ua = request.headers.get("User-Agent", "")
+        if not ua or _BOT_UA.search(ua):
             return
         ip = (request.headers.get("X-Real-IP")
               or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
