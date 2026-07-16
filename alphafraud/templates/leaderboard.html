@@ -32,7 +32,11 @@
       <tbody>
         {% for e in entities %}
         <tr class="{% if e.confidently_wrong %}wrong{% endif %}" data-wrong="{{ 1 if e.confidently_wrong else 0 }}" data-novel="{{ 1 if e.is_novel else 0 }}">
-          <td><a href="{{ url_for('entry', entity_id=e.entity_id) }}">{{ e.entry_id }}_{{ e.chain }}</a></td>
+          <td class="pdbcell">
+            {% set ru = ribbon_url(e.entity_id) %}
+            {% if ru %}<a href="{{ url_for('entry', entity_id=e.entity_id) }}"><img class="ribbonthumb" src="{{ ru }}" loading="lazy" alt="Cα deviation ribbon for {{ e.entry_id }}"></a>{% endif %}
+            <a href="{{ url_for('entry', entity_id=e.entity_id) }}">{{ e.entry_id }}_{{ e.chain }}</a>
+          </td>
           <td>{% if e.uniprot %}<a href="https://www.uniprot.org/uniprotkb/{{ e.uniprot }}" target="_blank" rel="noopener">{{ e.uniprot }}</a>{% endif %}</td>
           <td>{{ (e.description or '')[:42] }}</td>
           <td data-sort="{{ e.release_date }}">{{ (e.release_date or '')[:10] }}</td>

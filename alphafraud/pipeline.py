@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from . import afdb, banner, cath, compare, config, db, novelty, pdb, structio
+from . import afdb, banner, cath, compare, config, db, novelty, pdb, ribbon, structio
 
 
 def _ref_span(meta: pdb.EntityMeta) -> tuple[int, int]:
@@ -90,6 +90,7 @@ def process_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: b
     cath_domains = cath.domains_for_chain(meta.entry_id, meta.first_chain)
 
     comparison = compare.compare(exp_chain, af_chain, pae=pae, cath_domains=cath_domains)
+    ribbon.render_and_store(entity_id, exp_chain, af_chain)   # deviation-coloured Cα cartoon
 
     if cleanup:
         _cleanup_files(exp_path, pae_path)   # keep the AlphaFold model cached
@@ -410,6 +411,60 @@ def retry_errors(tm_threshold: float = 0.7, limit: Optional[int] = None) -> dict
             banner.warn(f"analysis refresh failed: {exc}")
     return {"reclassified": reclassified, "retried": len(targets), "recovered": recovered,
             "skipped": skipped, "still_error": still_error}
+
+
+def render_ribbons(limit: Optional[int] = None, min_fraud: float = 0.0,
+                   overwrite: bool = False) -> dict:
+    """Retro-generate deviation-coloured Cα ribbon SVGs for already-compared entities that
+    lack one (worst offenders first). Re-fetches each structure in pipeline context, renders,
+    and writes data/ribbons/<id>.svg. Reads the DB but only WRITES files -- so it is safe to
+    run alongside a live backfill (no second SQLite writer).
+    """
+    config.ensure_dirs()
+    ranked = db.leaderboard(limit=200000)     # all compared, worst-FRAUD first
+    todo = [r for r in ranked
+            if (r.get("fraud_score") or 0) >= min_fraud
+            and (overwrite or not ribbon.has_ribbon(r["entity_id"]))]
+    if limit:
+        todo = todo[:limit]
+    if not todo:
+        banner.ok("[ribbons] nothing to render (all present).")
+        return {"rendered": 0, "skipped": 0, "failed": 0}
+    banner.step(f"[ribbons] rendering {len(todo)} Cα ribbons (worst offenders first)")
+
+    metas = pdb.fetch_entity_metadata([r["entity_id"] for r in todo])
+    rendered = skipped = failed = 0
+    for r in todo:
+        eid = r["entity_id"]
+        meta = metas.get(eid)
+        if meta is None or not meta.has_single_uniprot or not meta.first_chain:
+            skipped += 1
+            continue
+        try:
+            frag, _extra = _resolve_fragment(meta)
+            if frag is None:
+                skipped += 1
+                continue
+            exp_path = pdb.download_structure(meta.entry_id)
+            af_path = afdb.download_model(frag)
+            if not exp_path or not af_path:
+                skipped += 1
+                continue
+            exp_chain = structio.load_chain(exp_path, meta.first_chain)
+            af_chain = structio.load_chain(af_path, is_af=True)
+            ok = ribbon.render_and_store(eid, exp_chain, af_chain)
+            _cleanup_files(exp_path)          # keep the AF model cached
+            if ok:
+                rendered += 1
+                if rendered % 25 == 0:
+                    banner.info(f"[ribbons] {rendered} rendered…")
+            else:
+                skipped += 1
+        except Exception as exc:
+            banner.warn(f"[ribbons] {eid}: {type(exc).__name__}: {exc}")
+            failed += 1
+    banner.ok(f"[ribbons] done: {rendered} rendered, {skipped} skipped, {failed} failed.")
+    return {"rendered": rendered, "skipped": skipped, "failed": failed}
 
 
 def _record_error(eid: str, meta, run_id: int, exc: Exception) -> None:

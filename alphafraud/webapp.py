@@ -21,9 +21,9 @@ import os
 import re
 from datetime import date
 
-from flask import Flask, abort, jsonify, render_template, request, url_for
+from flask import Flask, abort, jsonify, render_template, request, send_from_directory, url_for
 
-from . import __version__, banner, config, db, report
+from . import __version__, banner, config, db, report, ribbon
 
 # User-agents we do NOT count as human visitors (crawlers, scanners, HTTP libraries, headless).
 _BOT_UA = re.compile(
@@ -152,7 +152,22 @@ def create_app() -> Flask:
             except OSError:
                 v = 0
             return url_for("static", filename=filename, v=v)
-        return {"asset": asset}
+
+        def ribbon_url(entity_id):
+            # URL of the deviation-coloured Cα ribbon SVG, or None if not yet rendered
+            # (templates render a thumbnail only when this is truthy).
+            return url_for("ribbon_svg", entity_id=entity_id) if ribbon.has_ribbon(entity_id) else None
+
+        return {"asset": asset, "ribbon_url": ribbon_url}
+
+    @app.route("/ribbon/<entity_id>.svg")
+    def ribbon_svg(entity_id):
+        if not ribbon.has_ribbon(entity_id):
+            abort(404)
+        resp = send_from_directory(config.RIBBON_DIR, f"{entity_id}.svg",
+                                   mimetype="image/svg+xml")
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
 
     @app.route("/")
     def index():

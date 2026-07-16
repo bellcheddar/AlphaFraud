@@ -37,6 +37,21 @@
   </div>
   {% endif %}
 
+  {% set ru = ribbon_url(e.entity_id) %}
+  {% if ru %}
+  <div class="card ribbonhero">
+    <img src="{{ ru }}" alt="Experimental Cα ribbon coloured by deviation from the AlphaFold model">
+    <div class="devlegend">
+      <div class="devlegend-title">Experimental structure, coloured by Cα deviation from the AlphaFold model</div>
+      <p>Blue where the experiment agrees with AlphaFold; amber-to-red where it diverges. The scale is anchored to
+         absolute Ångströms, so hotspots are comparable across structures.</p>
+      <div class="devlegend-bar"></div>
+      <div class="devlegend-ticks"><span>0&#8491;</span><span>1</span><span>2</span><span>5</span><span>10&#8491;+</span></div>
+      <div class="devlegend-note">○ N-terminus &middot; ● C-terminus &middot; ribbon widens at helices &amp; strands</div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="kpis">
     <div class="kpi good"><div class="n">{{ r2(metrics.tm_by_experiment) }}</div><div class="l">TM-score</div></div>
     <div class="kpi"><div class="n">{{ r2(metrics.lddt) }}</div><div class="l">lDDT</div></div>

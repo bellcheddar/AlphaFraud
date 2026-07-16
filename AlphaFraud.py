@@ -103,6 +103,13 @@ def cmd_retry_errors(args) -> int:
     return 0
 
 
+def cmd_render_ribbons(args) -> int:
+    from alphafraud import pipeline
+
+    pipeline.render_ribbons(limit=args.limit, min_fraud=args.min_fraud, overwrite=args.overwrite)
+    return 0
+
+
 def cmd_status(_args) -> int:
     from alphafraud import db
 
@@ -176,6 +183,14 @@ def main(argv=None) -> int:
                       help="promote a recovered entity to full metrics below this TM (default 0.7)")
     p_re.add_argument("--limit", type=int, help="max error entities to retry this pass")
     p_re.set_defaults(func=cmd_retry_errors)
+
+    p_rb = sub.add_parser("render-ribbons",
+                          help="retro-generate deviation-coloured Cα ribbon SVGs for compared "
+                               "entities (worst offenders first). Reads DB, writes only files.")
+    p_rb.add_argument("--limit", type=int, help="max ribbons to render this pass")
+    p_rb.add_argument("--min-fraud", type=float, default=0.0, help="only entities at/above this FRAUD score")
+    p_rb.add_argument("--overwrite", action="store_true", help="re-render even if a ribbon already exists")
+    p_rb.set_defaults(func=cmd_render_ribbons)
 
     sub.add_parser("status", help="database summary + leaderboard").set_defaults(func=cmd_status)
 

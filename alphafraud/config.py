@@ -25,6 +25,7 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = PACKAGE_DIR.parent
 DATA_DIR = ROOT_DIR / "data"                 # cached PDB + AFDB structure/PAE files
 STRUCT_CACHE = DATA_DIR / "structures"
+RIBBON_DIR = DATA_DIR / "ribbons"            # per-entity deviation-coloured Cα ribbon SVGs
 DB_PATH = ROOT_DIR / "alphafraud.db"
 STATIC_DIR = PACKAGE_DIR / "static"
 VENDOR_PLOTLY = STATIC_DIR / "plotly.min.js"
@@ -78,5 +79,5 @@ RUN_LIMIT = int(_run_limit) if _run_limit.isdigit() and int(_run_limit) > 0 else
 
 def ensure_dirs() -> None:
     """Create the runtime directory tree if missing. Safe to call repeatedly."""
-    for d in (DATA_DIR, STRUCT_CACHE, STATIC_DIR):
+    for d in (DATA_DIR, STRUCT_CACHE, RIBBON_DIR, STATIC_DIR):
         d.mkdir(parents=True, exist_ok=True)

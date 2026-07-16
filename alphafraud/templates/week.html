@@ -53,8 +53,11 @@
         <tbody>
           {% for r in highlights.rows %}
           <tr class="{% if r.wrong %}wrong{% endif %}">
-            <td><a href="{{ url_for('entry', entity_id=r.entity_id) }}">{{ r.entry_id }}_{{ r.chain }}</a>
-                <a href="https://www.rcsb.org/structure/{{ r.entry_id }}" target="_blank" rel="noopener noreferrer" class="hint">↗</a></td>
+            <td class="pdbcell">
+                {% set ru = ribbon_url(r.entity_id) %}
+                {% if ru %}<a href="{{ url_for('entry', entity_id=r.entity_id) }}"><img class="ribbonthumb" src="{{ ru }}" loading="lazy" alt="Cα deviation ribbon for {{ r.entry_id }}"></a>{% endif %}
+                <span><a href="{{ url_for('entry', entity_id=r.entity_id) }}">{{ r.entry_id }}_{{ r.chain }}</a>
+                <a href="https://www.rcsb.org/structure/{{ r.entry_id }}" target="_blank" rel="noopener noreferrer" class="hint">↗</a></span></td>
             <td>{% if r.uniprot %}<a href="https://www.uniprot.org/uniprotkb/{{ r.uniprot }}" target="_blank" rel="noopener noreferrer">{{ r.protein }}</a>{% else %}{{ r.protein }}{% endif %}</td>
             <td>{% for b in r.badges %}<span class="badge {{ b.cls }}">{{ b.label }}</span> {% endfor %}</td>
             <td>{{ r.annotation | safe }}</td>
