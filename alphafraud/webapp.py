@@ -260,6 +260,7 @@ def _render_week(label):
         "histograms": report.metric_histograms(entities),
         "trend": report.trend_figure(weekly) if len(weekly) > 1 else None,
     }
+    highlights = report.week_highlights(entities, seen_uniprots=db.uniprots_before_label(label))
     return render_template(
         "week.html",
         banner=banner.BANNER_ART,
@@ -267,6 +268,7 @@ def _render_week(label):
         is_all=False,
         entities=entities,
         kpis=report.kpis(entities),
+        highlights=highlights,
         figures=figures,
         scatter_note=report.sampling_note(entities),
         weeks=weeks,

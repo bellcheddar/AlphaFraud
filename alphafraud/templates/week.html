@@ -41,6 +41,32 @@
     <div class="kpi good"><div class="n">{{ fmt(kpis.median_tm) }}</div><div class="l">median TM-score</div></div>
   </div>
 
+  {% if highlights and not is_all %}
+  <div class="card featured">
+    <h3 style="margin:0 0 4px">⭐ This week's notable releases</h3>
+    <p class="verdict {{ highlights.severity }}">{{ highlights.verdict }}</p>
+    {% if highlights.rows %}
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>PDB</th><th>Protein</th><th>Flags</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          {% for r in highlights.rows %}
+          <tr class="{% if r.wrong %}wrong{% endif %}">
+            <td><a href="{{ url_for('entry', entity_id=r.entity_id) }}">{{ r.entry_id }}_{{ r.chain }}</a>
+                <a href="https://www.rcsb.org/structure/{{ r.entry_id }}" target="_blank" rel="noopener noreferrer" class="hint">↗</a></td>
+            <td>{% if r.uniprot %}<a href="https://www.uniprot.org/uniprotkb/{{ r.uniprot }}" target="_blank" rel="noopener noreferrer">{{ r.protein }}</a>{% else %}{{ r.protein }}{% endif %}</td>
+            <td>{% for b in r.badges %}<span class="badge {{ b.cls }}">{{ b.label }}</span> {% endfor %}</td>
+            <td>{{ r.annotation | safe }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin:10px 0 0"><a href="#matched">see all {{ '{:,}'.format(highlights.total) }} structures ↓</a></p>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {{ figure(figures.scatter, 'scatter', scatter_note) }}
   <div class="explain">
     <h4>How to read this</h4>
@@ -113,7 +139,7 @@
   </div>
   {% endif %}
 
-  <h2>Matched structures</h2>
+  <h2 id="matched">Matched structures</h2>
   {% if is_all and total_count > table_cap %}
   <p class="hint">Showing the top {{ table_cap }} of {{ total_count }} by FRAUD score. Open a specific week above, or the <a href="{{ url_for('leaderboard') }}">worst-offenders leaderboard</a>, for the full ranked list.</p>
   {% endif %}

@@ -9,11 +9,16 @@ actually was (TM-score). High-confidence / low-TM = confidently wrong.
 from __future__ import annotations
 
 import json
+import re
 from typing import Optional
 
 import plotly.graph_objects as go
 
 from . import config
+
+_DISEASE_RE = re.compile(
+    r"amyloid|prion|transthyretin|synuclein|\bsod1\b|superoxide dismutase|tumou?r|oncogene|"
+    r"cancer|alzheimer|parkinson|huntingtin|\btau\b|islet amyloid|microglobulin|gelsolin", re.I)
 
 # marcdeller.com brand palette (mirrors banner.py and static/brand.css).
 BRAND = {
@@ -72,6 +77,87 @@ def kpis(entities: list[dict]) -> dict:
         "novel_and_wrong_pct": pct(novel_wrong),
         "median_tm": round(sorted(tms)[len(tms) // 2], 3) if tms else None,
     }
+
+
+# --------------------------------------------------------------------------------------
+# "This week's notable releases" — curated, novelty-first highlight panel (on-the-fly)
+# --------------------------------------------------------------------------------------
+def _highlight_annotation(e: dict, f: dict) -> str:
+    """Plain-English 'why it matters' (server-generated; the only <b> tags are ours)."""
+    nov = f["nov_id"]
+    id_txt = f" ({nov:.0f}% identity to anything AlphaFold trained on)" if nov is not None else ""
+    parts = []
+    if f["novel"] and f["cw"]:
+        parts.append(f"Genuinely unseen sequence{id_txt} — and AlphaFold got the fold "
+                     f"<b>wrong</b> despite high confidence.")
+    elif f["novel"]:
+        tm = e.get("tm_by_experiment")
+        if e.get("status") == "compared" and tm is not None and tm >= 0.7:
+            parts.append(f"Genuinely unseen sequence{id_txt} — AlphaFold predicted it "
+                         f"<b>correctly</b> (TM {tm:.2f}).")
+        else:
+            parts.append(f"Genuinely unseen sequence{id_txt}.")
+    elif f["cw"]:
+        cp = e.get("closest_pre_cutoff")
+        homolog = f" ({nov:.0f}% identity to {cp})" if (nov is not None and cp) else ""
+        parts.append(f"A close pre-cutoff homolog existed{homolog} yet AlphaFold "
+                     f"<b>confidently missed</b> the fold.")
+    if f["first"]:
+        parts.append("First structure of this protein we've seen.")
+    if f["disease"]:
+        parts.append("Disease-linked.")
+    return " ".join(parts)
+
+
+def week_highlights(entities: list[dict], seen_uniprots: Optional[set] = None, cap: int = 6) -> dict:
+    """Curated novelty-first shortlist for the top of a release-week page. On-the-fly from the
+    entities already loaded; returns a verdict line + up to `cap` annotated rows."""
+    seen_uniprots = seen_uniprots or set()
+    scored = []
+    for e in entities:
+        novel, cw = bool(e.get("is_novel")), bool(e.get("confidently_wrong"))
+        if not (novel or cw):                       # only genuinely notable rows
+            continue
+        nov_id = e.get("novelty_identity")
+        deficit = max(0.0, (30 - nov_id) / 30) if nov_id is not None else (0.5 if novel else 0)
+        first = bool(e.get("uniprot") and e["uniprot"] not in seen_uniprots)
+        text = " ".join(filter(None, [e.get("description"), e.get("uniprot_name")]))
+        disease = bool(_DISEASE_RE.search(text))
+        f = {"novel": novel, "cw": cw, "nov_id": nov_id, "first": first, "disease": disease}
+        score = 2.0 * novel + 1.5 * deficit + 2.0 * cw + 1.0 * (e.get("fraud_score") or 0) + 0.5 * first
+        scored.append((score, e, f))
+    scored.sort(key=lambda t: t[0], reverse=True)
+
+    rows = []
+    for _s, e, f in scored[:cap]:
+        badges = []
+        if f["novel"]:
+            badges.append({"label": f"novel · {f['nov_id']:.0f}%" if f["nov_id"] is not None else "novel", "cls": "novel"})
+        if f["cw"]:
+            badges.append({"label": "confidently wrong", "cls": "wrong"})
+        if f["first"]:
+            badges.append({"label": "first seen", "cls": "firstseen"})
+        if f["disease"]:
+            badges.append({"label": "disease", "cls": "disease"})
+        rows.append({
+            "entity_id": e["entity_id"], "entry_id": e["entry_id"], "chain": e.get("chain"),
+            "uniprot": e.get("uniprot"),
+            "protein": (e.get("uniprot_name") or e.get("description") or e["entry_id"])[:48],
+            "badges": badges, "annotation": _highlight_annotation(e, f), "wrong": f["cw"],
+        })
+
+    n_novel = sum(1 for e in entities if e.get("is_novel"))
+    n_cw = sum(1 for e in entities if e.get("confidently_wrong"))
+    if n_novel == 0 and n_cw == 0:
+        verdict = "No novel or confidently-wrong structures this week — AlphaFold kept up."
+        severity = "good"
+    else:
+        top = rows[0]["protein"] if rows else "—"
+        verdict = (f"{n_novel} novel sequence{'s' if n_novel != 1 else ''}, "
+                   f"{n_cw} confidently wrong. Highlight: {top}.")
+        severity = "alert" if n_cw else "amber"
+    return {"rows": rows, "verdict": verdict, "severity": severity,
+            "n_novel": n_novel, "n_cw": n_cw, "total": len(entities)}
 
 
 # --------------------------------------------------------------------------------------

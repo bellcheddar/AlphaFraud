@@ -120,6 +120,20 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 .badge.ok { background: rgba(0,208,132,.16); color: #0a8f5c; }
 .badge.theme { background: rgba(30,115,190,.12); color: var(--primary); font-weight: 600; }
 :root[data-theme="dark"] .badge.theme { color: var(--primary-light); }
+.badge.firstseen { background: rgba(30,115,190,.14); color: var(--primary); }
+:root[data-theme="dark"] .badge.firstseen { color: var(--primary-light); }
+.badge.disease { background: rgba(120,140,160,.18); color: var(--muted); }
+
+/* "This week's notable releases" featured panel */
+.card.featured { border-left: 4px solid var(--amber); }
+.card.featured h3 { font-size: 15px; }
+.verdict { font-weight: 600; margin: 2px 0 12px; font-size: 14px; }
+.verdict.alert { color: var(--red); }
+.verdict.amber { color: #a67c00; }
+:root[data-theme="dark"] .verdict.amber { color: var(--amber); }
+.verdict.good { color: #0a8f5c; }
+:root[data-theme="dark"] .verdict.good { color: var(--green); }
+.card.featured td:last-child { white-space: normal; min-width: 260px; }
 :root[data-theme="dark"] .badge.ok { color: var(--green); }
 
 /* Metric group tables on entry page */

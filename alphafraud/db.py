@@ -299,6 +299,18 @@ def all_entities_scalar() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def uniprots_before_label(label: str) -> set:
+    """UniProt accessions seen in weeks released before `label` (for the 'first seen' flag).
+    Week labels are ISO dates, so a string comparison orders them correctly."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT e.uniprot FROM entities e JOIN runs r ON e.run_id = r.id "
+            "WHERE r.label < ? AND e.uniprot IS NOT NULL",
+            (label,),
+        ).fetchall()
+        return {r["uniprot"] for r in rows}
+
+
 def get_entity(entity_id: str) -> Optional[dict]:
     with connect() as conn:
         row = conn.execute("SELECT * FROM entities WHERE entity_id=?", (entity_id,)).fetchone()
