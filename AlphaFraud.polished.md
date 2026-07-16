@@ -2,7 +2,7 @@
 
 > **Catch AlphaFold where the fold is wrong: weekly, automatically, on freshly deposited human structures.**
 
-![python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white) ![flask](https://img.shields.io/badge/web-Flask%20%2B%20gunicorn-000000?logo=flask&logoColor=white) ![data](https://img.shields.io/badge/data-RCSB%20PDB%20%2B%20AlphaFold%20DB-1e73be) ![status](https://img.shields.io/badge/status-in%20development-fcb900) ![author](https://img.shields.io/badge/author-Marc%20C.%20Deller%2C%20D.Phil.-1C244B)
+[![live](https://img.shields.io/badge/live-alphafraud.mdeller.com-00d084)](https://alphafraud.mdeller.com) ![python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white) ![flask](https://img.shields.io/badge/web-Flask%20%2B%20gunicorn-000000?logo=flask&logoColor=white) ![data](https://img.shields.io/badge/data-RCSB%20PDB%20%2B%20AlphaFold%20DB-1e73be) ![status](https://img.shields.io/badge/status-in%20development-fcb900) ![author](https://img.shields.io/badge/author-Marc%20C.%20Deller%2C%20D.Phil.-1C244B)
 
 <table>
 <tr>
@@ -18,6 +18,8 @@ AlphaFraud watches the RCSB PDB for newly deposited human protein structures, ma
 
 **Why it matters:** the claim that "AlphaFold has solved protein folding" is only testable on structures the model never trained on, and those arrive continuously as the PDB grows. AlphaFraud turns that stream into a standing experiment: every week it surfaces the structures AlphaFold got most wrong, and ranks the "confidently wrong" cases (high pLDDT, low agreement) where the model was sure and still missed. It is useful for: structural biologists auditing AlphaFold reliability, method developers looking for hard cases, and anyone testing whether predicted models are safe to build on.
 
+**A live instance runs at [alphafraud.mdeller.com](https://alphafraud.mdeller.com)**, backfilling the entire post-cutoff archive (~96,000 human protein entities) and updating every week. The landing page is a cumulative dashboard across every processed week; the worst offenders so far are a roster of amyloid-forming proteins (transthyretin, β2-microglobulin, islet amyloid polypeptide) that AlphaFold predicts as confidently folded but which crystallise or cryo-EM in a completely different aggregated form.
+
 ## ✨ Features
 
 | Capability | What it does |
@@ -28,8 +30,10 @@ AlphaFraud watches the RCSB PDB for newly deposited human protein structures, ma
 | Sequence-novelty score | Max percent identity to any pre-cutoff PDB chain, so genuinely unseen sequences are flagged (not just easy homologs) |
 | Full metric suite | Global, local, backbone, per-domain and confidence-calibration metrics (see below) |
 | Confidence audit | pLDDT vs actual lDDT calibration, and a PAE-honesty check comparing AlphaFold's self-reported error to the observed error |
-| Branded web report | Flask app with the signature "fraud quadrant" scatter, heatmaps, per-domain tables and an all-time leaderboard |
-| One-command deploy | Provisioning and deploy scripts for a DigitalOcean droplet (gunicorn, nginx, certbot TLS) |
+| Two-tier archive backfill | A fast TM-score screen across every structure, running the full metric suite only on the disagreements; makes the whole ~96k-entity archive tractable |
+| Cumulative dashboard | Default landing page aggregating every processed week: the "fraud quadrant" scatter, metric histograms, a weekly trend, and a browsable per-week / per-structure archive |
+| Branded, mobile-responsive report | Flask app with the signature scatter, heatmaps, per-domain tables and an all-time leaderboard; every plot has a plain-language explanatory panel and a CSV export, and every table exports to CSV |
+| One-command deploy | Provisioning, deploy and one-shot release scripts for a DigitalOcean droplet (gunicorn, nginx, certbot TLS) |
 
 ## 🎯 Metric suite
 
@@ -82,6 +86,11 @@ python3 AlphaFraud.py backfill --from 2023-01-01 --to 2023-12-31 --two-tier --tm
 # resumable). Screens all, fully analyses only the tail AlphaFold got wrong.
 python3 AlphaFraud.py backfill --all --two-tier
 
+# --workers N adds a download thread pool (network-bound work parallelises well). Single-
+# threaded is the reliable default for long unattended runs; workers give a partial speedup
+# but are more sensitive to the droplet's core count.
+python3 AlphaFraud.py backfill --all --two-tier --workers 6
+
 # Database summary + worst-offenders leaderboard
 python3 AlphaFraud.py status
 
@@ -99,11 +108,12 @@ python3 AlphaFraud.py serve --port 8000
 
 ## 📊 Output
 
-The web app serves live from SQLite:
+The web app serves live from SQLite. Every plot carries a plain-language explanatory panel (what the axes mean, the cutoffs, a take-home summary) and a CSV export; every table exports to CSV too.
 
 | Route | Shows |
 |---|---|
-| `/` | The latest release week: KPIs, the pLDDT-vs-TM fraud-quadrant scatter, metric histograms, and a sortable table of every matched structure |
+| `/` | Cumulative dashboard across every processed week: KPIs, the pLDDT-vs-TM fraud-quadrant scatter, metric histograms, the weekly trend, and a top-ranked table. A pulldown jumps to any single week |
+| `/week/<label>` | One release week, same layout scoped to that batch |
 | `/entry/<id>` | Per-structure detail: per-residue error tracks, calibration scatter, distance-matrix and PAE-vs-observed heatmaps, per-domain breakdown, and every metric |
 | `/leaderboard` | The all-time worst AlphaFold failures across every processed week |
 | `/archive` | An index of all processed weeks |
@@ -127,12 +137,13 @@ sudo SERVER_NAME=alphafraud.mdeller.com bash /opt/alphafraud/deploy/provision.sh
 sudo systemctl start alphafraud-run.service
 ```
 
-After that, `deploy/deploy.sh` alone pushes updates and restarts the web service. The weekly timer fires every Wednesday 00:30 UTC.
+After that, `deploy/deploy.sh` pushes code updates and restarts the web service, and `deploy/release.sh "message"` does the whole loop in one step (commit, push to GitHub, then deploy). Deploys are safe to run while a backfill is in progress: the web app is a read-only reader, WAL is set once, and DB writes are retry-wrapped, so restarting the web service never disturbs the running pipeline. The weekly timer fires every Wednesday 00:30 UTC.
 
 | File | Role |
 |---|---|
 | `deploy/provision.sh` | One-time root setup: system packages, service user, venv, systemd units, nginx site, certbot |
 | `deploy/deploy.sh` | Push code from your Mac (rsync over SSH) and restart the web service |
+| `deploy/release.sh` | One-shot: commit, push to GitHub, then deploy to the droplet |
 | `deploy/alphafraud-web.service` | gunicorn web app (always on) |
 | `deploy/alphafraud-run.service` + `.timer` | Weekly pipeline and its Wednesday 00:30 UTC schedule |
 | `deploy/nginx-alphafraud.conf` | nginx reverse-proxy site (templated with the server name) |

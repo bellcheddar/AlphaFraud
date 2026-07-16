@@ -58,7 +58,7 @@
 <blockquote>
 <p><strong>Catch AlphaFold where the fold is wrong: weekly, automatically, on freshly deposited human structures.</strong></p>
 </blockquote>
-<p><img alt="python" src="https://img.shields.io/badge/python-3.11+-3776AB?logo=python&amp;logoColor=white"> <img alt="flask" src="https://img.shields.io/badge/web-Flask%20%2B%20gunicorn-000000?logo=flask&amp;logoColor=white"> <img alt="data" src="https://img.shields.io/badge/data-RCSB%20PDB%20%2B%20AlphaFold%20DB-1e73be"> <img alt="status" src="https://img.shields.io/badge/status-in%20development-fcb900"> <img alt="author" src="https://img.shields.io/badge/author-Marc%20C.%20Deller%2C%20D.Phil.-1C244B"></p>
+<p><a href="https://alphafraud.mdeller.com"><img alt="live" src="https://img.shields.io/badge/live-alphafraud.mdeller.com-00d084"></a> <img alt="python" src="https://img.shields.io/badge/python-3.11+-3776AB?logo=python&amp;logoColor=white"> <img alt="flask" src="https://img.shields.io/badge/web-Flask%20%2B%20gunicorn-000000?logo=flask&amp;logoColor=white"> <img alt="data" src="https://img.shields.io/badge/data-RCSB%20PDB%20%2B%20AlphaFold%20DB-1e73be"> <img alt="status" src="https://img.shields.io/badge/status-in%20development-fcb900"> <img alt="author" src="https://img.shields.io/badge/author-Marc%20C.%20Deller%2C%20D.Phil.-1C244B"></p>
 <table class="emd-info-table">
 <tr>
 <td>🌐 <b>Website</b></td><td><a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a></td>
@@ -70,6 +70,7 @@
 <hr>
 <p>AlphaFraud watches the RCSB PDB for newly deposited human protein structures, matches each one to its blind AlphaFold prediction from the AlphaFold Structure Database (EBI), superposes them, and quantifies exactly where the prediction disagrees with the experiment. AlphaFold2 was trained only on PDB chains released before 2018-04-30, so any human structure deposited after that date is something the model predicted without ever seeing its coordinates: the ideal test set.</p>
 <p><strong>Why it matters:</strong> the claim that "AlphaFold has solved protein folding" is only testable on structures the model never trained on, and those arrive continuously as the PDB grows. AlphaFraud turns that stream into a standing experiment: every week it surfaces the structures AlphaFold got most wrong, and ranks the "confidently wrong" cases (high pLDDT, low agreement) where the model was sure and still missed. It is useful for: structural biologists auditing AlphaFold reliability, method developers looking for hard cases, and anyone testing whether predicted models are safe to build on.</p>
+<p><strong>A live instance runs at <a href="https://alphafraud.mdeller.com">alphafraud.mdeller.com</a></strong>, backfilling the entire post-cutoff archive (~96,000 human protein entities) and updating every week. The landing page is a cumulative dashboard across every processed week; the worst offenders so far are a roster of amyloid-forming proteins (transthyretin, β2-microglobulin, islet amyloid polypeptide) that AlphaFold predicts as confidently folded but which crystallise or cryo-EM in a completely different aggregated form.</p>
 <h2>✨ Features</h2>
 <div class="emd-table-wrap"><table class="emd-data-table">
 <thead>
@@ -104,12 +105,20 @@
 <td data-label="What it does">pLDDT vs actual lDDT calibration, and a PAE-honesty check comparing AlphaFold's self-reported error to the observed error</td>
 </tr>
 <tr>
-<td data-label="Capability">Branded web report</td>
-<td data-label="What it does">Flask app with the signature "fraud quadrant" scatter, heatmaps, per-domain tables and an all-time leaderboard</td>
+<td data-label="Capability">Two-tier archive backfill</td>
+<td data-label="What it does">A fast TM-score screen across every structure, running the full metric suite only on the disagreements; makes the whole ~96k-entity archive tractable</td>
+</tr>
+<tr>
+<td data-label="Capability">Cumulative dashboard</td>
+<td data-label="What it does">Default landing page aggregating every processed week: the "fraud quadrant" scatter, metric histograms, a weekly trend, and a browsable per-week / per-structure archive</td>
+</tr>
+<tr>
+<td data-label="Capability">Branded, mobile-responsive report</td>
+<td data-label="What it does">Flask app with the signature scatter, heatmaps, per-domain tables and an all-time leaderboard; every plot has a plain-language explanatory panel and a CSV export, and every table exports to CSV</td>
 </tr>
 <tr>
 <td data-label="Capability">One-command deploy</td>
-<td data-label="What it does">Provisioning and deploy scripts for a DigitalOcean droplet (gunicorn, nginx, certbot TLS)</td>
+<td data-label="What it does">Provisioning, deploy and one-shot release scripts for a DigitalOcean droplet (gunicorn, nginx, certbot TLS)</td>
 </tr>
 </tbody>
 </table></div>
@@ -182,6 +191,11 @@ python3 AlphaFraud.py backfill --from 2023-01-01 --to 2023-12-31 --two-tier --tm
 # resumable). Screens all, fully analyses only the tail AlphaFold got wrong.
 python3 AlphaFraud.py backfill --all --two-tier
 
+# --workers N adds a download thread pool (network-bound work parallelises well). Single-
+# threaded is the reliable default for long unattended runs; workers give a partial speedup
+# but are more sensitive to the droplet's core count.
+python3 AlphaFraud.py backfill --all --two-tier --workers 6
+
 # Database summary + worst-offenders leaderboard
 python3 AlphaFraud.py status
 
@@ -219,7 +233,7 @@ python3 AlphaFraud.py serve --port 8000
 </tbody>
 </table></div>
 <h2>📊 Output</h2>
-<p>The web app serves live from SQLite:</p>
+<p>The web app serves live from SQLite. Every plot carries a plain-language explanatory panel (what the axes mean, the cutoffs, a take-home summary) and a CSV export; every table exports to CSV too.</p>
 <div class="emd-table-wrap"><table class="emd-data-table">
 <thead>
 <tr>
@@ -230,7 +244,11 @@ python3 AlphaFraud.py serve --port 8000
 <tbody>
 <tr>
 <td data-label="Route"><code>/</code></td>
-<td data-label="Shows">The latest release week: KPIs, the pLDDT-vs-TM fraud-quadrant scatter, metric histograms, and a sortable table of every matched structure</td>
+<td data-label="Shows">Cumulative dashboard across every processed week: KPIs, the pLDDT-vs-TM fraud-quadrant scatter, metric histograms, the weekly trend, and a top-ranked table. A pulldown jumps to any single week</td>
+</tr>
+<tr>
+<td data-label="Route"><code>/week/&lt;label&gt;</code></td>
+<td data-label="Shows">One release week, same layout scoped to that batch</td>
 </tr>
 <tr>
 <td data-label="Route"><code>/entry/&lt;id&gt;</code></td>
@@ -264,7 +282,7 @@ sudo SERVER_NAME=alphafraud.mdeller.com bash /opt/alphafraud/deploy/provision.sh
 # 4. (optional) trigger the first pipeline run immediately
 sudo systemctl start alphafraud-run.service
 </code></pre>
-<p>After that, <code>deploy/deploy.sh</code> alone pushes updates and restarts the web service. The weekly timer fires every Wednesday 00:30 UTC.</p>
+<p>After that, <code>deploy/deploy.sh</code> pushes code updates and restarts the web service, and <code>deploy/release.sh "message"</code> does the whole loop in one step (commit, push to GitHub, then deploy). Deploys are safe to run while a backfill is in progress: the web app is a read-only reader, WAL is set once, and DB writes are retry-wrapped, so restarting the web service never disturbs the running pipeline. The weekly timer fires every Wednesday 00:30 UTC.</p>
 <div class="emd-table-wrap"><table class="emd-data-table">
 <thead>
 <tr>
@@ -280,6 +298,10 @@ sudo systemctl start alphafraud-run.service
 <tr>
 <td data-label="File"><code>deploy/deploy.sh</code></td>
 <td data-label="Role">Push code from your Mac (rsync over SSH) and restart the web service</td>
+</tr>
+<tr>
+<td data-label="File"><code>deploy/release.sh</code></td>
+<td data-label="Role">One-shot: commit, push to GitHub, then deploy to the droplet</td>
 </tr>
 <tr>
 <td data-label="File"><code>deploy/alphafraud-web.service</code></td>
