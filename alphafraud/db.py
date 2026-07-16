@@ -9,6 +9,7 @@ weekly batch that produced them (`label` = the release Wednesday the run covers)
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -108,6 +109,14 @@ CREATE TABLE IF NOT EXISTS analysis_snapshots (
     kind        TEXT PRIMARY KEY,
     data_json   TEXT,
     updated_at  TEXT
+);
+
+-- Lightweight visitor counter for the header stats panel (IPs are hashed, never stored raw).
+CREATE TABLE IF NOT EXISTS visits (
+    ip_hash     TEXT PRIMARY KEY,
+    first_seen  TEXT,
+    last_seen   TEXT,
+    hits        INTEGER DEFAULT 0
 );
 """
 
@@ -401,6 +410,37 @@ def load_snapshot(kind: str = "cumulative") -> Optional[dict]:
         data = _json.loads(row["data_json"])
         data["_updated_at"] = row["updated_at"]
         return data
+
+
+def record_visit(ip_hash: str) -> None:
+    def _do():
+        with connect() as conn:
+            conn.execute(
+                "INSERT INTO visits(ip_hash, first_seen, last_seen, hits) VALUES (?,?,?,1) "
+                "ON CONFLICT(ip_hash) DO UPDATE SET last_seen=excluded.last_seen, hits=hits+1",
+                (ip_hash, _now(), _now()),
+            )
+    _retry_write(_do)
+
+
+def visitor_stats() -> dict:
+    try:
+        with connect() as conn:
+            r = conn.execute("SELECT COUNT(*) uniq, COALESCE(SUM(hits),0) hits FROM visits").fetchone()
+            today = _now()[:10]
+            t = conn.execute("SELECT COUNT(*) n FROM visits WHERE substr(last_seen,1,10)=?", (today,)).fetchone()
+            return {"unique": r["uniq"], "hits": r["hits"], "today": t["n"]}
+    except sqlite3.OperationalError:      # visits table not created yet (fresh deploy)
+        return {"unique": 0, "hits": 0, "today": 0}
+
+
+def db_size_bytes() -> int:
+    total = 0
+    for suffix in ("", "-wal", "-shm"):
+        p = str(config.DB_PATH) + suffix
+        if os.path.exists(p):
+            total += os.path.getsize(p)
+    return total
 
 
 def overall_stats() -> dict:

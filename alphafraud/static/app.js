@@ -158,9 +158,26 @@
     triggerCsv(rows, filename);
   };
 
+  // ---- Header live-stats panel ----
+  function loadStats() {
+    if (!document.getElementById("statsPanel")) return;
+    fetch("/api/stats").then(function (r) { return r.json(); }).then(function (s) {
+      function set(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+      var n = function (x) { return (x == null ? 0 : x).toLocaleString(); };
+      set("stAnalysed", n(s.analysed));
+      set("stCW", n(s.confidently_wrong));
+      set("stArch", (s.archive_pct != null ? s.archive_pct + "%" : "—"));
+      set("stDb", (s.db_mb != null ? s.db_mb + " MB" : "—"));
+      set("stMem", (s.memory_mb != null ? s.memory_mb + " MB" : "—"));
+      set("stVis", n(s.unique_visitors));
+    }).catch(function () {});
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     renderPlots();
     document.querySelectorAll("table.sortable").forEach(initTable);
     initFilters();
+    loadStats();
+    setInterval(loadStats, 60000);
   });
 })();

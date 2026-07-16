@@ -11,6 +11,15 @@
 <body>
   <header class="site">
     <div class="wrap">
+      <div class="statspanel" id="statsPanel" title="Live app stats (refreshes every minute)">
+        <div class="stathead">▲ live stats</div>
+        <div class="statrow"><span>Analysed</span><b id="stAnalysed">…</b></div>
+        <div class="statrow"><span>Conf. wrong</span><b id="stCW">…</b></div>
+        <div class="statrow"><span>Archive</span><b id="stArch">…</b></div>
+        <div class="statrow"><span>DB size</span><b id="stDb">…</b></div>
+        <div class="statrow"><span>Memory</span><b id="stMem">…</b></div>
+        <div class="statrow"><span>Visitors</span><b id="stVis">…</b></div>
+      </div>
       <pre class="banner">{{ banner }}</pre>
       <div class="tagline">New PDB Depositions vs. Their Blind AlphaFold Predictions &mdash; A Running Test of &ldquo;Is Folding Solved?&rdquo;</div>
       <div class="tagline">Built by <a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a>, contact: <a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a></div>

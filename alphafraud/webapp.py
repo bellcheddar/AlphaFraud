@@ -15,13 +15,14 @@ Routes:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from datetime import date
 
-from flask import Flask, abort, jsonify, render_template, url_for
+from flask import Flask, abort, jsonify, render_template, request, url_for
 
-from . import __version__, banner, db, report
+from . import __version__, banner, config, db, report
 
 # Metric groups drive the tidy tables on the entry page (label -> metric keys).
 METRIC_GROUPS = [
@@ -81,6 +82,46 @@ def create_app() -> Flask:
     # The web app is a pure reader -- it does NOT init the schema (that would be a write on
     # every gunicorn restart, contending with a running backfill). The schema is created by
     # `AlphaFraud.py init` (provisioning) and by every pipeline run.
+
+    @app.before_request
+    def _track_visit():
+        # Count unique visitors (hashed IP) for the header stats panel. Page views only.
+        p = request.path
+        if p.startswith("/static") or p.startswith("/api") or p == "/healthz":
+            return
+        ip = (request.headers.get("X-Real-IP")
+              or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+              or request.remote_addr or "")
+        if ip:
+            try:
+                db.record_visit(hashlib.sha256(("af:" + ip).encode()).hexdigest()[:16])
+            except Exception:
+                pass
+
+    @app.route("/api/stats")
+    def api_stats():
+        rss_mb = None
+        try:                                   # this worker's resident memory (Linux)
+            with open("/proc/self/status") as fh:
+                for line in fh:
+                    if line.startswith("VmRSS:"):
+                        rss_mb = round(int(line.split()[1]) / 1024, 1)
+                        break
+        except Exception:
+            pass
+        vs = db.visitor_stats()
+        st = db.overall_stats()
+        analysed = st.get("n") or 0
+        return jsonify({
+            "memory_mb": rss_mb,
+            "db_mb": round(db.db_size_bytes() / 1048576, 1),
+            "analysed": analysed,
+            "confidently_wrong": st.get("cw") or 0,
+            "archive_pct": round(100 * analysed / 96433, 1) if analysed else 0,
+            "unique_visitors": vs["unique"],
+            "page_views": vs["hits"],
+            "visitors_today": vs["today"],
+        })
 
     @app.context_processor
     def _asset_helper():

@@ -288,27 +288,29 @@ def analysis_cluster_heatmap(cl: dict) -> Optional[str]:
         return None
     n = cl["n"]
     fig = go.Figure(go.Heatmap(
-        z=cl["matrix"], x=cl["order_labels"], y=cl["order_labels"], colorscale="Viridis",
+        z=cl["matrix"], x=cl["order_labels"], colorscale="Viridis",
         colorbar=dict(title="% identity", thickness=12),
-        hovertemplate="%{y} ↔ %{x}<br>%{z:.0f}% identity<extra></extra>",
+        hovertemplate="%{x}<br>%{z:.0f}% identity<extra></extra>",
     ))
-    # Outline each sequence-family block on the diagonal and label it in the left margin.
-    shapes, annos = [], []
+    # Outline each sequence-family block on the diagonal; label families via y-axis ticks
+    # with automargin so Plotly reserves the space and never truncates the names.
+    shapes = []
     pal = [BRAND["amber"], BRAND["green"], BRAND["red"], BRAND["primary_light"], "#9b51e0", "#ff6900"]
+    tickvals, ticktext = [], []
     for k, b in enumerate(cl.get("blocks", [])):
         col = pal[k % len(pal)]
         s, e = b["start"] - 0.5, b["end"] + 0.5
         shapes.append(dict(type="rect", x0=s, x1=e, y0=s, y1=e,
                            line=dict(color=col, width=2), fillcolor="rgba(0,0,0,0)"))
-        if b["size"] >= 3:
-            annos.append(dict(xref="paper", x=-0.008, y=(b["start"] + b["end"]) / 2, xanchor="right",
-                              yanchor="middle", showarrow=False,
-                              text=f"{b['label']} ({b['size']})", font=dict(size=10, color=col)))
+        if b["size"] >= 2:
+            tickvals.append((b["start"] + b["end"]) / 2)
+            ticktext.append(f"{b['label']} ({b['size']})")
     fig.update_layout(
         title=f"Sequence-identity clustering of the worst offenders (n={n})",
         xaxis=dict(showticklabels=False, title="worst offenders, ordered by sequence similarity → (families outlined & labelled)"),
-        yaxis=dict(showticklabels=False, autorange="reversed"),
-        shapes=shapes, annotations=annos, margin=dict(l=190, r=24, t=88, b=56),
+        yaxis=dict(autorange="reversed", showgrid=False, automargin=True,
+                   tickmode="array", tickvals=tickvals, ticktext=ticktext, tickfont=dict(size=10)),
+        shapes=shapes, margin=dict(r=24, t=88, b=56),
     )
     return _fig(fig)
 
@@ -317,7 +319,10 @@ def analysis_embedding(emb: dict) -> Optional[str]:
     if emb.get("n", 0) < 5:
         return None
     fig = go.Figure()
-    for cls in sorted(set(emb["cath_class"])):
+    # Draw 'unclassified' (grey) first so it sits behind the coloured, classified points.
+    classes = sorted(set(emb["cath_class"]))
+    classes = [c for c in classes if c == "unclassified"] + [c for c in classes if c != "unclassified"]
+    for cls in classes:
         idx = [i for i, c in enumerate(emb["cath_class"]) if c == cls]
         fig.add_trace(go.Scatter(
             x=[emb["x"][i] for i in idx], y=[emb["y"][i] for i in idx], mode="markers", name=cls,

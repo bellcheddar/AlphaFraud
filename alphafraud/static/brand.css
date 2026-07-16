@@ -41,7 +41,23 @@ header.site {
   background: linear-gradient(135deg, var(--primary) 0%, #14559a 100%);
   color: #fff; padding: 18px 0 0; box-shadow: var(--shadow);
 }
-header.site .wrap { display: block; }
+header.site .wrap { display: block; position: relative; }
+
+/* Live app-stats panel, pinned to the top-right of the header. */
+.statspanel {
+  position: absolute; top: 16px; right: 0; z-index: 5;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22);
+  border-radius: 10px; padding: 9px 12px; min-width: 150px;
+  font-family: var(--mono); font-size: 11.5px; color: #eaf2fb; backdrop-filter: blur(3px);
+}
+.statspanel .stathead {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.6);
+  margin-bottom: 5px; font-family: var(--sans);
+}
+.statspanel .statrow { display: flex; justify-content: space-between; gap: 14px; line-height: 1.55; }
+.statspanel .statrow span { color: rgba(255,255,255,.72); }
+.statspanel .statrow b { color: #fff; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) { .statspanel { display: none; } }
 pre.banner {
   font-family: var(--mono);
   /* Scale with viewport width so the fixed-width ASCII art always fits, phone to desktop. */
