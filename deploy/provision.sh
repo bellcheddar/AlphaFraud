@@ -49,12 +49,15 @@ echo "==> Initializing app (dirs, DB schema, vendored plotly.js)"
 sudo -u "$APP_USER" "$APP_DIR/.venv/bin/python" "$APP_DIR/AlphaFraud.py" init
 
 echo "==> Installing systemd units"
-cp "$APP_DIR/deploy/alphafraud-web.service" /etc/systemd/system/
-cp "$APP_DIR/deploy/alphafraud-run.service" /etc/systemd/system/
-cp "$APP_DIR/deploy/alphafraud-run.timer"   /etc/systemd/system/
+cp "$APP_DIR/deploy/alphafraud-web.service"      /etc/systemd/system/
+cp "$APP_DIR/deploy/alphafraud-run.service"      /etc/systemd/system/
+cp "$APP_DIR/deploy/alphafraud-run.timer"        /etc/systemd/system/
+cp "$APP_DIR/deploy/alphafraud-backfill.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now alphafraud-web.service
 systemctl enable --now alphafraud-run.timer
+# alphafraud-backfill is installed but NOT enabled -- the full-archive fill is a deliberate,
+# one-time action. Start it with: systemctl enable --now alphafraud-backfill
 
 echo "==> Installing nginx site"
 sed -e "s|__SERVER_NAME__|${SERVER_NAME}|g" -e "s|__BIND_ADDR__|${BIND_ADDR}|g" \

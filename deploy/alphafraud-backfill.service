@@ -1,0 +1,36 @@
+# systemd unit for the one-time full-archive backfill (two-tier, resumable).
+# Supervises `backfill --all` so it auto-restarts on crash and resumes after a reboot,
+# instead of being a fragile detached `nohup` process. Restart=on-failure means a clean
+# completion (exit 0, archive fully processed) leaves it stopped; only a crash restarts it.
+#
+# Start it deliberately (it is NOT auto-enabled by provision.sh):
+#   sudo systemctl enable --now alphafraud-backfill
+# Follow progress:
+#   tail -f /opt/alphafraud/data/backfill_all.log   (or: journalctl -u alphafraud-backfill -f)
+# Once the archive is fully caught up you can disable it; the weekly timer keeps it current.
+[Unit]
+Description=AlphaFraud full-archive backfill (two-tier, resumable)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alphafraud
+Group=alphafraud
+WorkingDirectory=/opt/alphafraud
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/alphafraud/.venv/bin/python -u /opt/alphafraud/AlphaFraud.py backfill --all --two-tier
+Restart=on-failure
+RestartSec=30
+# Append to the same log the manual run used, so monitoring is continuous.
+StandardOutput=append:/opt/alphafraud/data/backfill_all.log
+StandardError=append:/opt/alphafraud/data/backfill_all.log
+# Hardening (matches the web + run units).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/alphafraud
+
+[Install]
+WantedBy=multi-user.target
