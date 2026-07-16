@@ -53,9 +53,12 @@ cp "$APP_DIR/deploy/alphafraud-web.service"      /etc/systemd/system/
 cp "$APP_DIR/deploy/alphafraud-run.service"      /etc/systemd/system/
 cp "$APP_DIR/deploy/alphafraud-run.timer"        /etc/systemd/system/
 cp "$APP_DIR/deploy/alphafraud-backfill.service" /etc/systemd/system/
+cp "$APP_DIR/deploy/alphafraud-analyze.service"  /etc/systemd/system/
+cp "$APP_DIR/deploy/alphafraud-analyze.timer"    /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now alphafraud-web.service
 systemctl enable --now alphafraud-run.timer
+systemctl enable --now alphafraud-analyze.timer
 # alphafraud-backfill is installed but NOT enabled -- the full-archive fill is a deliberate,
 # one-time action. Start it with: systemctl enable --now alphafraud-backfill
 

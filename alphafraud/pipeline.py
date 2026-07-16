@@ -172,6 +172,12 @@ def run(since: date, until: date, limit: Optional[int] = None, dry_run: bool = F
 
     db.finish_run(run_id, len(ids), compared, skipped + errored)
     banner.ok(f"Run {label}: {compared} compared, {skipped} skipped, {errored} errored.")
+    if compared:
+        try:                                   # refresh the Analysis snapshot with the new week
+            from . import analysis
+            analysis.analyze()
+        except Exception as exc:
+            banner.warn(f"analysis refresh failed: {exc}")
     return {"discovered": len(ids), "compared": compared, "skipped": skipped + errored}
 
 

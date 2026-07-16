@@ -116,6 +116,7 @@ The web app serves live from SQLite. Every plot carries a plain-language explana
 | `/week/<label>` | One release week, same layout scoped to that batch |
 | `/entry/<id>` | Per-structure detail: per-residue error tracks, calibration scatter, distance-matrix and PAE-vs-observed heatmaps, per-domain breakdown, and every metric |
 | `/leaderboard` | The all-time worst AlphaFold failures across every processed week |
+| `/analysis` | Structural deep dive over the worst offenders: fold/family enrichment (Wilson-CI + Fisher), sequence-similarity clustering, failure-mode PCA, theme flags, per-superfamily blind-spot scorecards, conformational-heterogeneity detection, a "new this week" ribbon, and RCSB + DOI links on every structure |
 | `/archive` | An index of all processed weeks |
 | `/api/week/<label>`, `/api/leaderboard`, `/api/entry/<id>` | JSON for external tools |
 
@@ -164,8 +165,9 @@ Python, biotite and tmtools for structure handling and superposition, numpy and 
 Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.
 
 - [x] **Percentages on the KPI tiles** — each headline count also shows its share of the batch (e.g. confidently wrong: 586 = 1.6%), on the dashboard, week and leaderboard views
-- [ ] **Worst-offenders structural deep dive** — a panel characterising the confidently-wrong set by CATH / SCOP fold and family class, and clustering it by sequence similarity, to expose shared structural themes (amyloids, disordered regions, large assemblies)
+- [x] **Worst-offenders structural deep dive** — the **Analysis** tab characterises the confidently-wrong set by CATH / SCOP2 fold and family class (Wilson-CI + Fisher-exact enrichment), clusters it by sequence similarity, flags shared themes (amyloid / assembly / disordered / coiled-coil / engineered), maps failure modes by PCA, detects conformational heterogeneity, gives per-superfamily blind-spot scorecards, and links every offender to its RCSB entry and DOI-verified manuscript; refreshed hourly and after each weekly run
 - [ ] **Hover-to-preview structures** — a live 3D preview (experimental vs AlphaFold) on hover over a scatter point or a table row
+- [ ] **Header "Stats" panel** — a small live panel in the top-right of the header tracking app health: memory usage, SQLite DB size, unique visitors, and other key stats
 - [x] **Supervised backfill service** — the archive backfill runs as a systemd unit (`alphafraud-backfill.service`) that auto-restarts on crash and survives reboots, replacing the detached `nohup` process
 - [ ] **Multi-chain / complex accuracy** — compare assemblies with QS-score and interface lDDT (AlphaFold DB models are monomer-only today, so interfaces are untested)
 - [ ] **Accuracy by method and resolution** — break results down by X-ray / cryo-EM / NMR and by resolution to see where AlphaFold struggles most

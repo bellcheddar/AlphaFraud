@@ -1,0 +1,12 @@
+# Refresh the Analysis snapshot hourly (cheap: enrich is incremental, aggregation is seconds).
+# Keeps the /analysis tab current while the archive backfill fills in the compared set.
+[Unit]
+Description=Hourly AlphaFraud analysis refresh
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=alphafraud-analyze.service
+
+[Install]
+WantedBy=timers.target

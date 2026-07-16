@@ -102,6 +102,8 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 .badge.novel { background: rgba(252,185,0,.18); color: #a67c00; }
 :root[data-theme="dark"] .badge.novel { color: var(--amber); }
 .badge.ok { background: rgba(0,208,132,.16); color: #0a8f5c; }
+.badge.theme { background: rgba(30,115,190,.12); color: var(--primary); font-weight: 600; }
+:root[data-theme="dark"] .badge.theme { color: var(--primary-light); }
 :root[data-theme="dark"] .badge.ok { color: var(--green); }
 
 /* Metric group tables on entry page */

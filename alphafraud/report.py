@@ -238,6 +238,102 @@ def pae_honesty_pair(pae: list, observed: list) -> str:
     return _fig(fig)
 
 
+# --------------------------------------------------------------------------------------
+# Analysis-tab figures (built from the cached analysis snapshot)
+# --------------------------------------------------------------------------------------
+def analysis_enrichment(enr: list, title: str, cap: int = 15) -> Optional[str]:
+    enr = [e for e in enr if e.get("n_bg", 0) >= 3][:cap]
+    if not enr:
+        return None
+    enr = enr[::-1]   # highest at top
+    fig = go.Figure(go.Bar(
+        y=[e["label"] for e in enr], x=[e["cw_rate"] for e in enr], orientation="h",
+        marker_color=BRAND["amber"],
+        error_x=dict(type="data", symmetric=False,
+                     array=[max(0, e["ci_hi"] - e["cw_rate"]) for e in enr],
+                     arrayminus=[max(0, e["cw_rate"] - e["ci_lo"]) for e in enr],
+                     color="rgba(120,140,160,0.7)", thickness=1.2),
+        customdata=[[e["n_cw"], e["n_bg"], e["enrichment"]] for e in enr],
+        hovertemplate=("<b>%{y}</b><br>confidently-wrong rate %{x:.1f}%<br>"
+                       "%{customdata[0]}/%{customdata[1]} · enrichment %{customdata[2]}×<extra></extra>"),
+    ))
+    fig.update_layout(title=title, xaxis_title="confidently-wrong rate (%)",
+                      margin=dict(l=200, r=24, t=88, b=56))
+    return _fig(fig)
+
+
+def analysis_sunburst(sb: dict) -> Optional[str]:
+    if not sb.get("ids"):
+        return None
+    fig = go.Figure(go.Sunburst(
+        ids=sb["ids"], labels=sb["labels"], parents=sb["parents"], values=sb["values"],
+        branchvalues="total", insidetextorientation="radial",
+        marker=dict(colors=list(range(len(sb["ids"]))), colorscale="Blues", line=dict(width=1, color="white")),
+        hovertemplate="<b>%{label}</b><br>%{value} confidently wrong<extra></extra>",
+    ))
+    fig.update_layout(title="Confidently-wrong by CATH fold hierarchy")
+    return _fig(fig)
+
+
+def analysis_cluster_heatmap(cl: dict) -> Optional[str]:
+    if cl.get("n", 0) < 4:
+        return None
+    fig = go.Figure(go.Heatmap(
+        z=cl["matrix"], x=cl["order_labels"], y=cl["order_labels"], colorscale="Viridis",
+        colorbar=dict(title="% id", thickness=12),
+        hovertemplate="%{y} vs %{x}<br>%{z:.0f}% identity<extra></extra>",
+    ))
+    fig.update_layout(title=f"Sequence-identity clustering of the worst offenders (n={cl['n']})",
+                      yaxis=dict(autorange="reversed", scaleanchor="x"),
+                      xaxis=dict(showticklabels=False), margin=dict(l=60, r=24, t=88, b=40))
+    return _fig(fig)
+
+
+def analysis_embedding(emb: dict) -> Optional[str]:
+    if emb.get("n", 0) < 5:
+        return None
+    fig = go.Figure()
+    for cls in sorted(set(emb["cath_class"])):
+        idx = [i for i, c in enumerate(emb["cath_class"]) if c == cls]
+        fig.add_trace(go.Scatter(
+            x=[emb["x"][i] for i in idx], y=[emb["y"][i] for i in idx], mode="markers", name=cls,
+            marker=dict(size=[6 + 22 * (emb["fraud"][i] or 0) for i in idx],
+                        line=dict(width=0.4, color="white"), opacity=0.75),
+            customdata=[[emb["label"][i]] for i in idx],
+            hovertemplate="<b>%{customdata[0]}</b><extra></extra>",
+        ))
+    fig.update_layout(title="Failure-mode map (PCA of the metric fingerprints)",
+                      xaxis_title="PC1", yaxis_title="PC2",
+                      legend=dict(orientation="h", y=1.09, x=0))
+    return _fig(fig)
+
+
+def analysis_themes(themes: dict) -> Optional[str]:
+    c = themes.get("counts") or []
+    if not any(t["n"] for t in c):
+        return None
+    colors = [BRAND["red"], BRAND["primary"], BRAND["amber"], BRAND["green"], BRAND["primary_light"]]
+    fig = go.Figure(go.Bar(x=[t["theme"] for t in c], y=[t["n"] for t in c],
+                           marker_color=colors[:len(c)]))
+    fig.update_layout(title="Confidently-wrong by structural theme", yaxis_title="structures")
+    return _fig(fig)
+
+
+def analysis_correlates(corr: dict) -> Optional[str]:
+    from plotly.subplots import make_subplots
+
+    fig = make_subplots(rows=2, cols=2,
+                        subplot_titles=("by method", "by resolution (Å)", "by chain length", "by novelty"))
+    specs = [("method", 1, 1, BRAND["primary"]), ("resolution", 1, 2, BRAND["amber"]),
+             ("length", 2, 1, BRAND["green"]), ("novelty", 2, 2, BRAND["red"])]
+    for key, row, col, color in specs:
+        data = corr.get(key) or []
+        fig.add_trace(go.Bar(x=[d["bucket"] for d in data], y=[d["cw_rate"] for d in data],
+                             marker_color=color), row=row, col=col)
+    fig.update_layout(title="Confidently-wrong rate vs. structure attributes", showlegend=False, height=520)
+    return _fig(fig)
+
+
 def calibration_scatter(per_res: dict) -> str:
     plddt = per_res.get("plddt", [])
     lddt = per_res.get("lddt", [])

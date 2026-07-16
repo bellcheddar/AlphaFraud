@@ -115,6 +115,29 @@ def create_app() -> Flask:
         return render_template("leaderboard.html", banner=banner.BANNER_ART,
                                entities=rows, stats=db.overall_stats(), version=__version__)
 
+    @app.route("/analysis")
+    def analysis():
+        snap = db.load_snapshot("cumulative")
+        figures = {}
+        if snap:
+            figures = {
+                "enrich_class": report.analysis_enrichment(
+                    snap.get("enrichment_cath_class") or [], "AlphaFold blind spots by CATH class"),
+                "enrich_scop2": report.analysis_enrichment(
+                    snap.get("enrichment_scop2") or [], "AlphaFold blind spots by SCOP2 superfamily"),
+                "sunburst": report.analysis_sunburst(snap.get("sunburst") or {}),
+                "themes": report.analysis_themes(snap.get("themes") or {}),
+                "clusters": report.analysis_cluster_heatmap(snap.get("clusters") or {}),
+                "embedding": report.analysis_embedding(snap.get("embedding") or {}),
+                "correlates": report.analysis_correlates(snap.get("correlates") or {}),
+            }
+        return render_template("analysis.html", banner=banner.BANNER_ART, snap=snap,
+                               figures=figures, version=__version__)
+
+    @app.route("/api/analysis")
+    def api_analysis():
+        return jsonify(db.load_snapshot("cumulative") or {})
+
     @app.route("/entry/<entity_id>")
     def entry(entity_id):
         e = db.get_entity(entity_id)

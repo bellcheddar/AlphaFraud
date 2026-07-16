@@ -17,6 +17,7 @@
       <nav class="main">
         <a href="{{ url_for('index') }}" {% if active=='latest' %}class="active"{% endif %}>All structures</a>
         <a href="{{ url_for('leaderboard') }}" {% if active=='leaderboard' %}class="active"{% endif %}>Worst offenders</a>
+        <a href="{{ url_for('analysis') }}" {% if active=='analysis' %}class="active"{% endif %}>Analysis</a>
         <a href="{{ url_for('archive') }}" {% if active=='archive' %}class="active"{% endif %}>Archive</a>
       </nav>
     </div>

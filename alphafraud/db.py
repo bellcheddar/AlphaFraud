@@ -72,6 +72,43 @@ CREATE TABLE IF NOT EXISTS entities (
 CREATE INDEX IF NOT EXISTS idx_entities_run     ON entities(run_id);
 CREATE INDEX IF NOT EXISTS idx_entities_fraud   ON entities(fraud_score);
 CREATE INDEX IF NOT EXISTS idx_entities_deposit ON entities(deposit_date);
+
+-- Enrichment metadata for the Analysis tab (fetched lazily over the compared subset).
+CREATE TABLE IF NOT EXISTS entity_annotations (
+    entity_id        TEXT PRIMARY KEY,
+    sequence         TEXT,
+    seq_length       INTEGER,
+    cath_code        TEXT,
+    cath_class       TEXT,
+    cath_arch        TEXT,
+    cath_topo        TEXT,
+    cath_name        TEXT,
+    scop2_sf         TEXT,
+    ecod_family      TEXT,
+    pfam_json        TEXT,
+    go_json          TEXT,
+    citation_doi     TEXT,
+    citation_title   TEXT,
+    citation_journal TEXT,
+    citation_year    INTEGER,
+    citation_pubmed  INTEGER,
+    n_chains         INTEGER,
+    assembly_count   INTEGER,
+    is_amyloid       INTEGER,
+    is_idr           INTEGER,
+    is_assembly      INTEGER,
+    is_coiledcoil    INTEGER,
+    is_engineered    INTEGER,
+    enriched_at      TEXT,
+    FOREIGN KEY(entity_id) REFERENCES entities(entity_id)
+);
+
+-- Cached, precomputed analysis payload (one 'cumulative' row rebuilt after each run).
+CREATE TABLE IF NOT EXISTS analysis_snapshots (
+    kind        TEXT PRIMARY KEY,
+    data_json   TEXT,
+    updated_at  TEXT
+);
 """
 
 
@@ -282,6 +319,88 @@ def weekly_aggregates() -> list[dict]:
                GROUP BY r.label ORDER BY r.label ASC"""
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+# --------------------------------------------------------------------------------------
+# Analysis-tab support: enrichment annotations + cached snapshot
+# --------------------------------------------------------------------------------------
+def compared_needing_annotation(limit: Optional[int] = None) -> list[dict]:
+    """Fully-analysed entities that have no enrichment annotation row yet."""
+    q = ("SELECT e.entity_id, e.entry_id, e.chain, e.uniprot, e.description, e.uniprot_name, "
+         "e.is_novel, e.closest_pre_cutoff, e.metrics_json "
+         "FROM entities e LEFT JOIN entity_annotations a ON a.entity_id = e.entity_id "
+         "WHERE e.status='compared' AND a.entity_id IS NULL ORDER BY e.fraud_score DESC")
+    if limit:
+        q += f" LIMIT {int(limit)}"
+    with connect() as conn:
+        return [dict(r) for r in conn.execute(q).fetchall()]
+
+
+def upsert_annotation(row: dict) -> None:
+    row = {**row, "enriched_at": _now()}
+    cols = ", ".join(row)
+    placeholders = ", ".join(f":{c}" for c in row)
+
+    def _do():
+        with connect() as conn:
+            conn.execute(
+                f"INSERT OR REPLACE INTO entity_annotations ({cols}) VALUES ({placeholders})", row
+            )
+    _retry_write(_do)
+
+
+def compared_with_annotations() -> list[dict]:
+    """All fully-analysed entities joined to their enrichment annotations (for aggregation).
+    Includes metrics_json for feature extraction; excludes the big heatmap/per-residue blobs."""
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT e.entity_id, e.entry_id, e.chain, e.uniprot, e.uniprot_name, e.description,
+                      e.deposit_date, e.release_date, e.resolution, e.method, e.novelty_identity,
+                      e.is_novel, e.closest_pre_cutoff, e.mean_plddt, e.tm_by_experiment, e.lddt,
+                      e.gdt_ts, e.ca_rmsd, e.fraud_score, e.confidently_wrong, e.metrics_json, e.run_id,
+                      r.label AS week,
+                      a.sequence, a.seq_length, a.cath_code, a.cath_class, a.cath_arch, a.cath_topo,
+                      a.cath_name, a.scop2_sf, a.ecod_family, a.pfam_json,
+                      a.citation_doi, a.citation_title, a.citation_journal, a.citation_year,
+                      a.citation_pubmed, a.n_chains, a.assembly_count,
+                      a.is_amyloid, a.is_idr, a.is_assembly, a.is_coiledcoil, a.is_engineered
+               FROM entities e
+               JOIN entity_annotations a ON a.entity_id = e.entity_id
+               LEFT JOIN runs r ON e.run_id = r.id
+               WHERE e.status='compared'"""
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def annotation_count() -> int:
+    with connect() as conn:
+        return conn.execute("SELECT COUNT(*) n FROM entity_annotations").fetchone()["n"]
+
+
+def save_snapshot(kind: str, data: dict) -> None:
+    import json as _json
+
+    def _do():
+        with connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO analysis_snapshots(kind, data_json, updated_at) VALUES (?,?,?)",
+                (kind, _json.dumps(data), _now()),
+            )
+    _retry_write(_do)
+
+
+def load_snapshot(kind: str = "cumulative") -> Optional[dict]:
+    import json as _json
+
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT data_json, updated_at FROM analysis_snapshots WHERE kind=?", (kind,)
+        ).fetchone()
+        if not row:
+            return None
+        data = _json.loads(row["data_json"])
+        data["_updated_at"] = row["updated_at"]
+        return data
 
 
 def overall_stats() -> dict:

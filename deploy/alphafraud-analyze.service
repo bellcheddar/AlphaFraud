@@ -1,0 +1,20 @@
+# systemd oneshot: enrich the compared set + rebuild the Analysis-tab snapshot.
+# Triggered by alphafraud-analyze.timer; keeps the /analysis deep-dive fresh while the
+# archive backfill runs and after each weekly pipeline run.
+[Unit]
+Description=AlphaFraud analysis refresh (enrich + rebuild snapshot)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=alphafraud
+Group=alphafraud
+WorkingDirectory=/opt/alphafraud
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/alphafraud/.venv/bin/python /opt/alphafraud/AlphaFraud.py analyze
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/alphafraud

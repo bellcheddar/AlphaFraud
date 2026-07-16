@@ -117,6 +117,13 @@ def cmd_status(_args) -> int:
     return 0
 
 
+def cmd_analyze(args) -> int:
+    from alphafraud import analysis
+
+    analysis.analyze(limit=args.limit)
+    return 0
+
+
 def cmd_serve(args) -> int:
     from alphafraud.webapp import create_app
 
@@ -156,6 +163,10 @@ def main(argv=None) -> int:
     p_bf.set_defaults(func=cmd_backfill)
 
     sub.add_parser("status", help="database summary + leaderboard").set_defaults(func=cmd_status)
+
+    p_an = sub.add_parser("analyze", help="enrich the compared set + rebuild the Analysis snapshot")
+    p_an.add_argument("--limit", type=int, help="max entities to enrich this pass")
+    p_an.set_defaults(func=cmd_analyze)
 
     p_serve = sub.add_parser("serve", help="local dev web server")
     p_serve.add_argument("--port", type=int, default=8000)
