@@ -60,8 +60,10 @@ def _resolve_fragment(meta: pdb.EntityMeta):
     return frag, (ref_beg, ref_end)
 
 
-def process_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: bool = False) -> str:
-    """Tier-2 (full) processing of one entity. Returns 'compared' | 'skipped' | 'error'."""
+def process_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: bool = False,
+                   refetch: bool = False) -> str:
+    """Tier-2 (full) processing of one entity. Returns 'compared' | 'skipped' | 'error'.
+    `refetch` forces a fresh mmCIF download (used by the error-retry pass)."""
     if not meta.has_single_uniprot:
         _skip(entity_id, meta, run_id, "no single UniProt mapping (antibody/chimera/construct?)")
         return "skipped"
@@ -74,7 +76,7 @@ def process_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: b
         _skip(entity_id, meta, run_id, extra)
         return "skipped"
 
-    exp_path = pdb.download_structure(meta.entry_id)
+    exp_path = pdb.download_structure(meta.entry_id, prefer_cif=refetch, force=refetch)
     af_path = afdb.download_model(frag)
     if not exp_path or not af_path:
         _skip(entity_id, meta, run_id, "structure download failed")
@@ -181,8 +183,10 @@ def run(since: date, until: date, limit: Optional[int] = None, dry_run: bool = F
     return {"discovered": len(ids), "compared": compared, "skipped": skipped + errored}
 
 
-def screen_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: bool = True) -> str:
-    """Tier-1 screen of one entity: TM-score only. Returns 'screened' | 'skipped'."""
+def screen_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: bool = True,
+                  refetch: bool = False) -> str:
+    """Tier-1 screen of one entity: TM-score only. Returns 'screened' | 'skipped'.
+    `refetch` forces a fresh mmCIF download (used by the error-retry pass)."""
     if not meta.has_single_uniprot:
         _skip(entity_id, meta, run_id, "no single UniProt mapping (antibody/chimera/construct?)")
         return "skipped"
@@ -195,7 +199,7 @@ def screen_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: bo
         _skip(entity_id, meta, run_id, extra)
         return "skipped"
 
-    exp_path = pdb.download_structure(meta.entry_id)
+    exp_path = pdb.download_structure(meta.entry_id, prefer_cif=refetch, force=refetch)
     af_path = afdb.download_model(frag)
     if not exp_path or not af_path:
         _skip(entity_id, meta, run_id, "structure download failed")
@@ -332,6 +336,80 @@ def backfill_all(tm_threshold: float = 0.7, limit_per_chunk: Optional[int] = Non
         cur = nxt
     banner.ok(f"Full backfill done: {totals['screened']} screened, {totals['promoted']} "
               f"fully analysed, {totals['skipped']} skipped.")
+
+
+def retry_errors(tm_threshold: float = 0.7, limit: Optional[int] = None) -> dict:
+    """Re-attempt the entities currently in 'error' status.
+
+    Step 1 reclassifies the guard rejections (too few residues aligned / peptide too short)
+    to 'skipped' -- those are not real failures and a retry cannot change them. Step 2 retries
+    the remainder (truncated/unreadable downloads, large assemblies that need mmCIF, NMR
+    multi-model files) with a forced fresh mmCIF fetch and the model=1 loader fix, mirroring
+    the two-tier logic: screen first, promote to full metrics only if TM < threshold. Each
+    entity ends as 'screened', 'compared', 'skipped', or (if still broken) 'error'.
+
+    Run this only when no other backfill is writing the database -- two writers contend.
+    """
+    db.init_schema()
+    config.ensure_dirs()
+
+    reclassified = db.reclassify_noncomparable_errors()
+    banner.info(f"[retry] reclassified {reclassified} non-comparable guard errors → skipped")
+
+    targets = db.error_entity_ids(exclude_noncomparable=True)
+    if limit:
+        targets = targets[:limit]
+    if not targets:
+        banner.ok("[retry] no retryable error rows remain.")
+        return {"reclassified": reclassified, "retried": 0, "recovered": 0, "still_error": 0}
+    banner.step(f"[retry] retrying {len(targets)} error entities with fresh mmCIF + model=1")
+
+    metas = pdb.fetch_entity_metadata(targets)
+
+    recovered = screened = skipped = still_error = 0
+    for eid in targets:
+        meta = metas.get(eid)
+        # Reuse the entity's ORIGINAL run_id so a recovered structure reappears on its correct
+        # release-week page. Deliberately NO new run row -- a 'retry-errors' run would show up
+        # as a bogus week in the archive/dropdown (weeks are runs grouped by label).
+        existing = db.get_entity(eid)
+        run_id = existing.get("run_id") if existing else None
+        if meta is None:
+            _skip(eid, None, run_id, "metadata lookup failed")
+            skipped += 1
+            continue
+        try:
+            outcome = screen_entity(eid, meta, run_id, cleanup=True, refetch=True)
+            if outcome == "screened":
+                row = db.get_entity(eid)
+                tm = row.get("tm_by_experiment") if row else None
+                if tm is not None and tm < tm_threshold:
+                    outcome = process_entity(eid, meta, run_id, cleanup=True, refetch=True)
+        except Exception as exc:
+            _record_error(eid, meta, run_id, exc)
+            still_error += 1
+            continue
+        if outcome == "compared":
+            recovered += 1
+            e = db.get_entity(eid)
+            flag = " ⚠ CONFIDENTLY WRONG" if e and e.get("confidently_wrong") else ""
+            banner.ok(f"[retry] {eid} recovered (full){flag}")
+        elif outcome == "screened":
+            recovered += 1
+            banner.ok(f"[retry] {eid} recovered (screened)")
+        else:
+            skipped += 1
+
+    banner.ok(f"[retry] {recovered} recovered, {skipped} skipped, {still_error} still failing "
+              f"(+{reclassified} reclassified).")
+    if recovered:
+        try:
+            from . import analysis
+            analysis.analyze()
+        except Exception as exc:
+            banner.warn(f"analysis refresh failed: {exc}")
+    return {"reclassified": reclassified, "retried": len(targets), "recovered": recovered,
+            "skipped": skipped, "still_error": still_error}
 
 
 def _record_error(eid: str, meta, run_id: int, exc: Exception) -> None:

@@ -54,7 +54,13 @@ def _one_letter(res_name: str) -> str:
 def _load_atomarray(path: Path) -> struc.AtomArray:
     """Load first model, standard amino acids only, highest-occupancy altloc."""
     # b_factor carries AlphaFold per-residue pLDDT; occupancy drives altloc filtering.
-    obj = strucio.load_structure(str(path), extra_fields=["b_factor", "occupancy"])
+    try:
+        obj = strucio.load_structure(str(path), extra_fields=["b_factor", "occupancy"])
+    except Exception:
+        # Some multi-model files (NMR ensembles, altloc-heavy cryo-EM) have an unequal atom
+        # count across models, so biotite refuses to build the stack ("give an explicit model
+        # instead" / "Inconsistent number of models"). Retry pinned to the first model.
+        obj = strucio.load_structure(str(path), extra_fields=["b_factor", "occupancy"], model=1)
     if isinstance(obj, struc.AtomArrayStack):   # NMR / multi-model -> first model
         obj = obj[0]
     obj = obj[struc.filter_amino_acids(obj)]

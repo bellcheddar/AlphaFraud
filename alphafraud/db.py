@@ -190,6 +190,40 @@ def entity_exists(entity_id: str) -> bool:
         return conn.execute("SELECT 1 FROM entities WHERE entity_id=?", (entity_id,)).fetchone() is not None
 
 
+# Error rows whose skip_reason is one of these are not real failures: the pipeline
+# *correctly* refused to compare (too few residues aligned to the AF model, or a peptide
+# too short to superpose). They belong under 'skipped' (not-comparable), like constructs.
+_NONCOMPARABLE_ERROR_PATTERNS = ("refusing to compare", "too short")
+
+
+def _noncomparable_where(col: str = "skip_reason") -> str:
+    return " OR ".join(f"{col} LIKE '%{p}%'" for p in _NONCOMPARABLE_ERROR_PATTERNS)
+
+
+def reclassify_noncomparable_errors() -> int:
+    """Move guard-rejection error rows to 'skipped' (they are not real failures). Returns the
+    number of rows reclassified. Idempotent."""
+    def _do():
+        with connect() as conn:
+            cur = conn.execute(
+                f"UPDATE entities SET status='skipped' "
+                f"WHERE status='error' AND ({_noncomparable_where()})"
+            )
+            return cur.rowcount
+    return _retry_write(_do)
+
+
+def error_entity_ids(exclude_noncomparable: bool = True) -> list[str]:
+    """Entity ids currently in 'error' status. By default excludes the guard rejections
+    (which a retry cannot fix); the remainder are the retryable I/O/format/model failures."""
+    sql = "SELECT entity_id FROM entities WHERE status='error'"
+    if exclude_noncomparable:
+        sql += f" AND NOT ({_noncomparable_where()})"
+    sql += " ORDER BY entity_id"
+    with connect() as conn:
+        return [r["entity_id"] for r in conn.execute(sql).fetchall()]
+
+
 # --------------------------------------------------------------------------------------
 # Entities
 # --------------------------------------------------------------------------------------

@@ -96,6 +96,13 @@ def cmd_backfill(args) -> int:
     return 0
 
 
+def cmd_retry_errors(args) -> int:
+    from alphafraud import pipeline
+
+    pipeline.retry_errors(tm_threshold=args.tm_threshold, limit=args.limit)
+    return 0
+
+
 def cmd_status(_args) -> int:
     from alphafraud import db
 
@@ -161,6 +168,14 @@ def main(argv=None) -> int:
     p_bf.add_argument("--workers", type=int, default=1,
                       help="parallel download/analysis workers (default 1; try 6 for backfill)")
     p_bf.set_defaults(func=cmd_backfill)
+
+    p_re = sub.add_parser("retry-errors",
+                          help="reclassify guard errors → skipped, then re-attempt the real "
+                               "failures (fresh mmCIF + model=1). Run only when no backfill is active.")
+    p_re.add_argument("--tm-threshold", type=float, default=0.7,
+                      help="promote a recovered entity to full metrics below this TM (default 0.7)")
+    p_re.add_argument("--limit", type=int, help="max error entities to retry this pass")
+    p_re.set_defaults(func=cmd_retry_errors)
 
     sub.add_parser("status", help="database summary + leaderboard").set_defaults(func=cmd_status)
 

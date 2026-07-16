@@ -197,16 +197,27 @@ def _pick_uniprot(entity: dict) -> tuple[Optional[str], Optional[str], list[Alig
     return acc, name, regions
 
 
-def download_structure(entry_id: str) -> Optional[Path]:
+def download_structure(entry_id: str, prefer_cif: bool = False, force: bool = False) -> Optional[Path]:
     """Download the experimental coordinates. Tries PDB format, falls back to mmCIF for
-    entries too large for the legacy PDB format (large cryo-EM assemblies)."""
+    entries too large for the legacy PDB format (large cryo-EM assemblies).
+
+    `prefer_cif` requests mmCIF first -- the canonical, complete format. Large assemblies
+    (>62 chains / >99,999 atoms) have no valid legacy .pdb at all, so a plain .pdb fetch can
+    save a truncated/error file that later fails to parse; the retry path uses this to fetch
+    the format that actually exists. `force` re-downloads even if a (possibly bad) cached
+    file is present."""
     entry_id = entry_id.lower()
     pdb_dest = config.STRUCT_CACHE / f"{entry_id}.pdb"
-    got = download(RCSB_FILE_URL.format(entry_id=entry_id, fmt="pdb"), pdb_dest)
-    if got:
-        return got
     cif_dest = config.STRUCT_CACHE / f"{entry_id}.cif"
-    return download(RCSB_FILE_URL.format(entry_id=entry_id, fmt="cif"), cif_dest)
+    if force:                                   # drop stale/corrupt cached files first
+        pdb_dest.unlink(missing_ok=True)
+        cif_dest.unlink(missing_ok=True)
+    order = [("cif", cif_dest), ("pdb", pdb_dest)] if prefer_cif else [("pdb", pdb_dest), ("cif", cif_dest)]
+    for fmt, dest in order:
+        got = download(RCSB_FILE_URL.format(entry_id=entry_id, fmt=fmt), dest, skip_if_exists=not force)
+        if got:
+            return got
+    return None
 
 
 def fetch_entity_metadata(entity_ids: list[str]) -> dict[str, EntityMeta]:
