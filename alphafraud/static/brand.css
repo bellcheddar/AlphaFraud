@@ -146,6 +146,19 @@ footer.site code { font-family: var(--mono); background: var(--card); padding: 1
   font-weight: 600; color: var(--primary-dark, #155a9c);
 }
 :root[data-theme="dark"] .explain .takehome { color: var(--primary-light); }
+.explain h5 {
+  margin: 13px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); border-top: 1px solid var(--border); padding-top: 11px;
+}
+.explain .metric { margin: 0 0 9px; }
+.explain .metric:last-child { margin-bottom: 0; }
+.explain .eq {
+  font-family: var(--mono); font-size: 12.5px; white-space: nowrap;
+  display: inline-block; max-width: 100%; overflow-x: auto; vertical-align: bottom;
+  background: rgba(30,115,190,.07); border: 1px solid var(--border); border-radius: 5px;
+  padding: 2px 7px; color: var(--ink);
+}
+:root[data-theme="dark"] .explain .eq { background: rgba(74,159,212,.12); }
 
 @media (max-width: 560px) {
   .wrap { padding: 0 14px; }

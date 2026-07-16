@@ -56,6 +56,15 @@
     red line is large are exactly where AlphaFold is <dfn>confidently wrong</dfn>.</p>
     <p class="takehome">Take-home: mean confidence pLDDT {{ r2(metrics.mean_plddt) }} vs. overall accuracy
     lDDT {{ r2(metrics.lddt) }} and TM-score {{ r2(metrics.tm_by_experiment) }}.</p>
+    <h5>The metrics</h5>
+    <p class="metric"><dfn>Cα deviation:</dfn> how far residue i sits from where the experiment places it, after
+    superposing the whole chain. <span class="eq">Δᵢ = |Pᵢ &minus; (R·Qᵢ + t)|</span> &Aring;, with Pᵢ/Qᵢ the
+    experimental/model Cα coordinates and R,t the best-fit rotation and translation.</p>
+    <p class="metric"><dfn>per-residue lDDT:</dfn> local accuracy at residue i without superposition &mdash; the
+    fraction of i's neighbour distances (within 15 &Aring;) the model preserves.
+    <span class="eq">lDDTᵢ = ¼ Σ_t 1[ |d_exp &minus; d_model| &lt; t ]</span>, t ∈ {0.5, 1, 2, 4} &Aring;.</p>
+    <p class="metric"><dfn>pLDDT:</dfn> AlphaFold's confidence for residue i (0&ndash;100) &mdash; its own predicted
+    lDDT, output by the network before seeing the experiment.</p>
   </div>
   {% endif %}
 
@@ -69,6 +78,13 @@
     <p class="takehome">Take-home: pLDDT&ndash;lDDT correlation
     {{ metrics.plddt_lddt_pearson if metrics.plddt_lddt_pearson is not none else '—' }}
     (near 1 = well calibrated; near or below 0 = confidence unrelated to, or opposite, real accuracy).</p>
+    <h5>The metrics</h5>
+    <p class="metric"><dfn>pLDDT (x):</dfn> AlphaFold's predicted per-residue confidence, 0&ndash;100.
+    <dfn>lDDT&times;100 (y):</dfn> the accuracy actually achieved at that residue. Perfect calibration puts every
+    point on the diagonal <span class="eq">pLDDTᵢ = 100·lDDTᵢ</span>.</p>
+    <p class="metric"><dfn>Calibration correlation:</dfn> the headline is the Pearson correlation of the two across
+    all residues. <span class="eq">r = cov(pLDDT, lDDT) / (σ_pLDDT · σ_lDDT)</span> &mdash; near 1 means confidence
+    tracks accuracy honestly; ≤ 0 means it does not.</p>
   </div>
   {% endif %}
 
@@ -80,6 +96,11 @@
     Bright regions mark pairs of residues whose separation AlphaFold got wrong &mdash; often a whole domain
     placed in the wrong position relative to the rest of the structure.</p>
     <p class="takehome">Take-home: mean distance-map difference {{ r2(metrics.distance_matrix_mean_diff) }}&nbsp;&Aring;.</p>
+    <h5>The metric</h5>
+    <p class="metric"><dfn>Distance-matrix difference:</dfn> each cell is how much the separation of residues i and j
+    differs between prediction and experiment. <span class="eq">|Dᵢⱼ^exp &minus; Dᵢⱼ^model|</span>, where
+    Dᵢⱼ = |rᵢ &minus; rⱼ| is the distance between the two residues. Superposition-free, so a domain in the wrong
+    place shows up as a bright off-diagonal block rather than being averaged away.</p>
   </div>
   {% endif %}
 
@@ -94,6 +115,13 @@
     error {{ r2(metrics.mean_observed_error) }}&nbsp;&Aring;;
     {{ (100 * metrics.pae_overconfident_frac) | round(1) if metrics.pae_overconfident_frac is not none else '—' }}%
     of residue pairs were more wrong than AlphaFold predicted.</p>
+    <h5>The metrics</h5>
+    <p class="metric"><dfn>PAE (predicted):</dfn> AlphaFold's Predicted Aligned Error &mdash; <span class="eq">PAEᵢⱼ</span>
+    is the position error (&Aring;) it expects for residue j when the structure is aligned on residue i, output by
+    the network.</p>
+    <p class="metric"><dfn>Observed error:</dfn> the frame-invariant reality we measure for the same pair.
+    <span class="eq">Eᵢⱼ = | |rᵢ&minus;rⱼ|_exp &minus; |rᵢ&minus;rⱼ|_model |</span>. If the observed panel is far
+    brighter than the predicted one, AlphaFold underestimated its own error &mdash; it was overconfident.</p>
   </div>
   {% endif %}
 
