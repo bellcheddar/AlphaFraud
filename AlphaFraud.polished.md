@@ -32,7 +32,7 @@ AlphaFraud watches the RCSB PDB for newly deposited human protein structures, ma
 | Confidence audit | pLDDT vs actual lDDT calibration, and a PAE-honesty check comparing AlphaFold's self-reported error to the observed error |
 | Two-tier archive backfill | A fast TM-score screen across every structure, running the full metric suite only on the disagreements; makes the whole ~96k-entity archive tractable |
 | Cumulative dashboard | Default landing page aggregating every processed week: the "fraud quadrant" scatter, metric histograms, a weekly trend, and a browsable per-week / per-structure archive |
-| Branded, mobile-responsive report | Flask app with the signature scatter, heatmaps, per-domain tables and an all-time leaderboard; every plot has a plain-language explanatory panel and a CSV export, and every table exports to CSV |
+| Branded, mobile-responsive report | Flask app with the signature scatter, heatmaps, per-domain tables and an all-time leaderboard; every plot has a CSV export and a plain-language explanatory panel that defines each metric twice over (a lay sentence and the underlying equation), and every table exports to CSV |
 | One-command deploy | Provisioning, deploy and one-shot release scripts for a DigitalOcean droplet (gunicorn, nginx, certbot TLS) |
 
 ## 🎯 Metric suite
@@ -108,7 +108,7 @@ python3 AlphaFraud.py serve --port 8000
 
 ## 📊 Output
 
-The web app serves live from SQLite. Every plot carries a plain-language explanatory panel (what the axes mean, the cutoffs, a take-home summary) and a CSV export; every table exports to CSV too.
+The web app serves live from SQLite. Every plot carries a plain-language explanatory panel (what the axes mean, the cutoffs, a take-home summary, and a per-metric breakdown giving both a lay explanation and the equation, e.g. `TM = (1/L) Σᵢ 1/(1 + (dᵢ/d₀)²)`) plus a CSV export; every table exports to CSV too.
 
 | Route | Shows |
 |---|---|

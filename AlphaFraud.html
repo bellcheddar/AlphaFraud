@@ -58,7 +58,7 @@
 </tr>
 <tr>
 <td data-label="Capability">Branded, mobile-responsive report</td>
-<td data-label="What it does">Flask app with the signature scatter, heatmaps, per-domain tables and an all-time leaderboard; every plot has a plain-language explanatory panel and a CSV export, and every table exports to CSV</td>
+<td data-label="What it does">Flask app with the signature scatter, heatmaps, per-domain tables and an all-time leaderboard; every plot has a CSV export and a plain-language explanatory panel that defines each metric twice over (a lay sentence and the underlying equation), and every table exports to CSV</td>
 </tr>
 <tr>
 <td data-label="Capability">One-command deploy</td>
@@ -177,7 +177,7 @@ python3 AlphaFraud.py serve --port 8000
 </tbody>
 </table></div>
 <h2>📊 Output</h2>
-<p>The web app serves live from SQLite. Every plot carries a plain-language explanatory panel (what the axes mean, the cutoffs, a take-home summary) and a CSV export; every table exports to CSV too.</p>
+<p>The web app serves live from SQLite. Every plot carries a plain-language explanatory panel (what the axes mean, the cutoffs, a take-home summary, and a per-metric breakdown giving both a lay explanation and the equation, e.g. <code>TM = (1/L) Σᵢ 1/(1 + (dᵢ/d₀)²)</code>) plus a CSV export; every table exports to CSV too.</p>
 <div class="emd-table-wrap"><table class="emd-data-table">
 <thead>
 <tr>
