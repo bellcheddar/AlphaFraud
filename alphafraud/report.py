@@ -306,10 +306,9 @@ def analysis_cluster_heatmap(cl: dict) -> Optional[str]:
                               text=f"{b['label']} ({b['size']})", font=dict(size=10, color=col)))
     fig.update_layout(
         title=f"Sequence-identity clustering of the worst offenders (n={n})",
-        xaxis=dict(showticklabels=False, title="worst offenders, ordered by sequence similarity →"),
-        yaxis=dict(showticklabels=False, autorange="reversed",
-                   title="← families (outlined & labelled)"),
-        shapes=shapes, annotations=annos, margin=dict(l=150, r=24, t=88, b=56),
+        xaxis=dict(showticklabels=False, title="worst offenders, ordered by sequence similarity → (families outlined & labelled)"),
+        yaxis=dict(showticklabels=False, autorange="reversed"),
+        shapes=shapes, annotations=annos, margin=dict(l=190, r=24, t=88, b=56),
     )
     return _fig(fig)
 
