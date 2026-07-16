@@ -158,6 +158,23 @@ Python, biotite and tmtools for structure handling and superposition, numpy and 
 - AlphaFold DB models are monomers, so complex and interface accuracy are not tested in this version.
 - Engineered constructs, antibodies and fusion proteins that do not map to a single UniProt accession are flagged and skipped, not compared.
 
+## ✅ To Do
+
+Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.
+
+- [ ] **Percentages on the KPI tiles** — show each headline count as a share of the batch (e.g. confidently wrong: 586 / 37,007 = 1.6%), not just the raw number
+- [ ] **Worst-offenders structural deep dive** — a panel characterising the confidently-wrong set by CATH / SCOP fold and family class, and clustering it by sequence similarity, to expose shared structural themes (amyloids, disordered regions, large assemblies)
+- [ ] **Hover-to-preview structures** — a live 3D preview (experimental vs AlphaFold) on hover over a scatter point or a table row
+- [ ] **Supervised backfill service** — run the archive backfill as a systemd unit that auto-restarts on crash or reboot, replacing the detached `nohup` process
+- [ ] **Multi-chain / complex accuracy** — compare assemblies with QS-score and interface lDDT (AlphaFold DB models are monomer-only today, so interfaces are untested)
+- [ ] **Accuracy by method and resolution** — break results down by X-ray / cryo-EM / NMR and by resolution to see where AlphaFold struggles most
+- [ ] **Map multi-domain and engineered chains** — compare antibodies, fusions and constructs per-domain instead of skipping chains without a single UniProt accession
+- [ ] **Process-based parallel backfill** — a `ProcessPoolExecutor` path to beat the single-thread ceiling without the C-extension thread-safety issues that forced single-threaded mode
+- [ ] **Predictor and model-version tracking** — record the AlphaFold DB model version, flag entries updated since the first prediction, and add other predictors (AlphaFold3, ESMFold) for comparison
+- [ ] **Catch alerts** — optional email / Slack notification when a new confidently-wrong or novel-and-wrong structure is found
+- [ ] **Robust large-assembly parsing** — handle the CIF-only and oversized structures that currently log a parse error and are skipped
+- [ ] **Tests and CI** — a regression set pinned on known catches (transthyretin, SOD1, β2-microglobulin) plus continuous integration
+
 ## 📝 Licence
 
 Released under the MIT Licence (see [LICENSE](LICENSE)).

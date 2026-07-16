@@ -325,6 +325,22 @@ sudo systemctl start alphafraud-run.service
 <li>AlphaFold DB models are monomers, so complex and interface accuracy are not tested in this version.</li>
 <li>Engineered constructs, antibodies and fusion proteins that do not map to a single UniProt accession are flagged and skipped, not compared.</li>
 </ul>
+<h2>✅ To Do</h2>
+<p>Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.</p>
+<ul class="emd-tasklist">
+<li><span class="emd-check">&#11036;</span> <strong>Percentages on the KPI tiles</strong> — show each headline count as a share of the batch (e.g. confidently wrong: 586 / 37,007 = 1.6%), not just the raw number</li>
+<li><span class="emd-check">&#11036;</span> <strong>Worst-offenders structural deep dive</strong> — a panel characterising the confidently-wrong set by CATH / SCOP fold and family class, and clustering it by sequence similarity, to expose shared structural themes (amyloids, disordered regions, large assemblies)</li>
+<li><span class="emd-check">&#11036;</span> <strong>Hover-to-preview structures</strong> — a live 3D preview (experimental vs AlphaFold) on hover over a scatter point or a table row</li>
+<li><span class="emd-check">&#11036;</span> <strong>Supervised backfill service</strong> — run the archive backfill as a systemd unit that auto-restarts on crash or reboot, replacing the detached <code>nohup</code> process</li>
+<li><span class="emd-check">&#11036;</span> <strong>Multi-chain / complex accuracy</strong> — compare assemblies with QS-score and interface lDDT (AlphaFold DB models are monomer-only today, so interfaces are untested)</li>
+<li><span class="emd-check">&#11036;</span> <strong>Accuracy by method and resolution</strong> — break results down by X-ray / cryo-EM / NMR and by resolution to see where AlphaFold struggles most</li>
+<li><span class="emd-check">&#11036;</span> <strong>Map multi-domain and engineered chains</strong> — compare antibodies, fusions and constructs per-domain instead of skipping chains without a single UniProt accession</li>
+<li><span class="emd-check">&#11036;</span> <strong>Process-based parallel backfill</strong> — a <code>ProcessPoolExecutor</code> path to beat the single-thread ceiling without the C-extension thread-safety issues that forced single-threaded mode</li>
+<li><span class="emd-check">&#11036;</span> <strong>Predictor and model-version tracking</strong> — record the AlphaFold DB model version, flag entries updated since the first prediction, and add other predictors (AlphaFold3, ESMFold) for comparison</li>
+<li><span class="emd-check">&#11036;</span> <strong>Catch alerts</strong> — optional email / Slack notification when a new confidently-wrong or novel-and-wrong structure is found</li>
+<li><span class="emd-check">&#11036;</span> <strong>Robust large-assembly parsing</strong> — handle the CIF-only and oversized structures that currently log a parse error and are skipped</li>
+<li><span class="emd-check">&#11036;</span> <strong>Tests and CI</strong> — a regression set pinned on known catches (transthyretin, SOD1, β2-microglobulin) plus continuous integration</li>
+</ul>
 <h2>📝 Licence</h2>
 <p>Released under the MIT Licence (see <a href="LICENSE">LICENSE</a>).</p>
 <hr>
