@@ -173,7 +173,6 @@
       set("stAnalysed", whole(s.analysed) + pct(s.analysed, 96433));
       set("stCW", whole(s.confidently_wrong) + pct(s.confidently_wrong, s.analysed));
       set("stNW", whole(s.novel_and_wrong) + pct(s.novel_and_wrong, s.analysed));
-      set("stArch", (s.archive_pct != null ? Math.round(s.archive_pct) + "%" : "—"));
       set("stDb", (s.db_mb != null ? whole(s.db_mb) + " MB" : "—"));
       set("stVis", whole(s.unique_visitors));
     }).catch(function () {});
