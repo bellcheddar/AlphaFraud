@@ -14,6 +14,27 @@ from typing import Optional
 from . import afdb, banner, cath, compare, config, db, novelty, pdb, ribbon, structio
 
 
+# Structures larger than this parse to many GB in biotite and OOM the small droplet (a 353 MB
+# cryo-EM cif reached 3.3 GB RSS and killed the backfill). AlphaFold DB models are monomers, so
+# these giant assemblies aren't meaningfully comparable anyway -- skip rather than crash.
+MAX_STRUCT_BYTES = 40_000_000
+
+
+def _too_large(path) -> bool:
+    try:
+        return path.stat().st_size > MAX_STRUCT_BYTES
+    except OSError:
+        return False
+
+
+def _too_large_reason(path) -> str:
+    try:
+        mb = path.stat().st_size // 1_000_000
+    except OSError:
+        mb = "?"
+    return f"structure too large to load safely ({mb} MB); AlphaFold DB is monomer-only"
+
+
 def _ref_span(meta: pdb.EntityMeta) -> tuple[int, int]:
     """UniProt residue span the experimental entity covers (from the alignment regions)."""
     begs = [r.ref_beg for r in meta.aligned_regions]
@@ -81,6 +102,10 @@ def process_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: b
     af_path = afdb.download_model(frag)
     if not exp_path or not af_path:
         _skip(entity_id, meta, run_id, "structure download failed")
+        return "skipped"
+    if _too_large(exp_path):                     # giant assembly -> would OOM this small box
+        _cleanup_files(exp_path)
+        _skip(entity_id, meta, run_id, _too_large_reason(exp_path))
         return "skipped"
     pae_path = afdb.download_pae(frag)
 
@@ -205,6 +230,10 @@ def screen_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: bo
     af_path = afdb.download_model(frag)
     if not exp_path or not af_path:
         _skip(entity_id, meta, run_id, "structure download failed")
+        return "skipped"
+    if _too_large(exp_path):                     # giant assembly -> would OOM this small box
+        _cleanup_files(exp_path)
+        _skip(entity_id, meta, run_id, _too_large_reason(exp_path))
         return "skipped"
 
     exp_chain = structio.load_chain(exp_path, meta.first_chain)
