@@ -132,7 +132,7 @@ def week_highlights(entities: list[dict], seen_uniprots: Optional[set] = None, c
     for _s, e, f in scored[:cap]:
         badges = []
         if f["novel"]:
-            badges.append({"label": f"novel · {f['nov_id']:.0f}%" if f["nov_id"] is not None else "novel", "cls": "novel"})
+            badges.append({"label": f"novel · {100 - f['nov_id']:.0f}%" if f["nov_id"] is not None else "novel", "cls": "novel"})
         if f["cw"]:
             badges.append({"label": "confidently wrong", "cls": "wrong"})
         if f["first"]:
@@ -215,10 +215,11 @@ def fraud_scatter(entities: list[dict]) -> str:
                 opacity=(0.5 if len(points) > 3000 else 0.8),
             ),
             customdata=[[e["entity_id"], e.get("uniprot"), e.get("fraud_score"),
-                         e.get("novelty_identity")] for e in pts],
+                         (round(100 - e["novelty_identity"]) if e.get("novelty_identity") is not None else "n/a")]
+                        for e in pts],
             hovertemplate=("<b>%{customdata[0]}</b> (%{customdata[1]})<br>"
                            "pLDDT %{x:.1f} · TM %{y:.3f}<br>"
-                           "FRAUD %{customdata[2]:.3f} · novelty id %{customdata[3]}%<extra></extra>"),
+                           "FRAUD %{customdata[2]:.3f} · novelty %{customdata[3]}%<extra></extra>"),
         ))
     # Second legend, to the right of the colour legend, explaining that marker size = FRAUD.
     for frac in (0.1, 0.5):

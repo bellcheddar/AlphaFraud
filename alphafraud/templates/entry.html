@@ -70,7 +70,7 @@
     <div class="kpi"><div class="n">{{ r2(metrics.ca_rmsd) }}</div><div class="l">Cα-RMSD Å</div></div>
     <div class="kpi"><div class="n">{{ r2(metrics.mean_plddt) }}</div><div class="l">mean pLDDT</div></div>
     <div class="kpi {% if e.confidently_wrong %}alert{% endif %}"><div class="n">{{ r2(metrics.fraud_score) }}</div><div class="l">FRAUD score</div></div>
-    <div class="kpi"><div class="n">{{ r2(e.novelty_identity) }}%</div><div class="l">novelty (max id)</div></div>
+    <div class="kpi"><div class="n">{{ r2(nov(e.novelty_identity)) }}%</div><div class="l">novelty{% if e.novelty_identity is not none %} <span class="hint">({{ r2(e.novelty_identity) }}% id)</span>{% endif %}</div></div>
   </div>
 
   {% if figures.tracks %}

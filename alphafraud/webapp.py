@@ -167,7 +167,14 @@ def create_app() -> Flask:
             # URL of the AlphaFold-model ghost PDB (superposed frame), or None if absent.
             return url_for("ribbon_ghost", entity_id=entity_id) if ribbon.has_ghost(entity_id) else None
 
-        return {"asset": asset, "ribbon_url": ribbon_url, "coords_url": coords_url, "ghost_url": ghost_url}
+        def nov(identity):
+            # Displayed "novelty" = 100 - (max % identity to any pre-cutoff chain), so 100% = a
+            # sequence unlike anything AlphaFold saw, 0% = an identical training sequence. The
+            # stored value stays as raw identity; this flips it for display only.
+            return None if identity is None else round(100 - identity, 1)
+
+        return {"asset": asset, "ribbon_url": ribbon_url, "coords_url": coords_url,
+                "ghost_url": ghost_url, "nov": nov}
 
     @app.route("/ribbon/<entity_id>.svg")
     def ribbon_svg(entity_id):

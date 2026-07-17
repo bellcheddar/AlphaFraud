@@ -209,7 +209,7 @@
           <td>{{ o.week }}</td>
           <td>{{ o.cath_class or o.scop2_sf or '—' }}</td>
           <td>{{ themebadges(o) }}</td>
-          <td class="num" data-sort="{{ o.novelty if o.novelty is not none else 999 }}">{{ r2(o.novelty) }}</td>
+          <td class="num" data-sort="{{ nov(o.novelty) if o.novelty is not none else -1 }}">{{ r2(nov(o.novelty)) }}</td>
           <td class="num" data-sort="{{ o.plddt if o.plddt is not none else -1 }}">{{ r2(o.plddt) }}</td>
           <td class="num" data-sort="{{ o.tm if o.tm is not none else -1 }}">{{ r2(o.tm) }}</td>
           <td class="num" data-sort="{{ o.fraud if o.fraud is not none else -1 }}">{{ r2(o.fraud) }}</td>

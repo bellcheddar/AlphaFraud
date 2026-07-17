@@ -99,13 +99,14 @@
     confident AlphaFold was, so a big error it was sure about counts most.
     <span class="eq">FRAUD = (1/N) Σᵢ (pLDDTᵢ/100) · min(Δᵢ,15)/15</span>, where Δᵢ is residue i's Cα distance from the
     experiment (&Aring;) after superposition, capped at 15 &Aring;. Runs 0 (perfect) to 1.</p>
-    <p class="metric"><dfn>Novelty:</dfn> how much AlphaFold had to go on &mdash; the highest sequence similarity between
-    this protein and any structure released before the 2018-04-30 training cutoff. Low = genuinely unseen.
-    <span class="eq">novelty = maxₚ identity(s, p)</span> over pre-cutoff PDB chains p, with identity =
+    <p class="metric"><dfn>Novelty:</dfn> how little AlphaFold had to go on &mdash; 100 minus the highest sequence
+    identity between this protein and any structure released before the 2018-04-30 training cutoff. <em>High = genuinely
+    unseen</em> (100% = nothing similar was ever in the training set).
+    <span class="eq">novelty = 100 &minus; maxₚ identity(s, p)</span> over pre-cutoff PDB chains p, with identity =
     100 &times; (matching aligned residues)/(alignment length), from an MMseqs2 search.</p>
-    <p class="metric"><dfn>Homology:</dfn> the point colour. A weak closest match (novelty below 30%) flags the sequence
+    <p class="metric"><dfn>Homology:</dfn> the point colour. High novelty (above 70%) flags the sequence
     as <em>novel</em> (amber) &mdash; AlphaFold had no close template; otherwise a pre-cutoff <em>homolog</em> existed
-    (blue) it could have learned the fold from. <span class="eq">novel ⇔ novelty &lt; 30%</span>.</p>
+    (blue) it could have learned the fold from. <span class="eq">novel ⇔ novelty &gt; 70%</span>.</p>
   </div>
 
   {{ figure(figures.histograms, 'histograms') }}
@@ -174,7 +175,7 @@
           <td>{{ e.method or '—' }}</td>
           <td class="num" data-sort="{{ e.resolution if e.resolution is not none else 99 }}">{{ r2(e.resolution) }}</td>
           <td data-sort="{{ e.deposit_date }}">{{ (e.deposit_date or '')[:10] }}</td>
-          <td class="num" data-sort="{{ e.novelty_identity if e.novelty_identity is not none else 999 }}">{{ r2(e.novelty_identity) }}{% if e.is_novel %} <span class="badge novel">novel</span>{% endif %}</td>
+          <td class="num" data-sort="{{ nov(e.novelty_identity) if e.novelty_identity is not none else -1 }}">{{ r2(nov(e.novelty_identity)) }}{% if e.is_novel %} <span class="badge novel">novel</span>{% endif %}</td>
           <td class="num" data-sort="{{ e.mean_plddt if e.mean_plddt is not none else -1 }}">{{ r2(e.mean_plddt) }}</td>
           <td class="num" data-sort="{{ e.tm_by_experiment if e.tm_by_experiment is not none else -1 }}">{{ r2(e.tm_by_experiment) }}</td>
           <td class="num" data-sort="{{ e.lddt if e.lddt is not none else -1 }}">{{ r2(e.lddt) }}</td>

@@ -243,10 +243,11 @@ def _correlates(rows: list[dict]) -> dict:
         v = r.get("novelty_identity")
         if v is None:
             return None
-        for hi, lbl in [(30, "novel <30%"), (60, "30-60%"), (90, "60-90%")]:
+        # bin on identity but label as novelty (= 100 - identity), high = novel
+        for hi, lbl in [(30, "novel >70%"), (60, "40-70%"), (90, "10-40%")]:
             if v < hi:
                 return lbl
-        return ">90%"
+        return "<10%"
 
     method_order = None
     return {
