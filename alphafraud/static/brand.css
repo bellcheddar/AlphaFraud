@@ -47,8 +47,8 @@ header.site .wrap { display: block; position: relative; }
 .statspanel {
   position: absolute; top: 16px; right: 0; z-index: 5;
   background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22);
-  border-radius: 10px; padding: 9px 12px; min-width: 150px;
-  font-family: var(--mono); font-size: 11.5px; color: #eaf2fb; backdrop-filter: blur(3px);
+  border-radius: 10px; padding: 9px 12px; min-width: 224px;
+  font-family: var(--mono); font-size: 11px; color: #eaf2fb; backdrop-filter: blur(3px);
 }
 .statspanel .stathead {
   font-size: 9.5px; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.6);

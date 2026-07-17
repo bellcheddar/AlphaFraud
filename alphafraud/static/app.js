@@ -164,13 +164,18 @@
     if (!document.getElementById("statsPanel")) return;
     fetch("/api/stats").then(function (r) { return r.json(); }).then(function (s) {
       function set(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
-      var n = function (x) { return (x == null ? 0 : x).toLocaleString(); };
-      set("stAnalysed", n(s.analysed));
-      set("stCW", n(s.confidently_wrong));
-      set("stArch", (s.archive_pct != null ? s.archive_pct + "%" : "—"));
-      set("stDb", (s.db_mb != null ? s.db_mb + " MB" : "—"));
-      set("stMem", (s.memory_mb != null ? s.memory_mb + " MB" : "—"));
-      set("stVis", n(s.unique_visitors));
+      var whole = function (x) { return Math.round(x == null ? 0 : x).toLocaleString(); };
+      function pct(part, total) {                 // " (N%)" of total; "<1%" when it rounds to 0
+        if (!total) return "";
+        var p = 100 * (part || 0) / total;
+        return " (" + (p > 0 && p < 0.5 ? "<1%" : Math.round(p) + "%") + ")";
+      }
+      set("stAnalysed", whole(s.analysed) + pct(s.analysed, 96433));
+      set("stCW", whole(s.confidently_wrong) + pct(s.confidently_wrong, s.analysed));
+      set("stNW", whole(s.novel_and_wrong) + pct(s.novel_and_wrong, s.analysed));
+      set("stArch", (s.archive_pct != null ? Math.round(s.archive_pct) + "%" : "—"));
+      set("stDb", (s.db_mb != null ? whole(s.db_mb) + " MB" : "—"));
+      set("stVis", whole(s.unique_visitors));
     }).catch(function () {});
   }
 

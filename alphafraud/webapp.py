@@ -136,6 +136,7 @@ def create_app() -> Flask:
             "db_mb": round(db.db_size_bytes() / 1048576, 1),
             "analysed": analysed,
             "confidently_wrong": st.get("cw") or 0,
+            "novel_and_wrong": st.get("novel_wrong") or 0,
             "archive_pct": round(100 * analysed / 96433, 1) if analysed else 0,
             "unique_visitors": vs["unique"],
             "page_views": vs["hits"],

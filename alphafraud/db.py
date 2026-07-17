@@ -493,6 +493,7 @@ def overall_stats() -> dict:
     with connect() as conn:
         row = conn.execute(
             f"""SELECT COUNT(*) n, SUM(confidently_wrong) cw, SUM(is_novel) novel,
+                       SUM(CASE WHEN is_novel=1 AND confidently_wrong=1 THEN 1 ELSE 0 END) novel_wrong,
                        AVG(tm_by_experiment) avg_tm, AVG(lddt) avg_lddt,
                        SUM(status='compared') fully
                 FROM entities WHERE {ANALYSED}"""
