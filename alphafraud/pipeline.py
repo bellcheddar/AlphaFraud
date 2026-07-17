@@ -465,12 +465,27 @@ def render_ribbons(limit: Optional[int] = None, min_fraud: float = 0.0,
     banner.step(f"[ribbons] rendering {len(todo)} Cα ribbons (worst offenders first)")
 
     metas = pdb.fetch_entity_metadata([r["entity_id"] for r in todo])
-    rendered = skipped = failed = 0
+    rendered = skipped = failed = remapped = 0
     for r in todo:
         eid = r["entity_id"]
         meta = metas.get(eid)
         if meta is None or not meta.has_single_uniprot or not meta.first_chain:
             skipped += 1
+            continue
+        # Guard against stale artifacts: RCSB occasionally re-numbers an entry's polymer
+        # entities, so this entity_id can now map to a DIFFERENT UniProt than the stored record
+        # the entry page displays. Rendering the fresh protein would contradict the page, so skip
+        # it and delete any stale ribbon/coords (the page then shows no image, not a wrong one).
+        # Such entities are stale in the DB too and need re-processing (a weekly run / re-backfill).
+        if r.get("uniprot") and meta.uniprot_accession and meta.uniprot_accession != r["uniprot"]:
+            banner.warn(f"[ribbons] {eid}: RCSB re-mapped {r['uniprot']} → {meta.uniprot_accession}; "
+                        f"skipping to stay consistent with the stored record")
+            for p in (ribbon.ribbon_path(eid), ribbon.coords_path(eid), ribbon.ghost_path(eid)):
+                try:
+                    p.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            remapped += 1
             continue
         try:
             frag, _extra = _resolve_fragment(meta)
@@ -504,8 +519,9 @@ def render_ribbons(limit: Optional[int] = None, min_fraud: float = 0.0,
         except Exception as exc:
             banner.warn(f"[ribbons] {eid}: {type(exc).__name__}: {exc}")
             failed += 1
-    banner.ok(f"[ribbons] done: {rendered} rendered, {skipped} skipped, {failed} failed.")
-    return {"rendered": rendered, "skipped": skipped, "failed": failed}
+    banner.ok(f"[ribbons] done: {rendered} rendered, {skipped} skipped, {remapped} re-mapped/dropped, "
+              f"{failed} failed.")
+    return {"rendered": rendered, "skipped": skipped, "remapped": remapped, "failed": failed}
 
 
 def _record_error(eid: str, meta, run_id: int, exc: Exception) -> None:
