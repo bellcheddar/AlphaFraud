@@ -237,13 +237,19 @@
   }
 
   var ghostModel = null, ghostOn = false, ghostUrlSaved = "";
+  // A distinct steel-grey, clearly visible against both the background and the coloured
+  // experiment; a touch of transparency so the deviation-coloured experiment reads through.
+  var GHOST_STYLE = { cartoon: { color: 0x64748b, opacity: 0.62, style: "trace", thickness: 0.9 } };
+  var expModel = null;
 
   window.toggleGhost = function () {
     if (!viewer || !ghostUrlSaved) return;
     var gbtn = document.getElementById("btnGhost");
-    if (ghostModel) {                          // already loaded -> just toggle style
+    if (ghostModel) {                          // already loaded -> just toggle visibility
       ghostOn = !ghostOn;
-      ghostModel.setStyle({}, ghostOn ? { cartoon: { color: 0xdfe6ee, opacity: 0.45 } } : {});
+      ghostModel.setStyle({}, ghostOn ? GHOST_STYLE : {});
+      // dim the experiment a little while the ghost is shown so both are legible
+      if (expModel) expModel.setStyle({}, { cartoon: { colorfunc: devColor, arrows: true, opacity: ghostOn ? 0.85 : 1.0 } });
       viewer.render();
       gbtn.textContent = ghostOn ? "👻 Hide AlphaFold ghost" : "👻 AlphaFold ghost";
       return;
@@ -252,7 +258,8 @@
     fetch(ghostUrlSaved).then(function (r) { return r.text(); }).then(function (pdb) {
       ghostModel = viewer.addModel(pdb, "pdb");
       applySS(ghostModel, pdb);
-      ghostModel.setStyle({}, { cartoon: { color: 0xdfe6ee, opacity: 0.45 } });
+      ghostModel.setStyle({}, GHOST_STYLE);
+      if (expModel) expModel.setStyle({}, { cartoon: { colorfunc: devColor, arrows: true, opacity: 0.85 } });
       ghostOn = true;
       viewer.render();
       gbtn.textContent = "👻 Hide AlphaFold ghost";
@@ -280,9 +287,9 @@
         if (!viewer) viewer = $3Dmol.createViewer(div, { backgroundAlpha: 0 });
         else viewer.clear();
         ghostModel = null; ghostOn = false;
-        var m = viewer.addModel(pdb, "pdb");
-        applySS(m, pdb);
-        m.setStyle({}, { cartoon: { colorfunc: devColor, arrows: true } });
+        expModel = viewer.addModel(pdb, "pdb");
+        applySS(expModel, pdb);
+        expModel.setStyle({}, { cartoon: { colorfunc: devColor, arrows: true } });
         viewer.zoomTo();
         viewer.spin("y", 0.5);
         viewer.render();
