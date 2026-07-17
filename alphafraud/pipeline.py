@@ -104,8 +104,9 @@ def process_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: b
         _skip(entity_id, meta, run_id, "structure download failed")
         return "skipped"
     if _too_large(exp_path):                     # giant assembly -> would OOM this small box
+        reason = _too_large_reason(exp_path)     # read size before deleting the file
         _cleanup_files(exp_path)
-        _skip(entity_id, meta, run_id, _too_large_reason(exp_path))
+        _skip(entity_id, meta, run_id, reason)
         return "skipped"
     pae_path = afdb.download_pae(frag)
 
@@ -232,8 +233,9 @@ def screen_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: bo
         _skip(entity_id, meta, run_id, "structure download failed")
         return "skipped"
     if _too_large(exp_path):                     # giant assembly -> would OOM this small box
+        reason = _too_large_reason(exp_path)     # read size before deleting the file
         _cleanup_files(exp_path)
-        _skip(entity_id, meta, run_id, _too_large_reason(exp_path))
+        _skip(entity_id, meta, run_id, reason)
         return "skipped"
 
     exp_chain = structio.load_chain(exp_path, meta.first_chain)
