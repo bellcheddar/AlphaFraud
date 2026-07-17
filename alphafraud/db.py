@@ -489,6 +489,13 @@ def db_size_bytes() -> int:
     return total
 
 
+def total_entity_count() -> int:
+    """Every entity the backfill has touched -- analysed (screened+compared) plus skipped and
+    errored. Used for the header panel's 'PDBs Processed' throughput figure."""
+    with connect() as conn:
+        return conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+
+
 def overall_stats() -> dict:
     with connect() as conn:
         row = conn.execute(
