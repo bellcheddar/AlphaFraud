@@ -70,7 +70,7 @@ def _catmull_rom(pts: np.ndarray, samples: int = 8):
 
 
 def build_svg(P: np.ndarray, dev, sse, width: int = 520, height: int = 440,
-              samples: int = 3) -> str:
+              samples: int = 3, af_ca=None) -> str:
     """Transparent, text-free ribbon SVG from aligned experimental Cα coords `P` (N,3),
     per-residue deviation `dev` and secondary structure `sse` ('a'/'b'/'c'). Kept compact
     (integer coords, modest smoothing) so it is small enough to store per-entity and serve
@@ -79,13 +79,20 @@ def build_svg(P: np.ndarray, dev, sse, width: int = 520, height: int = 440,
     dev = np.asarray(dev, float)
     n = len(P)
     # PCA -> best-spread 2D view; keep the 3rd component for depth cueing.
-    C = P - P.mean(0)
+    mean = P.mean(0)
+    C = P - mean
     _u, _s, Vt = np.linalg.svd(C, full_matrices=False)
     proj = C @ Vt.T
     xy, z = proj[:, :2], proj[:, 2]
 
+    # The superposed AlphaFold Cα trace, projected onto the SAME axes so it overlays the exp.
+    af_xy = None
+    if af_ca is not None and len(af_ca):
+        af_xy = ((np.asarray(af_ca, float) - mean) @ Vt.T)[:, :2]
+
     pad = 26
-    mn, mx = xy.min(0), xy.max(0)
+    fit_pts = xy if af_xy is None else np.vstack([xy, af_xy])   # fit view to both so neither clips
+    mn, mx = fit_pts.min(0), fit_pts.max(0)
     span = mx - mn
     span[span == 0] = 1.0
     sc = min((width - 2 * pad) / span[0], (height - 2 * pad) / span[1])
@@ -95,6 +102,16 @@ def build_svg(P: np.ndarray, dev, sse, width: int = 520, height: int = 440,
     Q2[:, 1] = height - Q2[:, 1]                 # flip y to screen space
     zmin, zmax = z.min(), z.max()
     zr = (zmax - zmin) or 1.0
+
+    # Faint AlphaFold ghost trace (drawn first, behind the coloured experimental ribbon).
+    ghost = ""
+    if af_xy is not None:
+        A2 = af_xy * sc + off
+        A2[:, 1] = height - A2[:, 1]
+        dense_a, _pa = _catmull_rom(A2, samples=samples)
+        d = "M" + "L".join(f"{p[0]:.0f} {p[1]:.0f}" for p in dense_a)
+        ghost = (f'<path d="{d}" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" '
+                 f'stroke-linejoin="round" opacity="0.5" stroke-dasharray="1 5"/>')
 
     dense, par = _catmull_rom(Q2, samples=samples)
     seg = []
@@ -122,8 +139,9 @@ def build_svg(P: np.ndarray, dev, sse, width: int = 520, height: int = 440,
                f'<circle cx="{ct[0]:.0f}" cy="{ct[1]:.0f}" r="4" fill="#5b6b7a"/>')
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
             f'preserveAspectRatio="xMidYMid meet" role="img" fill="none" '
-            f'aria-label="Experimental Cα ribbon coloured by deviation from the AlphaFold model">'
-            f'{"".join(parts)}{termini}</svg>')
+            f'aria-label="Experimental Cα ribbon coloured by deviation from the AlphaFold model, '
+            f'with the superposed AlphaFold backbone as a faint dashed trace">'
+            f'{ghost}{"".join(parts)}{termini}</svg>')
 
 
 def render_for_chains(exp_chain, af_chain) -> Optional[str]:
@@ -134,10 +152,10 @@ def render_for_chains(exp_chain, af_chain) -> Optional[str]:
         return None
     P = exp_chain.ca_coords[ei]
     Q = af_chain.ca_coords[ai]
-    aligned, _R = compare._kabsch(Q, P)
+    aligned, _R = compare._kabsch(Q, P)          # AF matched Cα superposed into the exp frame
     dev = np.linalg.norm(P - aligned, axis=1)
     sse = [exp_chain.residues[i].sse for i in ei]
-    return build_svg(P, dev, sse)
+    return build_svg(P, dev, sse, af_ca=aligned)
 
 
 _ONE_TO_THREE = {
