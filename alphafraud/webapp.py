@@ -156,9 +156,16 @@ def create_app() -> Flask:
             return url_for("static", filename=filename, v=v)
 
         def ribbon_url(entity_id):
-            # URL of the deviation-coloured Cα ribbon SVG, or None if not yet rendered
-            # (templates render a thumbnail only when this is truthy).
-            return url_for("ribbon_svg", entity_id=entity_id) if ribbon.has_ribbon(entity_id) else None
+            # URL of the deviation-coloured Cα ribbon SVG, or None if not yet rendered. The
+            # ?v=mtime busts the browser cache whenever the SVG is regenerated (the file changes
+            # but its path doesn't), so redeploys/re-renders show up immediately.
+            if not ribbon.has_ribbon(entity_id):
+                return None
+            try:
+                v = int(ribbon.ribbon_path(entity_id).stat().st_mtime)
+            except OSError:
+                v = 0
+            return url_for("ribbon_svg", entity_id=entity_id, v=v)
 
         def coords_url(entity_id):
             # URL of the backbone PDB for the interactive 3D viewer, or None if absent.

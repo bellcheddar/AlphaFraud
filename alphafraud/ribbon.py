@@ -110,8 +110,9 @@ def build_svg(P: np.ndarray, dev, sse, width: int = 520, height: int = 440,
         A2[:, 1] = height - A2[:, 1]
         dense_a, _pa = _catmull_rom(A2, samples=samples)
         d = "M" + "L".join(f"{p[0]:.0f} {p[1]:.0f}" for p in dense_a)
-        ghost = (f'<path d="{d}" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" '
-                 f'stroke-linejoin="round" opacity="0.5" stroke-dasharray="1 5"/>')
+        # Solid (not dashed) and a bit bolder so it survives being scaled down to a 48px thumbnail.
+        ghost = (f'<path d="{d}" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round" '
+                 f'stroke-linejoin="round" opacity="0.7"/>')
 
     dense, par = _catmull_rom(Q2, samples=samples)
     seg = []
