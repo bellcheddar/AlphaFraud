@@ -37,6 +37,26 @@ def dev_color(d: float) -> tuple[int, int, int]:
     return _STOPS[-1][1]
 
 
+_CA_BREAK = 8.0    # Å; consecutive Cα farther apart than this = a chain break (missing or
+                   # unaligned residues) -- don't draw a straight line across the gap.
+
+
+def _runs(coords3d: np.ndarray):
+    """Index ranges [start, end) of consecutive residues with no chain break between them, so
+    each contiguous stretch is drawn as its own polyline instead of one gap-spanning line."""
+    coords3d = np.asarray(coords3d, float)
+    if len(coords3d) < 2:
+        return [(0, len(coords3d))] if len(coords3d) else []
+    d = np.linalg.norm(np.diff(coords3d, axis=0), axis=1)
+    breaks = list(np.where(d > _CA_BREAK)[0])          # break occurs *after* index b
+    runs, start = [], 0
+    for b in breaks:
+        runs.append((start, b + 1))
+        start = b + 1
+    runs.append((start, len(coords3d)))
+    return [(s, e) for s, e in runs if e - s >= 2]
+
+
 def ribbon_path(entity_id: str) -> Path:
     return config.RIBBON_DIR / f"{entity_id}.svg"
 
@@ -103,26 +123,31 @@ def build_svg(P: np.ndarray, dev, sse, width: int = 520, height: int = 440,
     zmin, zmax = z.min(), z.max()
     zr = (zmax - zmin) or 1.0
 
-    # Faint AlphaFold ghost trace (drawn first, behind the coloured experimental ribbon).
+    # Faint AlphaFold ghost trace (drawn first, behind the coloured experimental ribbon), broken
+    # at chain gaps so it doesn't draw straight lines across unresolved/unaligned regions.
     ghost = ""
     if af_xy is not None:
         A2 = af_xy * sc + off
         A2[:, 1] = height - A2[:, 1]
-        dense_a, _pa = _catmull_rom(A2, samples=samples)
-        d = "M" + "L".join(f"{p[0]:.0f} {p[1]:.0f}" for p in dense_a)
-        # Solid (not dashed) and a bit bolder so it survives being scaled down to a 48px thumbnail.
-        ghost = (f'<path d="{d}" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round" '
-                 f'stroke-linejoin="round" opacity="0.7"/>')
+        gpaths = []
+        for gs, ge in _runs(af_ca):
+            dense_a, _pa = _catmull_rom(A2[gs:ge], samples=samples)
+            d = "M" + "L".join(f"{p[0]:.0f} {p[1]:.0f}" for p in dense_a)
+            # Solid (not dashed) and a bit bolder so it survives being scaled down to a 48px thumb.
+            gpaths.append(f'<path d="{d}" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round" '
+                          f'stroke-linejoin="round" opacity="0.7"/>')
+        ghost = "".join(gpaths)
 
-    dense, par = _catmull_rom(Q2, samples=samples)
     seg = []
-    for k in range(len(dense) - 1):
-        ri = min(int(round(par[k])), n - 1)
-        ss = sse[ri] if ri < len(sse) else "c"
-        base_w = 6.6 if ss in ("a", "b") else 3.4     # SSE-aware: helix/strand fatter, coil thin
-        zf = (z[ri] - zmin) / zr                       # 0 back .. 1 front
-        seg.append((z[ri], dense[k], dense[k + 1], dev_color(dev[ri]),
-                    round(base_w * (0.72 + 0.36 * zf), 1), round(0.5 + 0.5 * zf, 2)))
+    for rs, re_ in _runs(P):                            # draw each contiguous stretch separately
+        dense, par = _catmull_rom(Q2[rs:re_], samples=samples)
+        for k in range(len(dense) - 1):
+            ri = rs + min(int(round(par[k])), (re_ - rs) - 1)   # global residue index
+            ss = sse[ri] if ri < len(sse) else "c"
+            base_w = 6.6 if ss in ("a", "b") else 3.4   # SSE-aware: helix/strand fatter, coil thin
+            zf = (z[ri] - zmin) / zr                     # 0 back .. 1 front
+            seg.append((z[ri], dense[k], dense[k + 1], dev_color(dev[ri]),
+                        round(base_w * (0.72 + 0.36 * zf), 1), round(0.5 + 0.5 * zf, 2)))
     seg.sort(key=lambda s: s[0])                        # paint back-to-front
     # Group by (colour,width,opacity) into <path> elements -- far fewer, smaller elements than
     # one <line> per segment. Integer coords keep it compact.
