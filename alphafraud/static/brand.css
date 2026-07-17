@@ -150,6 +150,10 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 :root[data-theme="dark"] .btn3d { color: var(--primary-light); }
 .viewer3d-hint { font-size: 11.5px; color: var(--muted); }
 
+.ref { display: inline-block; margin-top: 4px; font-size: 11.5px; color: var(--muted); }
+.ref a { color: var(--primary); }
+:root[data-theme="dark"] .ref a { color: var(--primary-light); }
+
 /* "Divergence" banner strip in the header */
 .bannerdiv { display: block; width: 100%; height: 46px; margin: 6px 0 2px; opacity: .95; }
 @media (max-width: 600px) { .bannerdiv { height: 34px; } }

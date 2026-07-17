@@ -88,7 +88,10 @@
     <p class="metric"><dfn>TM-score:</dfn> how similar the two 3D shapes are overall, 0&ndash;1 (a random pair scores
     ~0.17, an identical fold ~1). Length-normalised so large and small proteins compare fairly.
     <span class="eq">TM = (1/L) Σᵢ 1/(1 + (dᵢ/d₀)²)</span> &mdash; dᵢ is the gap between the i-th aligned Cα atoms
-    after best-fit superposition, and d₀ = 1.24(L&minus;15)^⅓ &minus; 1.8 sets the distance scale for length L.</p>
+    after best-fit superposition, and d₀ = 1.24(L&minus;15)^⅓ &minus; 1.8 sets the distance scale for length L.
+    <span class="ref">Ref: Zhang &amp; Skolnick, <em>Proteins</em> 2004
+    <a href="https://doi.org/10.1002/prot.20264" target="_blank" rel="noopener noreferrer">doi:10.1002/prot.20264</a>;
+    computed with TM-align, <a href="https://doi.org/10.1093/nar/gki524" target="_blank" rel="noopener noreferrer">doi:10.1093/nar/gki524</a>.</span></p>
     <p class="metric"><dfn>pLDDT:</dfn> AlphaFold's own confidence in each residue, 0&ndash;100 (higher = surer). It is
     the model predicting its <em>own</em> accuracy before ever seeing the experiment. We plot the per-structure mean.
     <span class="eq">pLDDT = (1/N) Σᵢ pLDDTᵢ</span>, where pLDDTᵢ is the network's confidence output for residue i.</p>
@@ -117,7 +120,9 @@
     <h5>The metrics</h5>
     <p class="metric"><dfn>TM-score:</dfn> overall shape match, 0&ndash;1 (above 0.5 = same fold, above 0.9 near-identical),
     length-normalised. <span class="eq">TM = (1/L) Σᵢ 1/(1 + (dᵢ/d₀)²)</span> with dᵢ the aligned-Cα gap after
-    superposition and d₀ = 1.24(L&minus;15)^⅓ &minus; 1.8.</p>
+    superposition and d₀ = 1.24(L&minus;15)^⅓ &minus; 1.8.
+    <span class="ref">Ref: Zhang &amp; Skolnick, <em>Proteins</em> 2004
+    <a href="https://doi.org/10.1002/prot.20264" target="_blank" rel="noopener noreferrer">doi:10.1002/prot.20264</a>.</span></p>
     <p class="metric"><dfn>Cα-RMSD:</dfn> the average straight-line distance between matching backbone Cα atoms once the
     two structures are best-fit superposed (&Aring;; lower is better, under ~2 &Aring; excellent).
     <span class="eq">RMSD = √( (1/N) Σᵢ |Pᵢ &minus; (R·Qᵢ + t)|² )</span>, with Pᵢ/Qᵢ the experimental/model Cα

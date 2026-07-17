@@ -148,6 +148,27 @@ _ONE_TO_THREE = {
 _BACKBONE = ("N", "CA", "C", "O")
 
 
+def _atom_lines(residues, dev_by_idx, start_serial=1):
+    """Backbone ATOM records: B-factor = Cα deviation (clamped; -1 sentinel if none). Exact PDB
+    columns so 3Dmol parses residues/chain cleanly. Secondary structure travels in the
+    HELIX/SHEET records (parsed client-side to set atom.ss for the cartoon)."""
+    lines, serial = [], start_serial
+    for idx, res in enumerate(residues):
+        b = min(dev_by_idx.get(idx, -1.0), _CLAMP)
+        resn = _ONE_TO_THREE.get(res.letter, "UNK")
+        for atom in _BACKBONE:
+            xyz = res.atoms.get(atom)
+            if xyz is None:
+                continue
+            name = f" {atom:<3s}"
+            lines.append(
+                "ATOM  %5d %4s%1s%3s %1s%4d%1s   %8.3f%8.3f%8.3f%6.2f%6.2f          %2s" % (
+                    serial, name, " ", resn, "A", res.res_id, " ",
+                    xyz[0], xyz[1], xyz[2], 1.00, b, atom[0]))
+            serial += 1
+    return lines
+
+
 def coords_path(entity_id: str) -> Path:
     return config.RIBBON_DIR / f"{entity_id}.pdb"
 
@@ -156,10 +177,17 @@ def has_coords(entity_id: str) -> bool:
     return coords_path(entity_id).exists()
 
 
-def _ss_runs(exp_chain, code: str):
-    """Contiguous (start_res, end_res, start_resname, end_resname) runs of a given SSE code."""
+def ghost_path(entity_id: str) -> Path:
+    return config.RIBBON_DIR / f"{entity_id}.af.pdb"
+
+
+def has_ghost(entity_id: str) -> bool:
+    return ghost_path(entity_id).exists()
+
+
+def _ss_runs(residues, code: str):
+    """Contiguous (start_res, end_res) runs of a given SSE code within a residue list."""
     runs, start = [], None
-    residues = exp_chain.residues
     for i, r in enumerate(residues):
         if r.sse == code and start is None:
             start = i
@@ -171,14 +199,14 @@ def _ss_runs(exp_chain, code: str):
     return runs
 
 
-def _ss_records(exp_chain) -> list:
-    """HELIX/SHEET records (exact PDB columns) from the per-residue SSE so 3Dmol renders a
-    proper cartoon (helix ribbons, strand arrows) rather than a plain tube."""
+def _ss_records(residues) -> list:
+    """HELIX/SHEET records (exact PDB columns) from the per-residue SSE. Kept as a standard
+    fallback; the viewer primarily uses the occupancy-encoded SSE (see _atom_lines)."""
     lines = []
-    for n, (a, b) in enumerate(_ss_runs(exp_chain, "a"), 1):
+    for n, (a, b) in enumerate(_ss_runs(residues, "a"), 1):
         ra, rb = _ONE_TO_THREE.get(a.letter, "UNK"), _ONE_TO_THREE.get(b.letter, "UNK")
         lines.append("HELIX  %3d %3d %3s %1s %4d  %3s %1s %4d  1" % (n, n, ra, "A", a.res_id, rb, "A", b.res_id))
-    for n, (a, b) in enumerate(_ss_runs(exp_chain, "b"), 1):
+    for n, (a, b) in enumerate(_ss_runs(residues, "b"), 1):
         ra, rb = _ONE_TO_THREE.get(a.letter, "UNK"), _ONE_TO_THREE.get(b.letter, "UNK")
         lines.append("SHEET  %3d %3s%2d %3s %1s%4d  %3s %1s%4d  0" % (n, "A", 1, ra, "A", a.res_id, rb, "A", b.res_id))
     return lines
@@ -197,24 +225,31 @@ def build_coords_pdb(exp_chain, af_chain) -> Optional[str]:
     aligned, _R = compare._kabsch(Q, P)
     dev = np.linalg.norm(P - aligned, axis=1)
     dev_by_idx = {int(i): float(d) for i, d in zip(ei, dev)}
+    lines = _ss_records(exp_chain.residues) + _atom_lines(exp_chain.residues, dev_by_idx)
+    lines.append("END")
+    return "\n".join(lines) + "\n"
 
-    lines = _ss_records(exp_chain)
-    serial = 1
-    for idx, res in enumerate(exp_chain.residues):
-        b = min(dev_by_idx.get(idx, -1.0), _CLAMP)         # -1 sentinel for unmatched residues
-        resn = _ONE_TO_THREE.get(res.letter, "UNK")
-        for atom in _BACKBONE:
-            xyz = res.atoms.get(atom)
-            if xyz is None:
-                continue
-            # Exact PDB column layout (name 13-16, resName 18-20, chain 22, resSeq 23-26,
-            # coords 31-54, occ/bfac 55-66, element 77-78) so 3Dmol parses SS/cartoon reliably.
-            name = f" {atom:<3s}"                          # ' CA ' / ' N  ' for 1-2 char names
-            lines.append(
-                "ATOM  %5d %4s%1s%3s %1s%4d%1s   %8.3f%8.3f%8.3f%6.2f%6.2f          %2s" % (
-                    serial, name, " ", resn, "A", res.res_id, " ",
-                    xyz[0], xyz[1], xyz[2], 1.00, b, atom[0]))
-            serial += 1
+
+def build_af_ghost_pdb(exp_chain, af_chain) -> Optional[str]:
+    """The AlphaFold model backbone, transformed into the experiment's superposition frame
+    (using the same matched-Cα Kabsch fit), as a plain grey ghost for the paired 3D view.
+    No deviation colouring; occupancy still carries the model's SSE for cartoon rendering."""
+    ei, ai = compare.match_residues(exp_chain, af_chain)
+    if len(ei) < MIN_RESIDUES:
+        return None
+    P = exp_chain.ca_coords[ei]
+    Q = af_chain.ca_coords[ai]
+    _aligned, R = compare._kabsch(Q, P)
+    qc, pc = Q.mean(0), P.mean(0)
+
+    # Apply the fitted transform to every AF backbone atom, in place, then emit.
+    import copy
+    moved = []
+    for res in af_chain.residues:
+        r2 = copy.copy(res)
+        r2.atoms = {name: ((xyz - qc) @ R.T) + pc for name, xyz in res.atoms.items()}
+        moved.append(r2)
+    lines = _ss_records(moved) + _atom_lines(moved, {})   # no deviation -> all sentinel
     lines.append("END")
     return "\n".join(lines) + "\n"
 
@@ -234,6 +269,12 @@ def render_and_store_all(entity_id: str, exp_chain, af_chain) -> bool:
         pdb_str = build_coords_pdb(exp_chain, af_chain)
         if pdb_str:
             coords_path(entity_id).write_text(pdb_str, encoding="utf-8")
+    except Exception:
+        pass
+    try:
+        ghost = build_af_ghost_pdb(exp_chain, af_chain)
+        if ghost:
+            ghost_path(entity_id).write_text(ghost, encoding="utf-8")
     except Exception:
         pass
     return ok

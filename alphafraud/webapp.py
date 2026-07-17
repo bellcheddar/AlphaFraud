@@ -162,7 +162,11 @@ def create_app() -> Flask:
             # URL of the backbone PDB for the interactive 3D viewer, or None if absent.
             return url_for("ribbon_coords", entity_id=entity_id) if ribbon.has_coords(entity_id) else None
 
-        return {"asset": asset, "ribbon_url": ribbon_url, "coords_url": coords_url}
+        def ghost_url(entity_id):
+            # URL of the AlphaFold-model ghost PDB (superposed frame), or None if absent.
+            return url_for("ribbon_ghost", entity_id=entity_id) if ribbon.has_ghost(entity_id) else None
+
+        return {"asset": asset, "ribbon_url": ribbon_url, "coords_url": coords_url, "ghost_url": ghost_url}
 
     @app.route("/ribbon/<entity_id>.svg")
     def ribbon_svg(entity_id):
@@ -178,6 +182,15 @@ def create_app() -> Flask:
         if not ribbon.has_coords(entity_id):
             abort(404)
         resp = send_from_directory(config.RIBBON_DIR, f"{entity_id}.pdb",
+                                   mimetype="chemical/x-pdb")
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
+
+    @app.route("/ghost/<entity_id>.pdb")
+    def ribbon_ghost(entity_id):
+        if not ribbon.has_ghost(entity_id):
+            abort(404)
+        resp = send_from_directory(config.RIBBON_DIR, f"{entity_id}.af.pdb",
                                    mimetype="chemical/x-pdb")
         resp.headers["Cache-Control"] = "public, max-age=86400"
         return resp

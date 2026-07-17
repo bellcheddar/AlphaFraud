@@ -216,30 +216,79 @@
     document.head.appendChild(s);
   }
 
-  window.toggleRibbon3D = function (eid, coordsUrl) {
+  // This 3Dmol build doesn't set atom.ss from HELIX/SHEET records, so we parse those records
+  // (which the server writes) ourselves and set atom.ss -> a real cartoon, not a tube.
+  function ssMapFromPdb(pdb) {
+    var map = {};
+    pdb.split("\n").forEach(function (line) {
+      if (line.lastIndexOf("HELIX", 0) === 0) {
+        var s = parseInt(line.substring(21, 25), 10), e = parseInt(line.substring(33, 37), 10);
+        for (var i = s; i <= e; i++) map[i] = "h";
+      } else if (line.lastIndexOf("SHEET", 0) === 0) {
+        var s2 = parseInt(line.substring(22, 26), 10), e2 = parseInt(line.substring(33, 37), 10);
+        for (var j = s2; j <= e2; j++) map[j] = "s";
+      }
+    });
+    return map;
+  }
+  function applySS(model, pdb) {
+    var map = ssMapFromPdb(pdb);
+    model.selectedAtoms({}).forEach(function (a) { a.ss = map[a.resi] || "c"; });
+  }
+
+  var ghostModel = null, ghostOn = false, ghostUrlSaved = "";
+
+  window.toggleGhost = function () {
+    if (!viewer || !ghostUrlSaved) return;
+    var gbtn = document.getElementById("btnGhost");
+    if (ghostModel) {                          // already loaded -> just toggle style
+      ghostOn = !ghostOn;
+      ghostModel.setStyle({}, ghostOn ? { cartoon: { color: 0xdfe6ee, opacity: 0.45 } } : {});
+      viewer.render();
+      gbtn.textContent = ghostOn ? "👻 Hide AlphaFold ghost" : "👻 AlphaFold ghost";
+      return;
+    }
+    gbtn.textContent = "loading…";
+    fetch(ghostUrlSaved).then(function (r) { return r.text(); }).then(function (pdb) {
+      ghostModel = viewer.addModel(pdb, "pdb");
+      applySS(ghostModel, pdb);
+      ghostModel.setStyle({}, { cartoon: { color: 0xdfe6ee, opacity: 0.45 } });
+      ghostOn = true;
+      viewer.render();
+      gbtn.textContent = "👻 Hide AlphaFold ghost";
+    }).catch(function () { gbtn.textContent = "👻 AlphaFold ghost"; });
+  };
+
+  window.toggleRibbon3D = function (eid, coordsUrl, ghostUrl) {
     var img = document.getElementById("ribbonImg"),
         div = document.getElementById("viewer3d"),
         btn = document.getElementById("btn3d"),
+        gbtn = document.getElementById("btnGhost"),
         hint = document.getElementById("viewer3dHint");
     if (on) {                                  // back to the static ribbon
       if (viewer) viewer.spin(false);
       div.style.display = "none"; img.style.display = "";
+      if (gbtn) gbtn.style.display = "none";
       btn.textContent = "🔄 Interactive 3D"; hint.textContent = ""; on = false;
       return;
     }
     hint.textContent = "loading…";
+    ghostUrlSaved = ghostUrl || "";
     load3Dmol(function () {
       fetch(coordsUrl).then(function (r) { return r.text(); }).then(function (pdb) {
         img.style.display = "none"; div.style.display = "block";
         if (!viewer) viewer = $3Dmol.createViewer(div, { backgroundAlpha: 0 });
         else viewer.clear();
-        viewer.addModel(pdb, "pdb");
-        viewer.setStyle({}, { cartoon: { colorfunc: devColor, arrows: true } });
+        ghostModel = null; ghostOn = false;
+        var m = viewer.addModel(pdb, "pdb");
+        applySS(m, pdb);
+        m.setStyle({}, { cartoon: { colorfunc: devColor, arrows: true } });
         viewer.zoomTo();
         viewer.spin("y", 0.5);
         viewer.render();
         btn.textContent = "⏸ Show flat ribbon";
         hint.textContent = "drag to rotate · scroll to zoom";
+        if (gbtn && ghostUrlSaved) { gbtn.style.display = ""; gbtn.textContent = "👻 AlphaFold ghost"; }
         on = true;
       }).catch(function () { hint.textContent = "could not load coordinates."; });
     });

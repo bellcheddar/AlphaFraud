@@ -45,8 +45,10 @@
       <img id="ribbonImg" src="{{ ru }}" alt="Experimental Cα ribbon coloured by deviation from the AlphaFold model">
       <div id="viewer3d" class="viewer3d"></div>
       {% if cu %}
+      {% set gu = ghost_url(e.entity_id) %}
       <div class="viewer3d-controls">
-        <button class="btn3d" id="btn3d" onclick="toggleRibbon3D('{{ e.entity_id }}', '{{ cu }}')">🔄 Interactive 3D</button>
+        <button class="btn3d" id="btn3d" onclick="toggleRibbon3D('{{ e.entity_id }}', '{{ cu }}', '{{ gu or '' }}')">🔄 Interactive 3D</button>
+        <button class="btn3d" id="btnGhost" style="display:none" onclick="toggleGhost()">👻 AlphaFold ghost</button>
         <span class="viewer3d-hint" id="viewer3dHint"></span>
       </div>
       {% endif %}
