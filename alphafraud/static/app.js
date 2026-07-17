@@ -236,11 +236,10 @@
     model.selectedAtoms({}).forEach(function (a) { a.ss = map[a.resi] || "c"; });
   }
 
-  var ghostModel = null, ghostOn = false, ghostUrlSaved = "";
-  // A distinct steel-grey, clearly visible against both the background and the coloured
-  // experiment; a touch of transparency so the deviation-coloured experiment reads through.
-  var GHOST_STYLE = { cartoon: { color: 0x64748b, opacity: 0.62, style: "trace", thickness: 0.9 } };
-  var expModel = null;
+  var ghostModel = null, ghostOn = false, ghostUrlSaved = "", expModel = null;
+  // The AlphaFold model as a solid, crisp blue backbone trace: a thin opaque tube so it reads
+  // clearly over the (undimmed, full-colour) experiment without fogging it.
+  var GHOST_STYLE = { cartoon: { color: 0x2563eb, style: "trace", thickness: 0.8 } };
 
   window.toggleGhost = function () {
     if (!viewer || !ghostUrlSaved) return;
@@ -248,8 +247,6 @@
     if (ghostModel) {                          // already loaded -> just toggle visibility
       ghostOn = !ghostOn;
       ghostModel.setStyle({}, ghostOn ? GHOST_STYLE : {});
-      // dim the experiment a little while the ghost is shown so both are legible
-      if (expModel) expModel.setStyle({}, { cartoon: { colorfunc: devColor, arrows: true, opacity: ghostOn ? 0.85 : 1.0 } });
       viewer.render();
       gbtn.textContent = ghostOn ? "👻 Hide AlphaFold ghost" : "👻 AlphaFold ghost";
       return;
@@ -257,9 +254,7 @@
     gbtn.textContent = "loading…";
     fetch(ghostUrlSaved).then(function (r) { return r.text(); }).then(function (pdb) {
       ghostModel = viewer.addModel(pdb, "pdb");
-      applySS(ghostModel, pdb);
       ghostModel.setStyle({}, GHOST_STYLE);
-      if (expModel) expModel.setStyle({}, { cartoon: { colorfunc: devColor, arrows: true, opacity: 0.85 } });
       ghostOn = true;
       viewer.render();
       gbtn.textContent = "👻 Hide AlphaFold ghost";
