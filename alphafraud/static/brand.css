@@ -131,10 +131,38 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 :root[data-theme="dark"] .ribbonthumb { background: rgba(180,200,220,.06); }
 
 .ribbonhero { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
-.ribbonhero img {
-  width: min(430px, 100%); height: auto; flex: 0 0 auto;
+.ribbonhero-visual { flex: 0 0 auto; width: min(430px, 100%); }
+.ribbonhero-visual img {
+  width: 100%; height: auto; display: block;
   background: rgba(120,140,160,.05); border-radius: 10px;
 }
+.viewer3d { display: none; width: 100%; height: 360px; position: relative;
+  border-radius: 10px; background: rgba(120,140,160,.05); }
+.viewer3d canvas { border-radius: 10px; }
+.viewer3d-controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.btn3d {
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  color: var(--primary); background: rgba(30,115,190,.08);
+  border: 1px solid rgba(30,115,190,.25); border-radius: 20px; padding: 5px 14px;
+  transition: background .15s;
+}
+.btn3d:hover { background: rgba(30,115,190,.16); }
+:root[data-theme="dark"] .btn3d { color: var(--primary-light); }
+.viewer3d-hint { font-size: 11.5px; color: var(--muted); }
+
+/* "Divergence" banner strip in the header */
+.bannerdiv { display: block; width: 100%; height: 46px; margin: 6px 0 2px; opacity: .95; }
+@media (max-width: 600px) { .bannerdiv { height: 34px; } }
+
+/* Ribbon hover-preview on the fraud-quadrant scatter */
+.ribbon-preview {
+  position: fixed; display: none; z-index: 9999; pointer-events: none; width: 196px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 9px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.22); padding: 6px;
+}
+.ribbon-preview img { width: 100%; height: auto; display: block; }
+.ribbon-preview-cap { font-size: 10px; color: var(--muted); text-align: center; margin-top: 3px;
+  font-family: "SF Mono", ui-monospace, monospace; }
 .ribbonhero .devlegend { flex: 1 1 240px; min-width: 220px; }
 .devlegend-title { font-weight: 600; font-size: 13.5px; margin-bottom: 6px; }
 .devlegend p { font-size: 13px; color: var(--muted); margin: 0 0 12px; }

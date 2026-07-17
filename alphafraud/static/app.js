@@ -47,6 +47,7 @@
         layout.height = 440;
       }
       Plotly.react(el, fig.data, layout, { displayModeBar: false, responsive: false });
+      if (window.wireScatterPreview) window.wireScatterPreview(el);
     });
   }
 
@@ -180,4 +181,107 @@
     loadStats();
     setInterval(loadStats, 60000);
   });
+})();
+
+/* ---- Interactive 3D ribbon viewer (3Dmol.js, vendored, lazy-loaded) ---- */
+(function () {
+  var loaded = false, loading = false, viewer = null, on = false;
+
+  function devColor(b) {                       // deviation (Å in B-factor) -> hex int
+    if (b < 0) return 0x9aa7b3;                // unmatched residue = grey
+    var d = Math.max(0, Math.min(b, 10));
+    var s = [[0,[30,115,190]],[1,[74,159,212]],[2,[120,190,180]],
+             [3,[252,185,0]],[6,[232,89,12]],[10,[200,30,30]]];
+    for (var i = 0; i < s.length - 1; i++) {
+      var a = s[i], c = s[i + 1];
+      if (d <= c[0]) {
+        var t = c[0] === a[0] ? 0 : (d - a[0]) / (c[0] - a[0]);
+        var r = Math.round(a[1][0] + (c[1][0] - a[1][0]) * t);
+        var g = Math.round(a[1][1] + (c[1][1] - a[1][1]) * t);
+        var bl = Math.round(a[1][2] + (c[1][2] - a[1][2]) * t);
+        return (r << 16) | (g << 8) | bl;
+      }
+    }
+    return 0xc81e1e;
+  }
+
+  function load3Dmol(cb) {
+    if (loaded && window.$3Dmol) { cb(); return; }
+    if (loading) { setTimeout(function () { load3Dmol(cb); }, 150); return; }
+    loading = true;
+    var s = document.createElement("script");
+    s.src = "/static/3Dmol-min.js";
+    s.onload = function () { loaded = true; cb(); };
+    s.onerror = function () { var h = document.getElementById("viewer3dHint"); if (h) h.textContent = "3D viewer failed to load."; };
+    document.head.appendChild(s);
+  }
+
+  window.toggleRibbon3D = function (eid, coordsUrl) {
+    var img = document.getElementById("ribbonImg"),
+        div = document.getElementById("viewer3d"),
+        btn = document.getElementById("btn3d"),
+        hint = document.getElementById("viewer3dHint");
+    if (on) {                                  // back to the static ribbon
+      if (viewer) viewer.spin(false);
+      div.style.display = "none"; img.style.display = "";
+      btn.textContent = "🔄 Interactive 3D"; hint.textContent = ""; on = false;
+      return;
+    }
+    hint.textContent = "loading…";
+    load3Dmol(function () {
+      fetch(coordsUrl).then(function (r) { return r.text(); }).then(function (pdb) {
+        img.style.display = "none"; div.style.display = "block";
+        if (!viewer) viewer = $3Dmol.createViewer(div, { backgroundAlpha: 0 });
+        else viewer.clear();
+        viewer.addModel(pdb, "pdb");
+        viewer.setStyle({}, { cartoon: { colorfunc: devColor, arrows: true } });
+        viewer.zoomTo();
+        viewer.spin("y", 0.5);
+        viewer.render();
+        btn.textContent = "⏸ Show flat ribbon";
+        hint.textContent = "drag to rotate · scroll to zoom";
+        on = true;
+      }).catch(function () { hint.textContent = "could not load coordinates."; });
+    });
+  };
+})();
+
+/* ---- Ribbon hover-preview on the fraud-quadrant scatter ---- */
+(function () {
+  var box = null, img = null;
+  function ensureBox() {
+    if (box) return;
+    box = document.createElement("div");
+    box.className = "ribbon-preview";
+    img = document.createElement("img");
+    var cap = document.createElement("div");
+    cap.className = "ribbon-preview-cap";
+    box.appendChild(img); box.appendChild(cap);
+    img.onerror = function () { hide(); };          // no ribbon for this entity -> don't show
+    img.onload = function () { box.style.display = "block"; };
+    document.body.appendChild(box);
+    box._cap = cap;
+  }
+  function hide() { if (box) box.style.display = "none"; }
+
+  window.wireScatterPreview = function (el) {
+    if (!el || el._ribbonHoverWired || !el.on) return;
+    // Only plots whose points carry an entity_id in customdata[0] (the fraud scatter).
+    el._ribbonHoverWired = true;
+    el.on("plotly_hover", function (d) {
+      var pt = d.points && d.points[0];
+      if (!pt || !pt.customdata || !pt.customdata[0]) return;
+      var eid = String(pt.customdata[0]);
+      if (!/^[0-9A-Za-z]{4}_/.test(eid)) return;     // looks like an entity id
+      ensureBox();
+      box._cap.textContent = eid + "  ·  Cα deviation";
+      img.src = "/ribbon/" + encodeURIComponent(eid) + ".svg";
+      var ev = d.event || window.event;
+      var x = (ev.clientX || 0) + 16, y = (ev.clientY || 0) + 16;
+      x = Math.min(x, window.innerWidth - 210);
+      y = Math.min(y, window.innerHeight - 200);
+      box.style.left = x + "px"; box.style.top = y + "px";
+    });
+    el.on("plotly_unhover", hide);
+  };
 })();

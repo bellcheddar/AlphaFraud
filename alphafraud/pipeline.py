@@ -5,6 +5,7 @@ robust per-entity -- one bad structure logs an error row and the run continues.
 
 from __future__ import annotations
 
+import gc
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -90,7 +91,7 @@ def process_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: b
     cath_domains = cath.domains_for_chain(meta.entry_id, meta.first_chain)
 
     comparison = compare.compare(exp_chain, af_chain, pae=pae, cath_domains=cath_domains)
-    ribbon.render_and_store(entity_id, exp_chain, af_chain)   # deviation-coloured Cα cartoon
+    ribbon.render_and_store_all(entity_id, exp_chain, af_chain)   # ribbon SVG + 3D-viewer coords
 
     if cleanup:
         _cleanup_files(exp_path, pae_path)   # keep the AlphaFold model cached
@@ -414,7 +415,7 @@ def retry_errors(tm_threshold: float = 0.7, limit: Optional[int] = None) -> dict
 
 
 def render_ribbons(limit: Optional[int] = None, min_fraud: float = 0.0,
-                   overwrite: bool = False) -> dict:
+                   overwrite: bool = False, max_struct_bytes: int = 40_000_000) -> dict:
     """Retro-generate deviation-coloured Cα ribbon SVGs for already-compared entities that
     lack one (worst offenders first). Re-fetches each structure in pipeline context, renders,
     and writes data/ribbons/<id>.svg. Reads the DB but only WRITES files -- so it is safe to
@@ -450,10 +451,19 @@ def render_ribbons(limit: Optional[int] = None, min_fraud: float = 0.0,
             if not exp_path or not af_path:
                 skipped += 1
                 continue
+            # Memory guard: this box may be RAM-tight (~3.8 GB) and loading a huge assembly to
+            # render one chain can OOM. Skip oversized files rather than risk the machine.
+            if exp_path.stat().st_size > max_struct_bytes:
+                banner.info(f"[ribbons] {eid}: structure {exp_path.stat().st_size // 1_000_000} MB > cap, skipping")
+                _cleanup_files(exp_path)
+                skipped += 1
+                continue
             exp_chain = structio.load_chain(exp_path, meta.first_chain)
             af_chain = structio.load_chain(af_path, is_af=True)
-            ok = ribbon.render_and_store(eid, exp_chain, af_chain)
+            ok = ribbon.render_and_store_all(eid, exp_chain, af_chain)
             _cleanup_files(exp_path)          # keep the AF model cached
+            del exp_chain, af_chain
+            gc.collect()                       # release the structure before the next entity
             if ok:
                 rendered += 1
                 if rendered % 25 == 0:

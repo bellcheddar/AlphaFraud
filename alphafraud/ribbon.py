@@ -140,11 +140,103 @@ def render_for_chains(exp_chain, af_chain) -> Optional[str]:
     return build_svg(P, dev, sse)
 
 
+_ONE_TO_THREE = {
+    "A": "ALA", "R": "ARG", "N": "ASN", "D": "ASP", "C": "CYS", "Q": "GLN", "E": "GLU",
+    "G": "GLY", "H": "HIS", "I": "ILE", "L": "LEU", "K": "LYS", "M": "MET", "F": "PHE",
+    "P": "PRO", "S": "SER", "T": "THR", "W": "TRP", "Y": "TYR", "V": "VAL",
+}
+_BACKBONE = ("N", "CA", "C", "O")
+
+
+def coords_path(entity_id: str) -> Path:
+    return config.RIBBON_DIR / f"{entity_id}.pdb"
+
+
+def has_coords(entity_id: str) -> bool:
+    return coords_path(entity_id).exists()
+
+
+def _ss_runs(exp_chain, code: str):
+    """Contiguous (start_res, end_res, start_resname, end_resname) runs of a given SSE code."""
+    runs, start = [], None
+    residues = exp_chain.residues
+    for i, r in enumerate(residues):
+        if r.sse == code and start is None:
+            start = i
+        elif r.sse != code and start is not None:
+            runs.append((residues[start], residues[i - 1]))
+            start = None
+    if start is not None:
+        runs.append((residues[start], residues[-1]))
+    return runs
+
+
+def _ss_records(exp_chain) -> list:
+    """HELIX/SHEET records (exact PDB columns) from the per-residue SSE so 3Dmol renders a
+    proper cartoon (helix ribbons, strand arrows) rather than a plain tube."""
+    lines = []
+    for n, (a, b) in enumerate(_ss_runs(exp_chain, "a"), 1):
+        ra, rb = _ONE_TO_THREE.get(a.letter, "UNK"), _ONE_TO_THREE.get(b.letter, "UNK")
+        lines.append("HELIX  %3d %3d %3s %1s %4d  %3s %1s %4d  1" % (n, n, ra, "A", a.res_id, rb, "A", b.res_id))
+    for n, (a, b) in enumerate(_ss_runs(exp_chain, "b"), 1):
+        ra, rb = _ONE_TO_THREE.get(a.letter, "UNK"), _ONE_TO_THREE.get(b.letter, "UNK")
+        lines.append("SHEET  %3d %3s%2d %3s %1s%4d  %3s %1s%4d  0" % (n, "A", 1, ra, "A", a.res_id, rb, "A", b.res_id))
+    return lines
+
+
+def build_coords_pdb(exp_chain, af_chain) -> Optional[str]:
+    """A minimal backbone PDB of the experimental chain with the per-residue Cα deviation
+    written into the B-factor column (clamped to _CLAMP Å). The interactive 3Dmol viewer loads
+    this and colours the cartoon by B-factor with the same scale as the static ribbon. Only the
+    residues matched to the AlphaFold model carry a deviation; the rest get a negative sentinel."""
+    ei, ai = compare.match_residues(exp_chain, af_chain)
+    if len(ei) < MIN_RESIDUES:
+        return None
+    P = exp_chain.ca_coords[ei]
+    Q = af_chain.ca_coords[ai]
+    aligned, _R = compare._kabsch(Q, P)
+    dev = np.linalg.norm(P - aligned, axis=1)
+    dev_by_idx = {int(i): float(d) for i, d in zip(ei, dev)}
+
+    lines = _ss_records(exp_chain)
+    serial = 1
+    for idx, res in enumerate(exp_chain.residues):
+        b = min(dev_by_idx.get(idx, -1.0), _CLAMP)         # -1 sentinel for unmatched residues
+        resn = _ONE_TO_THREE.get(res.letter, "UNK")
+        for atom in _BACKBONE:
+            xyz = res.atoms.get(atom)
+            if xyz is None:
+                continue
+            # Exact PDB column layout (name 13-16, resName 18-20, chain 22, resSeq 23-26,
+            # coords 31-54, occ/bfac 55-66, element 77-78) so 3Dmol parses SS/cartoon reliably.
+            name = f" {atom:<3s}"                          # ' CA ' / ' N  ' for 1-2 char names
+            lines.append(
+                "ATOM  %5d %4s%1s%3s %1s%4d%1s   %8.3f%8.3f%8.3f%6.2f%6.2f          %2s" % (
+                    serial, name, " ", resn, "A", res.res_id, " ",
+                    xyz[0], xyz[1], xyz[2], 1.00, b, atom[0]))
+            serial += 1
+    lines.append("END")
+    return "\n".join(lines) + "\n"
+
+
 def write_ribbon(entity_id: str, svg: str) -> Path:
     config.RIBBON_DIR.mkdir(parents=True, exist_ok=True)
     p = ribbon_path(entity_id)
     p.write_text(svg, encoding="utf-8")
     return p
+
+
+def render_and_store_all(entity_id: str, exp_chain, af_chain) -> bool:
+    """Render + persist BOTH the static ribbon SVG and the interactive-viewer backbone PDB.
+    Never raises. Returns True if at least the SVG was written."""
+    ok = render_and_store(entity_id, exp_chain, af_chain)
+    try:
+        pdb_str = build_coords_pdb(exp_chain, af_chain)
+        if pdb_str:
+            coords_path(entity_id).write_text(pdb_str, encoding="utf-8")
+    except Exception:
+        pass
+    return ok
 
 
 def render_and_store(entity_id: str, exp_chain, af_chain) -> bool:

@@ -158,7 +158,11 @@ def create_app() -> Flask:
             # (templates render a thumbnail only when this is truthy).
             return url_for("ribbon_svg", entity_id=entity_id) if ribbon.has_ribbon(entity_id) else None
 
-        return {"asset": asset, "ribbon_url": ribbon_url}
+        def coords_url(entity_id):
+            # URL of the backbone PDB for the interactive 3D viewer, or None if absent.
+            return url_for("ribbon_coords", entity_id=entity_id) if ribbon.has_coords(entity_id) else None
+
+        return {"asset": asset, "ribbon_url": ribbon_url, "coords_url": coords_url}
 
     @app.route("/ribbon/<entity_id>.svg")
     def ribbon_svg(entity_id):
@@ -166,6 +170,15 @@ def create_app() -> Flask:
             abort(404)
         resp = send_from_directory(config.RIBBON_DIR, f"{entity_id}.svg",
                                    mimetype="image/svg+xml")
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
+
+    @app.route("/coords/<entity_id>.pdb")
+    def ribbon_coords(entity_id):
+        if not ribbon.has_coords(entity_id):
+            abort(404)
+        resp = send_from_directory(config.RIBBON_DIR, f"{entity_id}.pdb",
+                                   mimetype="chemical/x-pdb")
         resp.headers["Cache-Control"] = "public, max-age=86400"
         return resp
 

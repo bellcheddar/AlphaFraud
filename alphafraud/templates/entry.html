@@ -39,8 +39,18 @@
 
   {% set ru = ribbon_url(e.entity_id) %}
   {% if ru %}
+  {% set cu = coords_url(e.entity_id) %}
   <div class="card ribbonhero">
-    <img src="{{ ru }}" alt="Experimental Cα ribbon coloured by deviation from the AlphaFold model">
+    <div class="ribbonhero-visual">
+      <img id="ribbonImg" src="{{ ru }}" alt="Experimental Cα ribbon coloured by deviation from the AlphaFold model">
+      <div id="viewer3d" class="viewer3d"></div>
+      {% if cu %}
+      <div class="viewer3d-controls">
+        <button class="btn3d" id="btn3d" onclick="toggleRibbon3D('{{ e.entity_id }}', '{{ cu }}')">🔄 Interactive 3D</button>
+        <span class="viewer3d-hint" id="viewer3dHint"></span>
+      </div>
+      {% endif %}
+    </div>
     <div class="devlegend">
       <div class="devlegend-title">Experimental structure, coloured by Cα deviation from the AlphaFold model</div>
       <p>Blue where the experiment agrees with AlphaFold; amber-to-red where it diverges. The scale is anchored to
