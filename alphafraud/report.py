@@ -183,7 +183,9 @@ def _downsample_points(entities: list[dict], cap: int = 6000) -> tuple[list[dict
     return kept, len(entities) - len(kept)
 
 
-def fraud_scatter(entities: list[dict]) -> str:
+def fraud_scatter(entities: list[dict], zoom: bool = False) -> str:
+    """The pLDDT-vs-TM 'fraud quadrant'. `zoom=True` restricts the axes to just the
+    confidently-wrong region (pLDDT ≥ CONFIDENT_PLDDT, TM < WRONG_TM) for a closer look."""
     points, omitted = _downsample_points(entities)
     fig = go.Figure()
     # Shade the fraud quadrant: confident (pLDDT > threshold) yet wrong (TM < threshold).
@@ -191,12 +193,13 @@ def fraud_scatter(entities: list[dict]) -> str:
         type="rect", x0=config.CONFIDENT_PLDDT, x1=102, y0=0, y1=config.WRONG_TM,
         fillcolor="rgba(214,39,40,0.08)", line=dict(width=0), layer="below",
     )
-    # Label sits at the inside-bottom of the box so it never overlaps the data points.
-    fig.add_annotation(
-        x=(config.CONFIDENT_PLDDT + 102) / 2, y=0.015, yanchor="bottom",
-        text="confidently wrong", showarrow=False,
-        font=dict(color=BRAND["red"], size=12), opacity=0.75,
-    )
+    if not zoom:
+        # Label sits at the inside-bottom of the box so it never overlaps the data points.
+        fig.add_annotation(
+            x=(config.CONFIDENT_PLDDT + 102) / 2, y=0.015, yanchor="bottom",
+            text="confidently wrong", showarrow=False,
+            font=dict(color=BRAND["red"], size=12), opacity=0.75,
+        )
     for novel, color, name in [(1, BRAND["amber"], "novel sequence"), (0, BRAND["primary"], "has pre-cutoff homolog")]:
         pts = [e for e in points if bool(e.get("is_novel")) == bool(novel)
                and e.get("mean_plddt") is not None and e.get("tm_by_experiment") is not None]
@@ -227,16 +230,22 @@ def fraud_scatter(entities: list[dict]) -> str:
             x=[None], y=[None], mode="markers", name=f"FRAUD {frac}", legend="legend2",
             marker=dict(color="rgba(120,140,160,0.75)", size=6 + 20 * frac, line=dict(width=0.4, color="white")),
         ))
+    title = ("Confidently wrong — zoomed on the red zone (high confidence, low agreement)"
+             if zoom else "AlphaFold confidence vs. agreement with experiment")
     fig.update_layout(
-        title="AlphaFold confidence vs. agreement with experiment",
+        title=title,
         xaxis_title="mean pLDDT (AlphaFold confidence)",
         yaxis_title="TM-score to experiment",
         legend=dict(orientation="h", y=1.09, x=0, itemsizing="constant"),
         legend2=dict(orientation="h", y=1.09, x=0.58, itemsizing="trace",
                      title=dict(text="marker size:"), font=dict(size=11)),
     )
-    fig.update_xaxes(range=[0, 102])       # headroom so pLDDT~100 markers sit inside the frame
-    fig.update_yaxes(range=[0, 1.03])
+    if zoom:                                # restrict to the confidently-wrong box
+        fig.update_xaxes(range=[config.CONFIDENT_PLDDT, 100.5])
+        fig.update_yaxes(range=[0, config.WRONG_TM])
+    else:
+        fig.update_xaxes(range=[0, 102])   # headroom so pLDDT~100 markers sit inside the frame
+        fig.update_yaxes(range=[0, 1.03])
     return _fig(fig)
 
 
