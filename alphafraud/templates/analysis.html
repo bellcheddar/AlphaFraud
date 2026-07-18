@@ -28,6 +28,9 @@
   <p class="sub">A deep dive over the {{ '{:,}'.format(snap.n_analysed) }} fully-analysed disagreements
   ({{ snap.n_cw }} confidently wrong). Fold classes, families, shared themes and links to the primary
   literature. Snapshot built {{ (snap.built_at or '')[:16] }}.</p>
+  <p class="sub hint">This tab covers only the <strong>fully-compared</strong> subset (the structures that
+  failed the fast screen and got the full metric suite), so its confidently-wrong count is lower than the
+  site-wide total, which also includes screened-tier structures flagged confidently-wrong without a full comparison.</p>
 
   {# ---- Weekly highlight ribbon ---- #}
   {% set w = snap.weekly %}

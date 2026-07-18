@@ -283,7 +283,7 @@ def backfill_two_tier(since: date, until: date, tm_threshold: float = 0.7,
         banner.ok("Nothing new to screen.")
         return {"discovered": len(ids), "screened": 0, "promoted": 0, "skipped": 0}
 
-    run_id = db.start_run(label, since.isoformat(), until.isoformat())
+    run_id = db.start_run(label, since.isoformat(), until.isoformat(), kind="backfill")
     metas = pdb.fetch_entity_metadata(fresh)
 
     def _do_screen(eid: str):

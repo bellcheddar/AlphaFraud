@@ -3,8 +3,9 @@
 {% block title %}Archive &middot; AlphaFraud{% endblock %}
 
 {% block content %}
-  <h1>Archive</h1>
-  <p class="sub">Every processed release week, newest first.</p>
+  <h1>Weekly releases</h1>
+  <p class="sub">The ongoing weekly watch, newest first. The historical archive (2018 onward) was
+  loaded in bulk and lives in the <a href="{{ url_for('index') }}">cumulative view</a>, not here.</p>
   <div class="tablewrap">
     <table id="archiveTable" class="sortable">
       <thead><tr><th>Week</th><th>Discovered</th><th>Compared</th><th>Skipped</th><th>Finished</th></tr></thead>

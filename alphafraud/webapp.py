@@ -364,8 +364,7 @@ def _render_all():
 
 def _render_week(label):
     entities = db.entities_for_week(label)
-    weeks = db.list_weeks()
-    if not any(w["label"] == label for w in weeks):
+    if not db.week_exists(label):        # any real run (weekly or backfill); 404 only if unknown
         abort(404)
     weekly = db.deposit_month_trend()
     figures = {

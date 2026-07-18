@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS runs (
     n_discovered INTEGER DEFAULT 0,
     n_compared   INTEGER DEFAULT 0,
     n_skipped    INTEGER DEFAULT 0,
-    status       TEXT DEFAULT 'running'
+    status       TEXT DEFAULT 'running',
+    kind         TEXT DEFAULT 'weekly'   -- 'weekly' (the ongoing watch) or 'backfill' (historical chunk)
 );
 
 CREATE TABLE IF NOT EXISTS entities (
@@ -172,12 +173,12 @@ def _retry_write(action, attempts: int = 6, base_delay: float = 0.4):
 # --------------------------------------------------------------------------------------
 # Runs
 # --------------------------------------------------------------------------------------
-def start_run(label: str, since: str, until: str) -> int:
+def start_run(label: str, since: str, until: str, kind: str = "weekly") -> int:
     def _do():
         with connect() as conn:
             cur = conn.execute(
-                "INSERT INTO runs(label, since, until, started_at, status) VALUES (?,?,?,?, 'running')",
-                (label, since, until, _now()),
+                "INSERT INTO runs(label, since, until, started_at, status, kind) VALUES (?,?,?,?, 'running', ?)",
+                (label, since, until, _now(), kind),
             )
             return int(cur.lastrowid)
     return _retry_write(_do)
@@ -301,8 +302,9 @@ def latest_run_label() -> Optional[str]:
 
 
 def list_weeks() -> list[dict]:
-    # Aggregate by label so a chunk that was interrupted and resumed (two run rows for the
-    # same month) shows once, with summed counts.
+    # Only the genuine weekly releases (the ongoing watch) — the historical archive was loaded
+    # as monthly 'backfill' runs, which are browsable in the cumulative view, not as "weeks".
+    # Aggregate by label so a run that was interrupted and resumed shows once, with summed counts.
     with connect() as conn:
         rows = conn.execute(
             """SELECT label,
@@ -310,9 +312,19 @@ def list_weeks() -> list[dict]:
                       SUM(n_compared)   n_compared,
                       SUM(n_skipped)    n_skipped,
                       MAX(finished_at)  finished_at
-               FROM runs WHERE status='done' GROUP BY label ORDER BY label DESC"""
+               FROM runs WHERE status='done' AND kind='weekly'
+               GROUP BY label ORDER BY label DESC"""
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def week_exists(label: str) -> bool:
+    """Any completed run with this label (weekly OR backfill) — lets a historical month still
+    load by direct URL even though it isn't listed among the weekly releases."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT 1 FROM runs WHERE label=? AND status='done' LIMIT 1", (label,)
+        ).fetchone() is not None
 
 
 # Both tiers count as "analysed": 'screened' (TM-only) and 'compared' (full metrics).
