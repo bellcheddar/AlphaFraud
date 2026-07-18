@@ -14,7 +14,7 @@
 <hr>
 <p>AlphaFraud watches the RCSB PDB for newly deposited human protein structures, matches each one to its blind AlphaFold prediction from the AlphaFold Structure Database (EBI), superposes them, and quantifies exactly where the prediction disagrees with the experiment. AlphaFold2 was trained only on PDB chains released before 2018-04-30, so any human structure deposited after that date is something the model predicted without ever seeing its coordinates: the ideal test set.</p>
 <p><strong>Why it matters:</strong> the claim that "AlphaFold has solved protein folding" is only testable on structures the model never trained on, and those arrive continuously as the PDB grows. AlphaFraud turns that stream into a standing experiment: every week it surfaces the structures AlphaFold got most wrong, and ranks the "confidently wrong" cases (high pLDDT, low agreement) where the model was sure and still missed. It is useful for: structural biologists auditing AlphaFold reliability, method developers looking for hard cases, and anyone testing whether predicted models are safe to build on.</p>
-<p><strong>A live instance runs at <a href="https://alphafraud.mdeller.com">alphafraud.mdeller.com</a></strong>, backfilling the entire post-cutoff archive (~96,000 human protein entities) and updating every week. The landing page is a cumulative dashboard across every processed week; the worst offenders so far are a roster of amyloid-forming proteins (transthyretin, β2-microglobulin, islet amyloid polypeptide) that AlphaFold predicts as confidently folded but which crystallise or cryo-EM in a completely different aggregated form.</p>
+<p><strong>A live instance runs at <a href="https://alphafraud.mdeller.com">alphafraud.mdeller.com</a></strong>, having backfilled the entire post-cutoff archive (96,827 human protein entities, 82,796 analysed) and updating every week. The landing page is a cumulative dashboard across every processed week; the worst offenders so far are a roster of amyloid-forming proteins (transthyretin, β2-microglobulin, islet amyloid polypeptide) that AlphaFold predicts as confidently folded but which crystallise or cryo-EM in a completely different aggregated form.</p>
 <h2>✨ Features</h2>
 <div class="emd-table-wrap"><table class="emd-data-table">
 <thead>
@@ -221,7 +221,8 @@ python3 AlphaFraud.py serve --port 8000
 </tbody>
 </table></div>
 <h2>🧮 Coverage and skipped entities</h2>
-<p>Not every deposited entity can be compared. AlphaFold DB holds a single model per human UniProt sequence (monomers only), so anything that does not map cleanly to one accession, has no model covering its resolved range, or is too small or too large to compare is recorded as <em>skipped</em> rather than forced through. A snapshot of the full-archive backfill (2026-07-18, ~99.8% processed) skipped 13,650 entities:</p>
+<p>Not every deposited entity can be compared. AlphaFold DB holds a single model per human UniProt sequence (monomers only), so anything that does not map cleanly to one accession, has no model covering its resolved range, or is too small or too large to compare is recorded as <em>skipped</em> rather than forced through.</p>
+<p>The completed full-archive backfill (finished 2026-07-18) processed <strong>96,827</strong> post-cutoff human entities: <strong>82,796 analysed</strong> (85.5%; 67,314 fast-screened plus 15,482 fully compared), <strong>1,941 confidently wrong</strong> (2.3% of analysed, 431 of them sequence-novel), <strong>13,908 skipped</strong> (14.4%), and <strong>123 unrecoverable errors</strong> (0.1%, broken coordinate-less files). The skips break down as:</p>
 <div class="emd-table-wrap"><table class="emd-data-table">
 <thead>
 <tr>
@@ -233,39 +234,39 @@ python3 AlphaFraud.py serve --port 8000
 </thead>
 <tbody>
 <tr>
-<td style="text-align: right;" data-label="Count"><strong>11,769</strong></td>
-<td style="text-align: right;" data-label="Share">86%</td>
+<td style="text-align: right;" data-label="Count"><strong>11,875</strong></td>
+<td style="text-align: right;" data-label="Share">85%</td>
 <td data-label="Reason"><strong>No single UniProt mapping</strong> — antibodies, chimeras, engineered constructs, fusion proteins, synthetics</td>
 <td data-label="Nature">Structural fact: no single AlphaFold model exists to compare against</td>
 </tr>
 <tr>
-<td style="text-align: right;" data-label="Count"><strong>~1,184</strong></td>
+<td style="text-align: right;" data-label="Count"><strong>1,186</strong></td>
 <td style="text-align: right;" data-label="Share">9%</td>
 <td data-label="Reason"><strong>No AlphaFold model covering the residue range</strong> — mostly giant multi-domain proteins (titin-scale) whose resolved fragment falls outside AlphaFold DB's fragmented coverage, plus isoforms it lacks</td>
 <td data-label="Nature">Coverage gap in AlphaFold DB</td>
 </tr>
 <tr>
-<td style="text-align: right;" data-label="Count"><strong>364</strong></td>
+<td style="text-align: right;" data-label="Count"><strong>464</strong></td>
+<td style="text-align: right;" data-label="Share">3%</td>
+<td data-label="Reason"><strong>Too few residues aligned (&lt;10)</strong> — tiny peptides or mostly-unresolved chains</td>
+<td data-label="Nature">Nothing meaningful to compare</td>
+</tr>
+<tr>
+<td style="text-align: right;" data-label="Count"><strong>381</strong></td>
 <td style="text-align: right;" data-label="Share">3%</td>
 <td data-label="Reason"><strong>Structure too large (&gt;40 MB)</strong> — the out-of-memory guard for the 3.8 GB droplet</td>
 <td data-label="Nature">Resource limit (our cap)</td>
 </tr>
 <tr>
-<td style="text-align: right;" data-label="Count"><strong>~332</strong></td>
-<td style="text-align: right;" data-label="Share">2%</td>
-<td data-label="Reason"><strong>Too few residues aligned (&lt;10)</strong> — tiny peptides or mostly-unresolved chains</td>
-<td data-label="Nature">Nothing meaningful to compare</td>
-</tr>
-<tr>
-<td style="text-align: right;" data-label="Count"><strong>1</strong></td>
+<td style="text-align: right;" data-label="Count"><strong>2</strong></td>
 <td style="text-align: right;" data-label="Share">—</td>
 <td data-label="Reason">Sequence too short (&lt;3 residues)</td>
 <td data-label="Nature">Degenerate</td>
 </tr>
 </tbody>
 </table></div>
-<p>The 86% is exactly what the design intends: because AlphaFold DB is monomer-and-single-sequence only, anything that does not map to one human UniProt accession (an antibody Fab, a designed fusion, a chimera) has no counterpart model, so it is flagged and skipped rather than mis-compared.</p>
-<p>Skipped entities are terminal by design: <code>retry-errors</code> only re-runs <code>status='error'</code>, and the resumable weekly and backfill runs skip anything already recorded. Four of the five buckets are permanent structural properties, so re-running would simply re-skip them. The two worth revisiting are the <strong>364 oversized structures</strong> (a memory limit of the small droplet, not a true incomparability, recoverable by raising <code>MAX_STRUCT_BYTES</code> or upsizing the box) and the multi-domain subset of the <strong>missing-model</strong> bucket (recoverable with better fragment selection for AlphaFold models above 2,700 residues).</p>
+<p>The 85% is exactly what the design intends: because AlphaFold DB is monomer-and-single-sequence only, anything that does not map to one human UniProt accession (an antibody Fab, a designed fusion, a chimera) has no counterpart model, so it is flagged and skipped rather than mis-compared.</p>
+<p>Skipped entities are terminal by design: <code>retry-errors</code> only re-runs <code>status='error'</code>, and the resumable weekly and backfill runs skip anything already recorded. Four of the five buckets are permanent structural properties, so re-running would simply re-skip them. The two worth revisiting are the <strong>381 oversized structures</strong> (a memory limit of the small droplet, not a true incomparability, recoverable by raising <code>MAX_STRUCT_BYTES</code> or upsizing the box) and the multi-domain subset of the <strong>1,186 missing-model</strong> bucket (recoverable with better fragment selection for AlphaFold models above 2,700 residues).</p>
 <h2>🛠️ Deployment</h2>
 <p>The report is served by a Flask app (gunicorn behind nginx with a Let's Encrypt certificate) and the weekly pipeline runs from a systemd timer on the same droplet.</p>
 <pre><code class="language-bash"># 1. From your Mac: copy .env.example to .env and fill in DROPLET_SSH / DROPLET_PATH / SERVER_NAME
@@ -331,7 +332,7 @@ sudo systemctl start alphafraud-run.service
 <p>Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.</p>
 <ul class="emd-tasklist">
 <li><span class="emd-check">&#9989;</span> <strong>Structural imagery throughout</strong> — every worst offender is rendered as a deviation-coloured Cα ribbon (experiment coloured by distance from the AlphaFold model, on an absolute-Ångström scale), shown on the leaderboard, entry page and weekly highlights; the entry page adds an interactive 3Dmol.js viewer with a proper secondary-structure cartoon and an optional translucent AlphaFold "ghost" overlay in the shared superposition frame; a "divergence" ribbon banner sits in the header. All server-rendered as vendored, offline SVG/PDB (no CDN)</li>
-<li><span class="emd-check">&#9989;</span> <strong>Percentages on the KPI tiles</strong> — each headline count also shows its share of the batch (e.g. confidently wrong: 586 = 1.6%), on the dashboard, week and leaderboard views</li>
+<li><span class="emd-check">&#9989;</span> <strong>Percentages on the KPI tiles</strong> — each headline count also shows its share of the batch (e.g. confidently wrong: 1,941 = 2.3%), on the dashboard, week and leaderboard views</li>
 <li><span class="emd-check">&#9989;</span> <strong>Worst-offenders structural deep dive</strong> — the <strong>Analysis</strong> tab characterises the confidently-wrong set by CATH / SCOP2 fold and family class (Wilson-CI + Fisher-exact enrichment), clusters it by sequence similarity, flags shared themes (amyloid / assembly / disordered / coiled-coil / engineered), maps failure modes by PCA, detects conformational heterogeneity, gives per-superfamily blind-spot scorecards, and links every offender to its RCSB entry and DOI-verified manuscript; refreshed hourly and after each weekly run</li>
 <li><span class="emd-check">&#9989;</span> <strong>Hover-to-preview structures</strong> — hovering a point on the "fraud quadrant" scatter pops a floating deviation-coloured ribbon thumbnail of that structure; the entry page carries the full interactive 3D viewer</li>
 <li><span class="emd-check">&#9989;</span> <strong>Header "Stats" panel</strong> — a live panel in the top-right of the header tracking app health: worker memory, SQLite DB size, unique visitors, structures analysed, confidently-wrong count and archive %; refreshes every minute from <code>/api/stats</code></li>
