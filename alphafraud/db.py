@@ -57,11 +57,10 @@ CREATE TABLE IF NOT EXISTS entities (
     ca_rmsd            REAL,
     fraud_score        REAL,
     confidently_wrong  INTEGER,
-    -- full payloads
+    -- full payloads (the big per-residue & heatmap blobs live in the entity_blobs sidecar
+    -- so the hot `entities` table stays small and list/sort queries stay fast)
     metrics_json       TEXT,
-    per_residue_json   TEXT,
     domains_json       TEXT,
-    heatmaps_json      TEXT,
     -- provenance
     status             TEXT,               -- compared | skipped | error
     skip_reason        TEXT,
@@ -73,6 +72,15 @@ CREATE TABLE IF NOT EXISTS entities (
 CREATE INDEX IF NOT EXISTS idx_entities_run     ON entities(run_id);
 CREATE INDEX IF NOT EXISTS idx_entities_fraud   ON entities(fraud_score);
 CREATE INDEX IF NOT EXISTS idx_entities_deposit ON entities(deposit_date);
+
+-- Sidecar for the large per-entity payloads (per-residue arrays ~6 KB, heatmaps ~470 KB each).
+-- Kept out of `entities` so scans/sorts over the hot table don't drag ~470 KB/row of JSON
+-- through memory. Read only on the per-structure entry page (a single indexed lookup).
+CREATE TABLE IF NOT EXISTS entity_blobs (
+    entity_id        TEXT PRIMARY KEY,
+    per_residue_json TEXT,
+    heatmaps_json    TEXT
+);
 
 -- Enrichment metadata for the Analysis tab (fetched lazily over the compared subset).
 CREATE TABLE IF NOT EXISTS entity_annotations (
@@ -255,9 +263,7 @@ def upsert_entity(rec: dict) -> None:
         "fraud_score": m.get("fraud_score"),
         "confidently_wrong": _as_int(m.get("confidently_wrong")),
         "metrics_json": json.dumps(m),
-        "per_residue_json": json.dumps(rec.get("per_residue") or {}),
         "domains_json": json.dumps(rec.get("domains") or []),
-        "heatmaps_json": json.dumps(rec.get("heatmaps") or {}),
         "status": rec.get("status", "compared"),
         "skip_reason": rec.get("skip_reason"),
         "run_id": rec.get("run_id"),
@@ -265,10 +271,15 @@ def upsert_entity(rec: dict) -> None:
     }
     cols = ", ".join(row)
     placeholders = ", ".join(f":{c}" for c in row)
+    # The big per-residue & heatmap payloads go to the sidecar (see entity_blobs schema).
+    blobs = (rec["entity_id"], json.dumps(rec.get("per_residue") or {}),
+             json.dumps(rec.get("heatmaps") or {}))
 
     def _do():
         with connect() as conn:
             conn.execute(f"INSERT OR REPLACE INTO entities ({cols}) VALUES ({placeholders})", row)
+            conn.execute("INSERT OR REPLACE INTO entity_blobs "
+                         "(entity_id, per_residue_json, heatmaps_json) VALUES (?,?,?)", blobs)
     _retry_write(_do)
 
 
@@ -348,7 +359,17 @@ def uniprots_before_label(label: str) -> set:
 def get_entity(entity_id: str) -> Optional[dict]:
     with connect() as conn:
         row = conn.execute("SELECT * FROM entities WHERE entity_id=?", (entity_id,)).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        e = dict(row)
+        # Big payloads live in the sidecar; merge them back so callers see one dict. Fall back
+        # to any legacy inline column so this works before/during/after the sidecar migration.
+        b = conn.execute(
+            "SELECT per_residue_json, heatmaps_json FROM entity_blobs WHERE entity_id=?",
+            (entity_id,)).fetchone()
+        e["per_residue_json"] = (b["per_residue_json"] if b else None) or e.get("per_residue_json")
+        e["heatmaps_json"] = (b["heatmaps_json"] if b else None) or e.get("heatmaps_json")
+        return e
 
 
 def leaderboard(limit: int = 100, novel_only: bool = False) -> list[dict]:
