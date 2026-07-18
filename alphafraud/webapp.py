@@ -196,7 +196,7 @@ def create_app() -> Flask:
             abort(404)
         resp = send_from_directory(config.RIBBON_DIR, f"{entity_id}.svg",
                                    mimetype="image/svg+xml")
-        resp.headers["Cache-Control"] = "public, max-age=86400"
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return resp
 
     @app.route("/coords/<entity_id>.pdb")
@@ -205,7 +205,7 @@ def create_app() -> Flask:
             abort(404)
         resp = send_from_directory(config.RIBBON_DIR, f"{entity_id}.pdb",
                                    mimetype="chemical/x-pdb")
-        resp.headers["Cache-Control"] = "public, max-age=86400"
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return resp
 
     @app.route("/ghost/<entity_id>.pdb")
@@ -214,7 +214,19 @@ def create_app() -> Flask:
             abort(404)
         resp = send_from_directory(config.RIBBON_DIR, f"{entity_id}.af.pdb",
                                    mimetype="chemical/x-pdb")
-        resp.headers["Cache-Control"] = "public, max-age=86400"
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return resp
+
+    @app.after_request
+    def _page_cache(resp):
+        # Asset routes (ribbon/coords/ghost) set their own long immutable headers; /static is
+        # cached by nginx. For the dynamic HTML pages add a short public cache so repeat
+        # navigation is instant — the underlying data only changes on a weekly run. Never cache
+        # the live JSON/health endpoints (stats panel polls /api/stats).
+        if (request.method == "GET" and resp.status_code == 200
+                and resp.cache_control.max_age is None
+                and not request.path.startswith("/api/") and request.path != "/healthz"):
+            resp.headers["Cache-Control"] = "public, max-age=120"
         return resp
 
     @app.route("/")
@@ -293,29 +305,57 @@ def create_app() -> Flask:
 TABLE_CAP = 500   # rows shown in the cumulative "All" table (the rest live in weeks/leaderboard)
 
 
+HOME_CACHE_TTL = 1800   # seconds; the cumulative view recomputes at most this often
+
+
+def _snapshot_fresh(updated_at: Optional[str], ttl: int) -> bool:
+    if not updated_at:
+        return False
+    try:
+        from datetime import datetime, timezone
+        age = (datetime.now(timezone.utc) - datetime.fromisoformat(updated_at)).total_seconds()
+        return 0 <= age < ttl
+    except Exception:
+        return False
+
+
 def _render_all():
-    """The default landing page: cumulative view across every processed week."""
-    rows = db.all_entities_scalar()          # all analysed entities, worst-FRAUD first
-    weekly = db.weekly_aggregates()
-    figures = {
-        "scatter": report.fraud_scatter(rows),
-        "scatter_zoom": report.fraud_scatter(rows, zoom=True),
-        "dumbbell": report.fraud_dumbbell(rows),
-        "histograms": report.metric_histograms(rows),
-        "trend": report.trend_figure(weekly) if len(weekly) > 1 else None,
-    }
+    """The default landing page: cumulative view across every processed week.
+
+    Building the whole-archive figures (scatter/dumbbell/histograms over ~80k rows) is the one
+    slow step, so the assembled payload is cached in analysis_snapshots and reused for up to
+    HOME_CACHE_TTL. The underlying data only changes on a weekly run / backfill, so a stale
+    window of minutes is harmless and one visitor per interval absorbs the recompute."""
+    payload = db.load_snapshot("home")
+    if not (payload and _snapshot_fresh(payload.get("_updated_at"), HOME_CACHE_TTL)):
+        rows = db.all_entities_scalar()      # all analysed entities, worst-FRAUD first
+        weekly = db.weekly_aggregates()
+        payload = {
+            "figures": {
+                "scatter": report.fraud_scatter(rows),
+                "scatter_zoom": report.fraud_scatter(rows, zoom=True),
+                "dumbbell": report.fraud_dumbbell(rows),
+                "histograms": report.metric_histograms(rows),
+                "trend": report.trend_figure(weekly) if len(weekly) > 1 else None,
+            },
+            "kpis": report.kpis(rows),
+            "scatter_note": report.sampling_note(rows),
+            "total_count": len(rows),
+            "entities": rows[:TABLE_CAP],
+        }
+        db.save_snapshot("home", payload)
     return render_template(
         "week.html",
         banner=banner.BANNER_ART,
         label="All",
         is_all=True,
         today=date.today().isoformat(),
-        total_count=len(rows),
+        total_count=payload["total_count"],
         table_cap=TABLE_CAP,
-        entities=rows[:TABLE_CAP],
-        kpis=report.kpis(rows),
-        figures=figures,
-        scatter_note=report.sampling_note(rows),
+        entities=payload["entities"],
+        kpis=payload["kpis"],
+        figures=payload["figures"],
+        scatter_note=payload["scatter_note"],
         weeks=db.list_weeks(),
         version=__version__,
     )
