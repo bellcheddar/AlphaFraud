@@ -321,15 +321,22 @@
   }
   function hide() { if (box) box.style.display = "none"; }
 
+  // Points whose customdata[0] looks like "8G2V_1" carry an entity id we can act on.
+  function eidOf(d) {
+    var pt = d && d.points && d.points[0];
+    if (!pt || !pt.customdata || !pt.customdata[0]) return null;
+    var eid = String(pt.customdata[0]);
+    return /^[0-9A-Za-z]{4}_/.test(eid) ? eid : null;
+  }
+
   window.wireScatterPreview = function (el) {
     if (!el || el._ribbonHoverWired || !el.on) return;
-    // Only plots whose points carry an entity_id in customdata[0] (the fraud scatter).
+    // Any plot whose points carry an entity_id in customdata[0] (fraud scatter, dumbbell).
     el._ribbonHoverWired = true;
     el.on("plotly_hover", function (d) {
-      var pt = d.points && d.points[0];
-      if (!pt || !pt.customdata || !pt.customdata[0]) return;
-      var eid = String(pt.customdata[0]);
-      if (!/^[0-9A-Za-z]{4}_/.test(eid)) return;     // looks like an entity id
+      var eid = eidOf(d);
+      if (!eid) return;
+      el.style.cursor = "pointer";                   // signal the point is clickable
       ensureBox();
       box._cap.textContent = eid + "  ·  Cα deviation";
       img.src = "/ribbon/" + encodeURIComponent(eid) + ".svg";
@@ -339,6 +346,11 @@
       y = Math.min(y, window.innerHeight - 200);
       box.style.left = x + "px"; box.style.top = y + "px";
     });
-    el.on("plotly_unhover", hide);
+    el.on("plotly_unhover", function () { el.style.cursor = ""; hide(); });
+    // Click a point → open that structure's entry page.
+    el.on("plotly_click", function (d) {
+      var eid = eidOf(d);
+      if (eid) window.location.href = "/entry/" + encodeURIComponent(eid);
+    });
   };
 })();
