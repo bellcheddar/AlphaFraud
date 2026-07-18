@@ -366,6 +366,7 @@ def _render_week(label):
     entities = db.entities_for_week(label)
     if not db.week_exists(label):        # any real run (weekly or backfill); 404 only if unknown
         abort(404)
+    weeks = db.list_weeks()              # genuine weekly releases, for the "jump to" dropdown
     weekly = db.deposit_month_trend()
     figures = {
         "scatter": report.fraud_scatter(entities),
