@@ -383,6 +383,36 @@ def metric_histograms(entities: list[dict]) -> str:
 # --------------------------------------------------------------------------------------
 # Trend across weeks
 # --------------------------------------------------------------------------------------
+def _tm_trend(monthly: list[dict]) -> Optional[dict]:
+    """Non-parametric trend test for mean TM over deposit month: Mann-Kendall (Kendall's tau)
+    for significance + a Theil-Sen slope for the line. Rank-based, so robust to the skewed TM
+    distribution and noisy low-n months; run over the ~99 monthly points (not the 80k raw rows,
+    which would make any slope 'significant'). Returns tau/p always, plus the fitted endpoints
+    only when p<0.05; None if too few points or scipy is unavailable."""
+    pts = [(w["label"], w["mean_tm"]) for w in monthly if w.get("mean_tm") is not None]
+    if len(pts) < 8:
+        return None
+    try:
+        from scipy import stats as _st
+    except Exception:
+        return None
+
+    def _decyear(lbl):                                   # 'YYYY-MM' -> decimal year (mid-month)
+        return int(lbl[:4]) + (int(lbl[5:7]) - 0.5) / 12.0
+
+    xs = [_decyear(l) for l, _ in pts]
+    ys = [y for _, y in pts]
+    tau, p = _st.kendalltau(xs, ys)
+    if tau is None or p is None:
+        return None
+    out = {"tau": float(tau), "p": float(p), "significant": p < 0.05}
+    if out["significant"]:
+        slope, intercept, _lo, _hi = _st.theilslopes(ys, xs)
+        out.update(slope_yr=float(slope), x0=pts[0][0], x1=pts[-1][0],
+                   y0=intercept + slope * xs[0], y1=intercept + slope * xs[-1])
+    return out
+
+
 def trend_figure(monthly: list[dict]) -> str:
     """monthly: list of {label (YYYY-MM), mean_tm, confidently_wrong, n_compared} oldest->newest,
     binned by structure deposit month (see db.deposit_month_trend)."""
@@ -394,6 +424,28 @@ def trend_figure(monthly: list[dict]) -> str:
                              hovertemplate="%{x}<br>mean TM %{y:.3f}<br>%{customdata[0]} structures<extra></extra>"))
     fig.add_trace(go.Bar(x=labels, y=[w.get("confidently_wrong") for w in monthly], name="confidently wrong",
                          marker_color=BRAND["red"], opacity=0.5, yaxis="y2"))
+
+    # Only draw a trend line if it is statistically significant (Mann-Kendall p<0.05).
+    tr = _tm_trend(monthly)
+    if tr and tr.get("significant"):
+        direction = "declining" if tr["slope_yr"] < 0 else "rising"
+        fig.add_trace(go.Scatter(
+            x=[tr["x0"], tr["x1"]], y=[tr["y0"], tr["y1"]], mode="lines", yaxis="y",
+            name="TM trend (Theil–Sen)", hoverinfo="skip",
+            line=dict(color=BRAND["ink"], width=2, dash="dash")))
+        fig.add_annotation(
+            xref="paper", yref="paper", x=0.015, y=0.03, xanchor="left", yanchor="bottom",
+            showarrow=False, align="left",
+            text=(f"TM {direction}: {tr['slope_yr'] * 1000:+.1f} milli-TM/yr<br>"
+                  f"Mann-Kendall τ={tr['tau']:+.2f}, p={tr['p']:.3g}"),
+            font=dict(size=11, color=BRAND["ink"]), bordercolor=BRAND["grid"],
+            borderwidth=1, borderpad=4, bgcolor="rgba(255,255,255,0.78)")
+    elif tr:
+        fig.add_annotation(
+            xref="paper", yref="paper", x=0.015, y=0.03, xanchor="left", yanchor="bottom",
+            showarrow=False, text=f"No significant TM trend (Mann-Kendall p={tr['p']:.2g})",
+            font=dict(size=11, color=BRAND["ink"]), opacity=0.7)
+
     fig.update_layout(
         title="Accuracy over deposition time (by month)",
         xaxis=dict(title="structure deposit month"),

@@ -146,10 +146,15 @@
     <dfn>red bars</dfn> count how many were confidently wrong. Binning by deposit date (rather than by when we
     processed them) gives an even timeline, tracking whether AlphaFold's accuracy on newly-deposited structures
     is holding steady, improving, or slipping as the PDB keeps growing. Months with fewer than 5 structures are
-    omitted so each point is a meaningful average.</p>
+    omitted so each point is a meaningful average. A <dfn>dashed trend line</dfn> is drawn <strong>only if</strong>
+    the change over time is statistically significant.</p>
     <details class="readmore"><summary><span class="rm-more">Read more</span><span class="rm-less">Show less</span> &mdash; how each metric is calculated</summary>
     <p class="metric"><dfn>Mean TM-score:</dfn> the month's average shape-match score.
     <span class="eq">TM̄ = (1/M) Σ TM</span> over the M structures deposited that month.</p>
+    <p class="metric"><dfn>Trend line:</dfn> a monotonic-trend test over the monthly means &mdash; <dfn>Mann-Kendall</dfn>
+    (Kendall's τ) for significance, with a robust <dfn>Theil-Sen</dfn> slope for the line. Rank-based, so it tolerates
+    the skewed TM distribution and noisy low-count months. Shown only when <span class="eq">p &lt; 0.05</span>;
+    otherwise a note reports that no significant trend was found.</p>
     <p class="metric"><dfn>Confidently wrong:</dfn> the count that were both confident and wrong.
     <span class="eq">count( mean pLDDT &gt; 70 AND TM &lt; 0.5 )</span>.</p>
     </details>
