@@ -66,8 +66,9 @@ header.site .wrap { display: block; position: relative; }
 .statspanel .statrow { display: flex; justify-content: space-between; gap: 14px; line-height: 1.55; }
 .statspanel .statrow span { color: rgba(255,255,255,.72); }
 .statspanel .statrow b { color: #fff; font-variant-numeric: tabular-nums; }
-/* On mobile, show the panel in the header flow (not hidden) -- static, full width. */
-@media (max-width: 720px) {
+/* On mobile AND wide mobile (landscape phones / small tablets), show the panel in the header
+   flow -- static, full width, below the ASCII banner. Desktop (>900px) keeps it top-right. */
+@media (max-width: 900px) {
   .statspanel { position: static; width: 100%; min-width: 0; box-sizing: border-box; margin: 10px 0 12px; }
 }
 pre.banner {
