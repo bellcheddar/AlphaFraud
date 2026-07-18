@@ -427,6 +427,62 @@ def deposit_month_trend() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def cw_rate_trend() -> Optional[dict]:
+    """Trend of the confidently-wrong RATE over deposit time, by logistic regression of the
+    binary confidently_wrong outcome on the deposit year across every analysed structure. This
+    is binning-free — the rigorous test the monthly Mann-Kendall under-powers (it lands at
+    p≈0.05). Returns the slope, p, odds-ratio per decade, baseline rate and the fitted rate at
+    the first/last deposit year (for the display line), or None if too little data / no libs."""
+    try:
+        import numpy as np
+        from scipy.stats import norm
+    except Exception:
+        return None
+    from datetime import date as _date
+    with connect() as conn:
+        rows = conn.execute(
+            f"SELECT deposit_date d, confidently_wrong cw FROM entities "
+            f"WHERE {ANALYSED} AND deposit_date IS NOT NULL AND length(deposit_date) >= 10"
+        ).fetchall()
+    xs, ys = [], []
+    for r in rows:
+        try:
+            y, m, dd = int(r["d"][:4]), int(r["d"][5:7]), int(r["d"][8:10])
+            xs.append(y + (_date(y, m, dd) - _date(y, 1, 1)).days / 365.25)
+            ys.append(1.0 if r["cw"] else 0.0)
+        except Exception:
+            pass
+    if len(ys) < 200 or sum(ys) < 10:
+        return None
+    x = np.asarray(xs)
+    y = np.asarray(ys)
+    xm = x.mean()
+    X = np.column_stack([np.ones_like(x), x - xm])
+    b = np.zeros(2)
+    for _ in range(50):                       # Newton-Raphson logistic (2 params, converges fast)
+        mu = 1.0 / (1.0 + np.exp(-(X @ b)))
+        W = mu * (1 - mu)
+        H = X.T @ (X * W[:, None])
+        try:
+            step = np.linalg.solve(H, X.T @ (y - mu))
+        except np.linalg.LinAlgError:
+            return None
+        b = b + step
+        if np.max(np.abs(step)) < 1e-9:
+            break
+    se = float(np.sqrt(np.linalg.inv(H)[1, 1]))
+    z = b[1] / se if se else 0.0
+    p = float(2 * (1 - norm.cdf(abs(z))))
+
+    def _rate(xx):
+        return float(1.0 / (1.0 + np.exp(-(b[0] + b[1] * (xx - xm)))))
+
+    return {"slope": float(b[1]), "p": p, "or_decade": float(np.exp(b[1] * 10)),
+            "baseline": float(y.mean()), "significant": p < 0.05,
+            "yr0": float(x.min()), "yr1": float(x.max()),
+            "rate0": _rate(x.min()), "rate1": _rate(x.max())}
+
+
 # --------------------------------------------------------------------------------------
 # Analysis-tab support: enrichment annotations + cached snapshot
 # --------------------------------------------------------------------------------------

@@ -339,7 +339,7 @@ def _render_all():
                 "scatter_zoom": report.fraud_scatter(rows, zoom=True),
                 "dumbbell": report.fraud_dumbbell(rows),
                 "histograms": report.metric_histograms(rows),
-                "trend": report.trend_figure(weekly) if len(weekly) > 1 else None,
+                "trend": report.trend_figure(weekly, cw_trend=db.cw_rate_trend()) if len(weekly) > 1 else None,
             },
             "kpis": report.kpis(rows),
             "scatter_note": report.sampling_note(rows),
@@ -375,7 +375,7 @@ def _render_week(label):
         "scatter_zoom": report.fraud_scatter(entities, zoom=True),
         "dumbbell": report.fraud_dumbbell(entities),
         "histograms": report.metric_histograms(entities),
-        "trend": report.trend_figure(weekly) if len(weekly) > 1 else None,
+        "trend": report.trend_figure(weekly, cw_trend=db.cw_rate_trend()) if len(weekly) > 1 else None,
     }
     highlights = report.week_highlights(entities, seen_uniprots=db.uniprots_before_label(label))
     return render_template(

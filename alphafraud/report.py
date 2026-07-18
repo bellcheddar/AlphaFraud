@@ -413,44 +413,63 @@ def _tm_trend(monthly: list[dict]) -> Optional[dict]:
     return out
 
 
-def trend_figure(monthly: list[dict]) -> str:
+def trend_figure(monthly: list[dict], cw_trend: Optional[dict] = None) -> str:
     """monthly: list of {label (YYYY-MM), mean_tm, confidently_wrong, n_compared} oldest->newest,
-    binned by structure deposit month (see db.deposit_month_trend)."""
+    binned by structure deposit month (see db.deposit_month_trend). `cw_trend` is the logistic
+    confidently-wrong-rate trend from db.cw_rate_trend() (drawn only if significant)."""
     fig = go.Figure()
     labels = [w["label"] for w in monthly]
+    # Left axis: mean TM-score.
     fig.add_trace(go.Scatter(x=labels, y=[w.get("mean_tm") for w in monthly], name="mean TM-score",
                              mode="lines+markers", line=dict(color=BRAND["primary"], width=2), yaxis="y",
                              customdata=[[w.get("n_compared")] for w in monthly],
                              hovertemplate="%{x}<br>mean TM %{y:.3f}<br>%{customdata[0]} structures<extra></extra>"))
-    fig.add_trace(go.Bar(x=labels, y=[w.get("confidently_wrong") for w in monthly], name="confidently wrong",
-                         marker_color=BRAND["red"], opacity=0.5, yaxis="y2"))
+    # Right axis y2: confidently-wrong COUNT, de-emphasised (grey) since count is confounded by
+    # deposition volume — the meaningful signal is the rate, on y3.
+    fig.add_trace(go.Bar(x=labels, y=[w.get("confidently_wrong") for w in monthly],
+                         name="confidently-wrong count", yaxis="y2",
+                         marker_color="rgba(120,140,160,0.35)",
+                         hovertemplate="%{x}<br>%{y} confidently wrong<extra></extra>"))
+    # Right axis y3: confidently-wrong RATE (%) markers.
+    rate = [(100 * (w.get("confidently_wrong") or 0) / w["n_compared"]) if w.get("n_compared") else None
+            for w in monthly]
+    fig.add_trace(go.Scatter(x=labels, y=rate, name="confidently-wrong rate", yaxis="y3", mode="markers",
+                             marker=dict(color=BRAND["red"], size=4, opacity=0.55),
+                             hovertemplate="%{x}<br>CW rate %{y:.1f}%<extra></extra>"))
 
-    # Only draw a trend line if it is statistically significant (Mann-Kendall p<0.05).
+    notes = []
+    # TM trend line (Mann-Kendall + Theil-Sen), only if significant.
     tr = _tm_trend(monthly)
     if tr and tr.get("significant"):
-        direction = "declining" if tr["slope_yr"] < 0 else "rising"
-        fig.add_trace(go.Scatter(
-            x=[tr["x0"], tr["x1"]], y=[tr["y0"], tr["y1"]], mode="lines", yaxis="y",
-            name="TM trend (Theil–Sen)", hoverinfo="skip",
-            line=dict(color=BRAND["ink"], width=2, dash="dash")))
-        fig.add_annotation(
-            xref="paper", yref="paper", x=0.015, y=0.03, xanchor="left", yanchor="bottom",
-            showarrow=False, align="left",
-            text=(f"TM {direction}: {tr['slope_yr'] * 1000:+.1f} milli-TM/yr<br>"
-                  f"Mann-Kendall τ={tr['tau']:+.2f}, p={tr['p']:.3g}"),
-            font=dict(size=11, color=BRAND["ink"]), bordercolor=BRAND["grid"],
-            borderwidth=1, borderpad=4, bgcolor="rgba(255,255,255,0.78)")
+        fig.add_trace(go.Scatter(x=[tr["x0"], tr["x1"]], y=[tr["y0"], tr["y1"]], mode="lines", yaxis="y",
+                                 showlegend=False, hoverinfo="skip",
+                                 line=dict(color=BRAND["ink"], width=2, dash="dash")))
+        notes.append(f"TM {'declining' if tr['slope_yr'] < 0 else 'rising'}: "
+                     f"{tr['slope_yr'] * 1000:+.1f} milli-TM/yr (Mann-Kendall τ={tr['tau']:+.2f}, p={tr['p']:.2g})")
     elif tr:
-        fig.add_annotation(
-            xref="paper", yref="paper", x=0.015, y=0.03, xanchor="left", yanchor="bottom",
-            showarrow=False, text=f"No significant TM trend (Mann-Kendall p={tr['p']:.2g})",
-            font=dict(size=11, color=BRAND["ink"]), opacity=0.7)
+        notes.append(f"No significant TM trend (Mann-Kendall p={tr['p']:.2g})")
+    # CW-rate trend line (logistic regression), only if significant.
+    if cw_trend and cw_trend.get("significant"):
+        fig.add_trace(go.Scatter(x=[labels[0], labels[-1]],
+                                 y=[cw_trend["rate0"] * 100, cw_trend["rate1"] * 100],
+                                 mode="lines", yaxis="y3", showlegend=False, hoverinfo="skip",
+                                 line=dict(color=BRAND["red"], width=2, dash="dash")))
+        notes.append(f"CW rate rising: ×{cw_trend['or_decade']:.2f} odds/decade (logistic p={cw_trend['p']:.1g})")
+
+    if notes:
+        fig.add_annotation(xref="paper", yref="paper", x=0.015, y=0.03, xanchor="left", yanchor="bottom",
+                           showarrow=False, align="left", text="<br>".join(notes),
+                           font=dict(size=11, color=BRAND["ink"]), bordercolor=BRAND["grid"],
+                           borderwidth=1, borderpad=4, bgcolor="rgba(255,255,255,0.82)")
 
     fig.update_layout(
         title="Accuracy over deposition time (by month)",
-        xaxis=dict(title="structure deposit month"),
+        xaxis=dict(title="structure deposit month", domain=[0.0, 0.9]),
         yaxis=dict(title="mean TM-score", range=[0, 1]),
         yaxis2=dict(title="# confidently wrong", overlaying="y", side="right", showgrid=False),
+        yaxis3=dict(title=dict(text="CW rate (%)", font=dict(color=BRAND["red"])), overlaying="y",
+                    side="right", anchor="free", position=1.0, showgrid=False, rangemode="tozero",
+                    tickfont=dict(color=BRAND["red"])),
         legend=dict(orientation="h", y=1.12, x=0),
     )
     return _fig(fig)
