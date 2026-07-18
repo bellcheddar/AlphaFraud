@@ -557,3 +557,22 @@ def overall_stats() -> dict:
                 FROM entities WHERE {ANALYSED}"""
         ).fetchone()
         return dict(row) if row else {}
+
+
+def median_tm() -> Optional[float]:
+    """Median TM over the analysed set, to match the home-page KPI. Kept separate from
+    overall_stats so the frequently-polled /api/stats doesn't pay for the sort. SQLite has no
+    MEDIAN -> average the middle value(s): LIMIT 1 for an odd count, LIMIT 2 for an even one."""
+    with connect() as conn:
+        n = conn.execute(
+            f"SELECT COUNT(*) FROM entities WHERE {ANALYSED} AND tm_by_experiment IS NOT NULL"
+        ).fetchone()[0]
+        if not n:
+            return None
+        return conn.execute(
+            f"""SELECT AVG(tm_by_experiment) FROM (
+                    SELECT tm_by_experiment FROM entities
+                    WHERE {ANALYSED} AND tm_by_experiment IS NOT NULL
+                    ORDER BY tm_by_experiment LIMIT ? OFFSET ?)""",
+            (2 - n % 2, (n - 1) // 2),
+        ).fetchone()[0]
