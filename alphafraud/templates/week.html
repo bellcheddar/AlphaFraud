@@ -85,7 +85,7 @@
     <p class="takehome">Take-home: {{ kpis.confidently_wrong }} of {{ kpis.n_analysed }} structures
     ({{ (100 * kpis.confidently_wrong / kpis.n_analysed) | round(1) if kpis.n_analysed else 0 }}%) are
     confidently wrong; median TM-score is {{ kpis.median_tm }}.</p>
-    <h5>The metrics</h5>
+    <details class="readmore"><summary><span class="rm-more">Read more</span><span class="rm-less">Show less</span> &mdash; how each metric is calculated</summary>
     <p class="metric"><dfn>TM-score:</dfn> how similar the two 3D shapes are overall, 0&ndash;1 (a random pair scores
     ~0.17, an identical fold ~1). Length-normalised so large and small proteins compare fairly.
     <span class="eq">TM = (1/L) Σᵢ 1/(1 + (dᵢ/d₀)²)</span> &mdash; dᵢ is the gap between the i-th aligned Cα atoms
@@ -108,6 +108,7 @@
     <p class="metric"><dfn>Homology:</dfn> the point colour. High novelty (above 70%) flags the sequence
     as <em>novel</em> (amber) &mdash; AlphaFold had no close template; otherwise a pre-cutoff <em>homolog</em> existed
     (blue) it could have learned the fold from. <span class="eq">novel ⇔ novelty &gt; 70%</span>.</p>
+    </details>
   </div>
 
   {{ figure(figures.histograms, 'histograms') }}
@@ -119,7 +120,7 @@
     measured without superposition &mdash; above 0.8 is good. Each bar counts how many structures fall in that range.</p>
     <p class="takehome">Take-home: median TM-score {{ kpis.median_tm }} &mdash;
     {{ 'most predictions match the experimental fold well, with a long tail that do not' if kpis.median_tm and kpis.median_tm > 0.7 else 'a substantial fraction disagree with the experimental fold' }}.</p>
-    <h5>The metrics</h5>
+    <details class="readmore"><summary><span class="rm-more">Read more</span><span class="rm-less">Show less</span> &mdash; how each metric is calculated</summary>
     <p class="metric"><dfn>TM-score:</dfn> overall shape match, 0&ndash;1 (above 0.5 = same fold, above 0.9 near-identical),
     length-normalised. <span class="eq">TM = (1/L) Σᵢ 1/(1 + (dᵢ/d₀)²)</span> with dᵢ the aligned-Cα gap after
     superposition and d₀ = 1.24(L&minus;15)^⅓ &minus; 1.8.
@@ -133,6 +134,7 @@
     inter-residue distances the model reproduces, so it is not fooled by a single wrongly-placed domain.
     <span class="eq">lDDT = (1/N) Σᵢ ¼ Σ_t 1[ |d_exp &minus; d_model| &lt; t ]</span> over thresholds
     t ∈ {0.5, 1, 2, 4} &Aring; and all residue pairs within 15 &Aring;.</p>
+    </details>
   </div>
 
   {% if figures.trend %}
@@ -142,11 +144,12 @@
     <p>The <dfn>blue line</dfn> is the mean TM-score of the structures deposited in each release week; the
     <dfn>red bars</dfn> count how many were confidently wrong. This tracks whether AlphaFold's accuracy on
     brand-new structures is holding steady, improving, or slipping as the PDB keeps growing.</p>
-    <h5>The metrics</h5>
+    <details class="readmore"><summary><span class="rm-more">Read more</span><span class="rm-less">Show less</span> &mdash; how each metric is calculated</summary>
     <p class="metric"><dfn>Mean TM-score:</dfn> the week's average shape-match score.
     <span class="eq">TM̄ = (1/W) Σ TM</span> over the W structures released that week.</p>
     <p class="metric"><dfn>Confidently wrong:</dfn> the count that were both confident and wrong.
     <span class="eq">count( mean pLDDT &gt; 70 AND TM &lt; 0.5 )</span>.</p>
+    </details>
   </div>
   {% endif %}
 
