@@ -26,7 +26,7 @@
   <div class="tablewrap">
     <table id="dataTable" class="sortable">
       <thead><tr>
-        <th>PDB</th><th>UniProt</th><th>Protein</th><th>Week</th><th>Novelty %</th>
+        <th>PDB</th><th>UniProt</th><th>Protein</th><th title="How many deposited structures of this protein we hold — all share the one AlphaFold model">Structures</th><th>Week</th><th>Novelty %</th>
         <th>pLDDT</th><th>TM</th><th>lDDT</th><th>FRAUD</th><th>Flag</th>
       </tr></thead>
       <tbody>
@@ -39,6 +39,8 @@
           </td>
           <td>{% if e.uniprot %}<a href="https://www.uniprot.org/uniprotkb/{{ e.uniprot }}" target="_blank" rel="noopener">{{ e.uniprot }}</a>{% endif %}</td>
           <td>{{ (e.description or '')[:42] }}</td>
+          {% set dc = dep_counts.get(e.uniprot, 1) if e.uniprot else 1 %}
+          <td class="num" data-sort="{{ dc }}">{% if dc > 1 %}<span class="badge dep" title="{{ dc }} deposited structures of this protein all share the same AlphaFold model">×{{ dc }}</span>{% else %}1{% endif %}</td>
           <td data-sort="{{ e.release_date }}">{{ (e.release_date or '')[:10] }}</td>
           <td class="num" data-sort="{{ nov(e.novelty_identity) if e.novelty_identity is not none else -1 }}">{{ r2(nov(e.novelty_identity)) }}{% if e.is_novel %} <span class="badge novel">novel</span>{% endif %}</td>
           <td class="num" data-sort="{{ e.mean_plddt if e.mean_plddt is not none else -1 }}">{{ r2(e.mean_plddt) }}</td>

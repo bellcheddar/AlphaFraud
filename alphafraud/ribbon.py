@@ -27,6 +27,33 @@ _STOPS = [(0.0, (30, 115, 190)), (1.0, (74, 159, 212)), (2.0, (120, 190, 180)),
 _CLAMP = 10.0
 MIN_RESIDUES = 10          # below this a ribbon is meaningless (short peptides)
 
+# Colour-scale stops for the legend gradient, derived from _STOPS so it always matches dev_color.
+_GRAD_STOPS = "".join(f'<stop offset="{d / _CLAMP * 100:.0f}%" stop-color="rgb{c}"/>' for d, c in _STOPS)
+
+
+def _legend(width: int, height: int, show_af: bool) -> str:
+    """Compact bottom-left key: the AlphaFold-prediction line (blue) plus the Cα-deviation
+    colour scale, with a one-line caption below the gradient. Anchored to the bottom-left so it
+    sits clear of most ribbons; scales with the SVG (a small detail on thumbnails, legible at
+    hover-preview and entry-page sizes)."""
+    H = height
+    defs = (f'<defs><linearGradient id="afdevgrad" x1="0" y1="0" x2="1" y2="0">'
+            f'{_GRAD_STOPS}</linearGradient></defs>')
+    card = (f'<rect x="10" y="{H - 74}" width="204" height="64" rx="8" '
+            f'fill="#ffffff" fill-opacity="0.88" stroke="#dde4ed"/>')
+    af = ""
+    if show_af:
+        af = (f'<line x1="22" y1="{H - 55}" x2="46" y2="{H - 55}" stroke="#2563eb" '
+              f'stroke-width="3.4" stroke-linecap="round"/>'
+              f'<text x="54" y="{H - 51}" font-family="Inter,system-ui,sans-serif" '
+              f'font-size="11.5" font-weight="600" fill="#1c2733">AlphaFold prediction</text>')
+    bar = (f'<rect x="22" y="{H - 42}" width="174" height="8" rx="2" '
+           f'fill="url(#afdevgrad)" stroke="#c7d0da"/>')
+    cap = (f'<text x="22" y="{H - 17}" font-family="Inter,system-ui,sans-serif" '
+           f'font-size="10.5" font-weight="600" fill="#6b7c93">'
+           f'Cα deviation 0 → 10+ Å  (experiment)</text>')
+    return f'{defs}<g>{card}{af}{bar}{cap}</g>'
+
 
 def dev_color(d: float) -> tuple[int, int, int]:
     d = max(0.0, min(float(d), _CLAMP))
@@ -163,11 +190,12 @@ def build_svg(P: np.ndarray, dev, sse, width: int = 520, height: int = 440,
     nt, ct = Q2[0], Q2[-1]
     termini = (f'<circle cx="{nt[0]:.0f}" cy="{nt[1]:.0f}" r="4" fill="none" stroke="#5b6b7a" stroke-width="1.5"/>'
                f'<circle cx="{ct[0]:.0f}" cy="{ct[1]:.0f}" r="4" fill="#5b6b7a"/>')
+    legend = _legend(width, height, af_xy is not None)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
             f'preserveAspectRatio="xMidYMid meet" role="img" fill="none" '
             f'aria-label="Experimental Cα ribbon coloured by deviation from the AlphaFold model, '
-            f'with the superposed AlphaFold backbone as a faint dashed trace">'
-            f'{ghost}{"".join(parts)}{termini}</svg>')
+            f'with the superposed AlphaFold backbone as a solid blue trace, and a colour-scale legend">'
+            f'{ghost}{"".join(parts)}{termini}{legend}</svg>')
 
 
 def render_for_chains(exp_chain, af_chain) -> Optional[str]:

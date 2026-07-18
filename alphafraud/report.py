@@ -250,10 +250,10 @@ def fraud_scatter(entities: list[dict], zoom: bool = False) -> str:
 
 
 def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
-    """Ranked 'promise vs. reality' dumbbell: the worst confidently-wrong predictions,
-    one row each, sorted by the gap between what AlphaFold claimed (mean pLDDT/100) and
-    what the experiment showed (TM-score). The connector length *is* the sort key, so the
-    ranking is self-evident. Soft cap at `top`; shows all if fewer than `top` qualify."""
+    """Ranked 'promise vs. reality' dumbbell: the worst confidently-wrong predictions, one row
+    per *protein*, sorted by the gap between what AlphaFold claimed (mean pLDDT/100) and what the
+    experiment showed (TM-score). The connector length *is* the sort key, so the ranking is
+    self-evident. Deduplicated by UniProt (see below) and soft-capped at `top`."""
     cw = [e for e in entities
           if e.get("confidently_wrong") and e.get("mean_plddt") is not None
           and e.get("tm_by_experiment") is not None]
@@ -263,8 +263,20 @@ def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
     def gap(e):
         return e["mean_plddt"] / 100.0 - e["tm_by_experiment"]
 
-    ranked = sorted(cw, key=gap, reverse=True)[:top]
-    ranked = ranked[::-1]                       # reverse so the worst sits at the TOP
+    # Deduplicate by protein: AlphaFold DB holds ONE model per UniProt sequence, so many
+    # depositions of the same protein share an identical prediction and would otherwise flood the
+    # chart with near-duplicates (e.g. 33 transthyretin structures crowding out everything else).
+    # Keep the single worst deposition per UniProt and badge it with the deposition count, so
+    # "top N" means N *distinct* proteins. Entities lacking a UniProt stay individual (by id).
+    from collections import defaultdict
+    groups: dict = defaultdict(list)
+    for e in cw:
+        groups[e.get("uniprot") or e["entity_id"]].append(e)
+    reps = [(max(members, key=gap), len(members)) for members in groups.values()]
+    reps.sort(key=lambda rc: gap(rc[0]), reverse=True)
+    reps = reps[:top][::-1]                      # cap, then reverse so the worst sits at the TOP
+    ranked = [e for e, _c in reps]
+    counts = [c for _e, c in reps]
     n = len(ranked)
 
     def _nov(e):
@@ -275,9 +287,17 @@ def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
         d = (e.get("description") or "").strip()
         return (d[:20] + "…") if len(d) > 21 else d
 
-    labels = [f"{e['entity_id']}  {_short(e)}".rstrip() for e in ranked]
+    def _label(e, c):
+        base = f"{e['entity_id']}  {_short(e)}".rstrip()
+        return f"{base}  ×{c}" if c > 1 else base            # ×N = number of depositions
+
+    def _cntstr(c):
+        return f"worst of {c} structures of this protein" if c > 1 else "1 structure"
+
+    labels = [_label(e, c) for e, c in zip(ranked, counts)]
     cd = [[e["entity_id"], e.get("description") or "—", _nov(e),
-           e["mean_plddt"], e["tm_by_experiment"], gap(e)] for e in ranked]
+           e["mean_plddt"], e["tm_by_experiment"], gap(e), _cntstr(c)]
+          for e, c in zip(ranked, counts)]
 
     fig = go.Figure()
     # Faint band left of the WRONG_TM line — the "wrong" half every TM dot lands in.
@@ -302,7 +322,8 @@ def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
         customdata=cd,
         hovertemplate=("<b>%{customdata[0]}</b><br>%{customdata[1]}<br>"
                        "actual TM %{customdata[4]:.3f}<br>"
-                       "gap %{customdata[5]:.2f} · novelty %{customdata[2]}%<extra></extra>"),
+                       "gap %{customdata[5]:.2f} · novelty %{customdata[2]}%<br>"
+                       "<i>%{customdata[6]}</i><extra></extra>"),
     ))
     fig.add_trace(go.Scatter(
         x=[e["mean_plddt"] / 100.0 for e in ranked], y=ys, mode="markers",
@@ -311,11 +332,12 @@ def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
         customdata=cd,
         hovertemplate=("<b>%{customdata[0]}</b><br>%{customdata[1]}<br>"
                        "claimed pLDDT %{customdata[3]:.0f}<br>"
-                       "gap %{customdata[5]:.2f} · novelty %{customdata[2]}%<extra></extra>"),
+                       "gap %{customdata[5]:.2f} · novelty %{customdata[2]}%<br>"
+                       "<i>%{customdata[6]}</i><extra></extra>"),
     ))
 
     fig.update_layout(
-        title=f"The {n} worst: what AlphaFold promised vs. what the structure showed",
+        title=f"The {n} worst proteins: what AlphaFold promised vs. what the structure showed",
         xaxis_title="score 0–1  (TM-score ● · pLDDT/100 ●)",
         legend=dict(orientation="h", y=1.03, x=0, itemsizing="constant"),
         # Tall, fixed-height list: ~19 px/row. app.js honours meta.keepHeight on mobile.

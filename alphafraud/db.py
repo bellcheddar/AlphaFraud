@@ -361,6 +361,16 @@ def leaderboard(limit: int = 100, novel_only: bool = False) -> list[dict]:
         return [dict(r) for r in conn.execute(q, (limit,)).fetchall()]
 
 
+def uniprot_deposition_counts() -> dict:
+    """{uniprot: number of analysed depositions} — how many structures of each protein we hold.
+    Lets views show a '×N' badge (AlphaFold DB has one model per sequence, so N depositions all
+    share the same prediction)."""
+    with connect() as conn:
+        return {r["uniprot"]: r["n"] for r in conn.execute(
+            f"SELECT uniprot, COUNT(*) n FROM entities WHERE {ANALYSED} AND uniprot IS NOT NULL "
+            "GROUP BY uniprot").fetchall()}
+
+
 def weekly_aggregates() -> list[dict]:
     """Per-week means for the trend figure, oldest -> newest."""
     with connect() as conn:

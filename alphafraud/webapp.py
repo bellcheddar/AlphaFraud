@@ -236,7 +236,8 @@ def create_app() -> Flask:
     def leaderboard():
         rows = db.leaderboard(limit=200)
         return render_template("leaderboard.html", banner=banner.BANNER_ART,
-                               entities=rows, stats=db.overall_stats(), version=__version__)
+                               entities=rows, stats=db.overall_stats(),
+                               dep_counts=db.uniprot_deposition_counts(), version=__version__)
 
     @app.route("/analysis")
     def analysis():
