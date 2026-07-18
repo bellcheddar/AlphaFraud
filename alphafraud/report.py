@@ -363,14 +363,20 @@ def sampling_note(entities: list[dict]) -> str:
 def metric_histograms(entities: list[dict]) -> str:
     from plotly.subplots import make_subplots
 
+    # Cα-RMSD and lDDT are only computed for the fully-compared subset (screened entities are
+    # TM-only), so restrict ALL three panels to that same population. Otherwise the TM panel would
+    # summarise ~83k structures while the other two summarise only the ~15k disagreements — three
+    # different populations side by side.
+    comp = [e for e in entities if e.get("ca_rmsd") is not None and e.get("lddt") is not None]
     fig = make_subplots(rows=1, cols=3, subplot_titles=("TM-score", "Cα-RMSD (Å)", "lDDT"))
-    fig.add_trace(go.Histogram(x=[e["tm_by_experiment"] for e in entities if e.get("tm_by_experiment") is not None],
+    fig.add_trace(go.Histogram(x=[e["tm_by_experiment"] for e in comp if e.get("tm_by_experiment") is not None],
                                marker_color=BRAND["primary"], nbinsx=25), row=1, col=1)
-    fig.add_trace(go.Histogram(x=[e["ca_rmsd"] for e in entities if e.get("ca_rmsd") is not None],
+    fig.add_trace(go.Histogram(x=[e["ca_rmsd"] for e in comp if e.get("ca_rmsd") is not None],
                                marker_color=BRAND["amber"], nbinsx=25), row=1, col=2)
-    fig.add_trace(go.Histogram(x=[e["lddt"] for e in entities if e.get("lddt") is not None],
+    fig.add_trace(go.Histogram(x=[e["lddt"] for e in comp if e.get("lddt") is not None],
                                marker_color=BRAND["green"], nbinsx=25), row=1, col=3)
-    fig.update_layout(title="Metric distributions", showlegend=False)
+    fig.update_layout(title=f"Metric distributions ({len(comp):,} fully-compared structures)",
+                      showlegend=False)
     return _fig(fig)
 
 

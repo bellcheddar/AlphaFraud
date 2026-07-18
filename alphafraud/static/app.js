@@ -172,7 +172,7 @@
         var p = 100 * (part || 0) / total;
         return " (" + (p > 0 && p < 0.5 ? "<1%" : Math.round(p) + "%") + ")";
       }
-      set("stAnalysed", whole(s.analysed) + pct(s.analysed, 96433));   // matches the KPI "TOTAL ANALYSED"
+      set("stAnalysed", whole(s.analysed) + pct(s.analysed, s.total_processed));  // % of the real archive total
       set("stCW", whole(s.confidently_wrong) + pct(s.confidently_wrong, s.analysed));
       set("stNW", whole(s.novel_and_wrong) + pct(s.novel_and_wrong, s.analysed));
       set("stDb", (s.db_mb != null ? whole(s.db_mb) + " MB" : "—"));
