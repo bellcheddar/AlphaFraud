@@ -19,7 +19,7 @@ import hashlib
 import json
 import os
 import re
-from datetime import date
+from datetime import date, timedelta
 
 from flask import Flask, abort, jsonify, render_template, request, send_from_directory, url_for
 
@@ -181,8 +181,14 @@ def create_app() -> Flask:
             # stored value stays as raw identity; this flips it for display only.
             return None if identity is None else round(100 - identity, 1)
 
+        # The next weekly PDB release the app will process: the PDB updates Wednesday 00:00 UTC
+        # (our run fires shortly after), so this is the next upcoming Wednesday.
+        today = date.today()
+        days = (2 - today.weekday()) % 7 or 7          # Wednesday == 2; if today is Wed, next week
+        next_update = (today + timedelta(days=days)).strftime("%a %d %b")
+
         return {"asset": asset, "ribbon_url": ribbon_url, "coords_url": coords_url,
-                "ghost_url": ghost_url, "nov": nov}
+                "ghost_url": ghost_url, "nov": nov, "next_pdb_update": next_update}
 
     @app.route("/ribbon/<entity_id>.svg")
     def ribbon_svg(entity_id):
