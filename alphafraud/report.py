@@ -377,16 +377,20 @@ def metric_histograms(entities: list[dict]) -> str:
 # --------------------------------------------------------------------------------------
 # Trend across weeks
 # --------------------------------------------------------------------------------------
-def trend_figure(weekly: list[dict]) -> str:
-    """weekly: list of {label, mean_tm, confidently_wrong, n_compared} oldest->newest."""
+def trend_figure(monthly: list[dict]) -> str:
+    """monthly: list of {label (YYYY-MM), mean_tm, confidently_wrong, n_compared} oldest->newest,
+    binned by structure deposit month (see db.deposit_month_trend)."""
     fig = go.Figure()
-    labels = [w["label"] for w in weekly]
-    fig.add_trace(go.Scatter(x=labels, y=[w.get("mean_tm") for w in weekly], name="mean TM-score",
-                             mode="lines+markers", line=dict(color=BRAND["primary"], width=2), yaxis="y"))
-    fig.add_trace(go.Bar(x=labels, y=[w.get("confidently_wrong") for w in weekly], name="confidently wrong",
+    labels = [w["label"] for w in monthly]
+    fig.add_trace(go.Scatter(x=labels, y=[w.get("mean_tm") for w in monthly], name="mean TM-score",
+                             mode="lines+markers", line=dict(color=BRAND["primary"], width=2), yaxis="y",
+                             customdata=[[w.get("n_compared")] for w in monthly],
+                             hovertemplate="%{x}<br>mean TM %{y:.3f}<br>%{customdata[0]} structures<extra></extra>"))
+    fig.add_trace(go.Bar(x=labels, y=[w.get("confidently_wrong") for w in monthly], name="confidently wrong",
                          marker_color=BRAND["red"], opacity=0.5, yaxis="y2"))
     fig.update_layout(
-        title="Weekly trend",
+        title="Accuracy over deposition time (by month)",
+        xaxis=dict(title="structure deposit month"),
         yaxis=dict(title="mean TM-score", range=[0, 1]),
         yaxis2=dict(title="# confidently wrong", overlaying="y", side="right", showgrid=False),
         legend=dict(orientation="h", y=1.12, x=0),

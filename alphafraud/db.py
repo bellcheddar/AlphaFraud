@@ -392,17 +392,25 @@ def uniprot_deposition_counts() -> dict:
             "GROUP BY uniprot").fetchall()}
 
 
-def weekly_aggregates() -> list[dict]:
-    """Per-week means for the trend figure, oldest -> newest."""
+def deposit_month_trend() -> list[dict]:
+    """Per-deposit-month aggregates for the trend figure (chronological, evenly spaced).
+
+    Binning by each structure's deposit month — not by processing-run label — is what makes the
+    trend a real timeline. The archive was backfilled in irregular buckets (monthly chunks, a few
+    weekly runs, and one big catch-up run of ~8.6k), so grouping by run produced gaps (empty
+    chunks) and huge spikes (the catch-up run). Deposit-month bins spread those structures onto
+    their true dates. Months with <5 analysed structures are dropped so each point is a
+    meaningful mean (the most recent month is often near-empty)."""
     with connect() as conn:
         rows = conn.execute(
-            """SELECT r.label AS label,
-                      AVG(e.tm_by_experiment) AS mean_tm,
-                      SUM(e.confidently_wrong) AS confidently_wrong,
-                      COUNT(*) AS n_compared
-               FROM entities e JOIN runs r ON e.run_id = r.id
-               WHERE e.status IN ('screened','compared')
-               GROUP BY r.label ORDER BY r.label ASC"""
+            """SELECT substr(deposit_date,1,7)  AS label,
+                      AVG(tm_by_experiment)      AS mean_tm,
+                      SUM(confidently_wrong)     AS confidently_wrong,
+                      COUNT(*)                   AS n_compared
+               FROM entities
+               WHERE status IN ('screened','compared')
+                 AND deposit_date IS NOT NULL AND length(deposit_date) >= 7
+               GROUP BY label HAVING COUNT(*) >= 5 ORDER BY label ASC"""
         ).fetchall()
         return [dict(r) for r in rows]
 

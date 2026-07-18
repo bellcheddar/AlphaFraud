@@ -329,7 +329,7 @@ def _render_all():
     payload = db.load_snapshot("home")
     if not (payload and _snapshot_fresh(payload.get("_updated_at"), HOME_CACHE_TTL)):
         rows = db.all_entities_scalar()      # all analysed entities, worst-FRAUD first
-        weekly = db.weekly_aggregates()
+        weekly = db.deposit_month_trend()
         payload = {
             "figures": {
                 "scatter": report.fraud_scatter(rows),
@@ -366,7 +366,7 @@ def _render_week(label):
     weeks = db.list_weeks()
     if not any(w["label"] == label for w in weeks):
         abort(404)
-    weekly = db.weekly_aggregates()
+    weekly = db.deposit_month_trend()
     figures = {
         "scatter": report.fraud_scatter(entities),
         "scatter_zoom": report.fraud_scatter(entities, zoom=True),
