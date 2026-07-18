@@ -121,6 +121,22 @@ The web app serves live from SQLite. Every plot carries a plain-language explana
 | `/archive` | An index of all processed weeks |
 | `/api/week/<label>`, `/api/leaderboard`, `/api/entry/<id>` | JSON for external tools |
 
+## 🧮 Coverage and skipped entities
+
+Not every deposited entity can be compared. AlphaFold DB holds a single model per human UniProt sequence (monomers only), so anything that does not map cleanly to one accession, has no model covering its resolved range, or is too small or too large to compare is recorded as *skipped* rather than forced through. A snapshot of the full-archive backfill (2026-07-18, ~99.8% processed) skipped 13,650 entities:
+
+| Count | Share | Reason | Nature |
+|---:|---:|---|---|
+| **11,769** | 86% | **No single UniProt mapping** — antibodies, chimeras, engineered constructs, fusion proteins, synthetics | Structural fact: no single AlphaFold model exists to compare against |
+| **~1,184** | 9% | **No AlphaFold model covering the residue range** — mostly giant multi-domain proteins (titin-scale) whose resolved fragment falls outside AlphaFold DB's fragmented coverage, plus isoforms it lacks | Coverage gap in AlphaFold DB |
+| **364** | 3% | **Structure too large (>40 MB)** — the out-of-memory guard for the 3.8 GB droplet | Resource limit (our cap) |
+| **~332** | 2% | **Too few residues aligned (<10)** — tiny peptides or mostly-unresolved chains | Nothing meaningful to compare |
+| **1** | — | Sequence too short (<3 residues) | Degenerate |
+
+The 86% is exactly what the design intends: because AlphaFold DB is monomer-and-single-sequence only, anything that does not map to one human UniProt accession (an antibody Fab, a designed fusion, a chimera) has no counterpart model, so it is flagged and skipped rather than mis-compared.
+
+Skipped entities are terminal by design: `retry-errors` only re-runs `status='error'`, and the resumable weekly and backfill runs skip anything already recorded. Four of the five buckets are permanent structural properties, so re-running would simply re-skip them. The two worth revisiting are the **364 oversized structures** (a memory limit of the small droplet, not a true incomparability, recoverable by raising `MAX_STRUCT_BYTES` or upsizing the box) and the multi-domain subset of the **missing-model** bucket (recoverable with better fragment selection for AlphaFold models above 2,700 residues).
+
 ## 🛠️ Deployment
 
 The report is served by a Flask app (gunicorn behind nginx with a Let's Encrypt certificate) and the weekly pipeline runs from a systemd timer on the same droplet.

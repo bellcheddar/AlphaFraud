@@ -276,6 +276,52 @@ python3 AlphaFraud.py serve --port 8000
 </tr>
 </tbody>
 </table></div>
+<h2>🧮 Coverage and skipped entities</h2>
+<p>Not every deposited entity can be compared. AlphaFold DB holds a single model per human UniProt sequence (monomers only), so anything that does not map cleanly to one accession, has no model covering its resolved range, or is too small or too large to compare is recorded as <em>skipped</em> rather than forced through. A snapshot of the full-archive backfill (2026-07-18, ~99.8% processed) skipped 13,650 entities:</p>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th style="text-align: right;">Count</th>
+<th style="text-align: right;">Share</th>
+<th>Reason</th>
+<th>Nature</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;" data-label="Count"><strong>11,769</strong></td>
+<td style="text-align: right;" data-label="Share">86%</td>
+<td data-label="Reason"><strong>No single UniProt mapping</strong> — antibodies, chimeras, engineered constructs, fusion proteins, synthetics</td>
+<td data-label="Nature">Structural fact: no single AlphaFold model exists to compare against</td>
+</tr>
+<tr>
+<td style="text-align: right;" data-label="Count"><strong>~1,184</strong></td>
+<td style="text-align: right;" data-label="Share">9%</td>
+<td data-label="Reason"><strong>No AlphaFold model covering the residue range</strong> — mostly giant multi-domain proteins (titin-scale) whose resolved fragment falls outside AlphaFold DB's fragmented coverage, plus isoforms it lacks</td>
+<td data-label="Nature">Coverage gap in AlphaFold DB</td>
+</tr>
+<tr>
+<td style="text-align: right;" data-label="Count"><strong>364</strong></td>
+<td style="text-align: right;" data-label="Share">3%</td>
+<td data-label="Reason"><strong>Structure too large (&gt;40 MB)</strong> — the out-of-memory guard for the 3.8 GB droplet</td>
+<td data-label="Nature">Resource limit (our cap)</td>
+</tr>
+<tr>
+<td style="text-align: right;" data-label="Count"><strong>~332</strong></td>
+<td style="text-align: right;" data-label="Share">2%</td>
+<td data-label="Reason"><strong>Too few residues aligned (&lt;10)</strong> — tiny peptides or mostly-unresolved chains</td>
+<td data-label="Nature">Nothing meaningful to compare</td>
+</tr>
+<tr>
+<td style="text-align: right;" data-label="Count"><strong>1</strong></td>
+<td style="text-align: right;" data-label="Share">—</td>
+<td data-label="Reason">Sequence too short (&lt;3 residues)</td>
+<td data-label="Nature">Degenerate</td>
+</tr>
+</tbody>
+</table></div>
+<p>The 86% is exactly what the design intends: because AlphaFold DB is monomer-and-single-sequence only, anything that does not map to one human UniProt accession (an antibody Fab, a designed fusion, a chimera) has no counterpart model, so it is flagged and skipped rather than mis-compared.</p>
+<p>Skipped entities are terminal by design: <code>retry-errors</code> only re-runs <code>status='error'</code>, and the resumable weekly and backfill runs skip anything already recorded. Four of the five buckets are permanent structural properties, so re-running would simply re-skip them. The two worth revisiting are the <strong>364 oversized structures</strong> (a memory limit of the small droplet, not a true incomparability, recoverable by raising <code>MAX_STRUCT_BYTES</code> or upsizing the box) and the multi-domain subset of the <strong>missing-model</strong> bucket (recoverable with better fragment selection for AlphaFold models above 2,700 residues).</p>
 <h2>🛠️ Deployment</h2>
 <p>The report is served by a Flask app (gunicorn behind nginx with a Let's Encrypt certificate) and the weekly pipeline runs from a systemd timer on the same droplet.</p>
 <pre><code class="language-bash"># 1. From your Mac: copy .env.example to .env and fill in DROPLET_SSH / DROPLET_PATH / SERVER_NAME
