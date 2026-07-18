@@ -249,6 +249,86 @@ def fraud_scatter(entities: list[dict], zoom: bool = False) -> str:
     return _fig(fig)
 
 
+def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
+    """Ranked 'promise vs. reality' dumbbell: the worst confidently-wrong predictions,
+    one row each, sorted by the gap between what AlphaFold claimed (mean pLDDT/100) and
+    what the experiment showed (TM-score). The connector length *is* the sort key, so the
+    ranking is self-evident. Soft cap at `top`; shows all if fewer than `top` qualify."""
+    cw = [e for e in entities
+          if e.get("confidently_wrong") and e.get("mean_plddt") is not None
+          and e.get("tm_by_experiment") is not None]
+    if not cw:
+        return None
+
+    def gap(e):
+        return e["mean_plddt"] / 100.0 - e["tm_by_experiment"]
+
+    ranked = sorted(cw, key=gap, reverse=True)[:top]
+    ranked = ranked[::-1]                       # reverse so the worst sits at the TOP
+    n = len(ranked)
+
+    def _nov(e):
+        v = e.get("novelty_identity")
+        return round(100 - v) if v is not None else "n/a"
+
+    def _short(e):
+        d = (e.get("description") or "").strip()
+        return (d[:20] + "…") if len(d) > 21 else d
+
+    labels = [f"{e['entity_id']}  {_short(e)}".rstrip() for e in ranked]
+    cd = [[e["entity_id"], e.get("description") or "—", _nov(e),
+           e["mean_plddt"], e["tm_by_experiment"], gap(e)] for e in ranked]
+
+    fig = go.Figure()
+    # Faint band left of the WRONG_TM line — the "wrong" half every TM dot lands in.
+    fig.add_shape(type="rect", x0=0, x1=config.WRONG_TM, y0=-0.6, y1=n - 0.4,
+                  fillcolor="rgba(214,39,40,0.06)", line=dict(width=0), layer="below")
+    fig.add_shape(type="line", x0=config.WRONG_TM, x1=config.WRONG_TM, y0=-0.6, y1=n - 0.4,
+                  line=dict(color=BRAND["red"], width=1, dash="dot"), layer="below")
+
+    # Connectors (one trace, None-separated) — the visible "size of the lie".
+    cx, cy = [], []
+    for i, e in enumerate(ranked):
+        cx += [e["tm_by_experiment"], e["mean_plddt"] / 100.0, None]
+        cy += [i, i, None]
+    fig.add_trace(go.Scatter(x=cx, y=cy, mode="lines", showlegend=False, hoverinfo="skip",
+                             line=dict(color="rgba(120,140,160,0.5)", width=2)))
+
+    ys = list(range(n))
+    fig.add_trace(go.Scatter(
+        x=[e["tm_by_experiment"] for e in ranked], y=ys, mode="markers",
+        name="actual (TM-score)", cliponaxis=False,
+        marker=dict(color=BRAND["red"], size=9, line=dict(width=0.6, color="white")),
+        customdata=cd,
+        hovertemplate=("<b>%{customdata[0]}</b><br>%{customdata[1]}<br>"
+                       "actual TM %{customdata[4]:.3f}<br>"
+                       "gap %{customdata[5]:.2f} · novelty %{customdata[2]}%<extra></extra>"),
+    ))
+    fig.add_trace(go.Scatter(
+        x=[e["mean_plddt"] / 100.0 for e in ranked], y=ys, mode="markers",
+        name="AlphaFold claim (pLDDT)", cliponaxis=False,
+        marker=dict(color=BRAND["primary"], size=9, line=dict(width=0.6, color="white")),
+        customdata=cd,
+        hovertemplate=("<b>%{customdata[0]}</b><br>%{customdata[1]}<br>"
+                       "claimed pLDDT %{customdata[3]:.0f}<br>"
+                       "gap %{customdata[5]:.2f} · novelty %{customdata[2]}%<extra></extra>"),
+    ))
+
+    fig.update_layout(
+        title=f"The {n} worst: what AlphaFold promised vs. what the structure showed",
+        xaxis_title="score 0–1  (TM-score ● · pLDDT/100 ●)",
+        legend=dict(orientation="h", y=1.03, x=0, itemsizing="constant"),
+        # Tall, fixed-height list: ~19 px/row. app.js honours meta.keepHeight on mobile.
+        height=max(320, 132 + 19 * n),
+        meta=dict(keepHeight=True),
+        margin=dict(l=176, r=24, t=104, b=52),
+    )
+    fig.update_xaxes(range=[0, 1.02])
+    fig.update_yaxes(tickvals=ys, ticktext=labels, tickfont=dict(size=11, family="Roboto Mono, monospace"),
+                     showgrid=False, range=[-0.6, n - 0.4])
+    return _fig(fig)
+
+
 def sampling_note(entities: list[dict]) -> str:
     """Caption for the scatter card when the dense cluster was sampled (empty otherwise)."""
     _, omitted = _downsample_points(entities)

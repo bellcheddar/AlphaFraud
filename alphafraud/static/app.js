@@ -24,11 +24,13 @@
       layout.width = w;
       layout.autosize = false;
 
+      var keepH = layout.meta && layout.meta.keepHeight && layout.height;
       if (mobile) {
         // Squarer aspect so bubbles aren't vertically squished on a narrow screen.
-        layout.height = Math.max(320, Math.round(w * 0.95));
+        // …except ranked lists (dumbbell) that declare their own required height.
+        if (!keepH) layout.height = Math.max(320, Math.round(w * 0.95));
         var hasL2 = !!layout.legend2, hasL = !!layout.legend;
-        layout.margin = { l: 46, r: 14, t: hasL2 ? 120 : (hasL ? 92 : 54), b: 58 };
+        layout.margin = { l: keepH ? 132 : 46, r: 14, t: hasL2 ? 120 : (hasL ? 92 : 54), b: 58 };
         if (layout.title) {
           layout.title.font = Object.assign({}, layout.title.font, { size: 13 });
           layout.title.x = 0.5; layout.title.xanchor = "center"; layout.title.y = 0.985;

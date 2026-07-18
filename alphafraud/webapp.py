@@ -299,6 +299,7 @@ def _render_all():
     figures = {
         "scatter": report.fraud_scatter(rows),
         "scatter_zoom": report.fraud_scatter(rows, zoom=True),
+        "dumbbell": report.fraud_dumbbell(rows),
         "histograms": report.metric_histograms(rows),
         "trend": report.trend_figure(weekly) if len(weekly) > 1 else None,
     }
@@ -328,6 +329,7 @@ def _render_week(label):
     figures = {
         "scatter": report.fraud_scatter(entities),
         "scatter_zoom": report.fraud_scatter(entities, zoom=True),
+        "dumbbell": report.fraud_dumbbell(entities),
         "histograms": report.metric_histograms(entities),
         "trend": report.trend_figure(weekly) if len(weekly) > 1 else None,
     }
