@@ -68,7 +68,7 @@ header.site .wrap { display: block; position: relative; }
 .statspanel .statrow b { color: #fff; font-variant-numeric: tabular-nums; }
 /* On mobile, show the panel in the header flow (not hidden) -- static, full width. */
 @media (max-width: 720px) {
-  .statspanel { position: static; width: 100%; min-width: 0; box-sizing: border-box; margin: 2px 0 12px; }
+  .statspanel { position: static; width: 100%; min-width: 0; box-sizing: border-box; margin: 10px 0 12px; }
 }
 pre.banner {
   font-family: var(--mono);

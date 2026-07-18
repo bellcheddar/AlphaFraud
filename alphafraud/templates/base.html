@@ -11,6 +11,7 @@
 <body>
   <header class="site">
     <div class="wrap">
+      <pre class="banner">{{ banner }}</pre>
       <div class="statspanel" id="statsPanel" title="Live app stats (refreshes every minute)">
         <div class="stathead"><span class="livedot" aria-hidden="true"></span>Live Stats, next update: {{ next_pdb_update }}</div>
         <div class="statrow"><span>Human PDBs Processed</span><b id="stProcessed">…</b></div>
@@ -19,7 +20,6 @@
         <div class="statrow"><span>DB size</span><b id="stDb">…</b></div>
         <div class="statrow"><span>Visitors</span><b id="stVis">…</b></div>
       </div>
-      <pre class="banner">{{ banner }}</pre>
       <div class="tagline">New PDB Depositions vs. Their Blind AlphaFold Predictions &mdash; A Running Test of &ldquo;Is Folding Solved?&rdquo;</div>
       <div class="tagline">Built by <a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a>, contact: <a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a></div>
       <img class="bannerdiv" src="{{ asset('banner_divergence.svg') }}" alt="" aria-hidden="true"
