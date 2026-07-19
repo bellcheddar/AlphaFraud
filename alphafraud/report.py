@@ -368,15 +368,18 @@ def metric_histograms(entities: list[dict]) -> str:
     # summarise ~83k structures while the other two summarise only the ~15k disagreements — three
     # different populations side by side.
     comp = [e for e in entities if e.get("ca_rmsd") is not None and e.get("lddt") is not None]
-    fig = make_subplots(rows=1, cols=3, subplot_titles=("TM-score", "Cα-RMSD (Å)", "lDDT"))
+    # Stacked vertically (not 3-across) so each histogram gets the full width and stays legible
+    # on a narrow phone; on desktop it reads as a clean column of three.
+    fig = make_subplots(rows=3, cols=1, vertical_spacing=0.12,
+                        subplot_titles=("TM-score", "Cα-RMSD (Å)", "lDDT"))
     fig.add_trace(go.Histogram(x=[e["tm_by_experiment"] for e in comp if e.get("tm_by_experiment") is not None],
                                marker_color=BRAND["primary"], nbinsx=25), row=1, col=1)
     fig.add_trace(go.Histogram(x=[e["ca_rmsd"] for e in comp if e.get("ca_rmsd") is not None],
-                               marker_color=BRAND["amber"], nbinsx=25), row=1, col=2)
+                               marker_color=BRAND["amber"], nbinsx=25), row=2, col=1)
     fig.add_trace(go.Histogram(x=[e["lddt"] for e in comp if e.get("lddt") is not None],
-                               marker_color=BRAND["green"], nbinsx=25), row=1, col=3)
+                               marker_color=BRAND["green"], nbinsx=25), row=3, col=1)
     fig.update_layout(title=f"Metric distributions ({len(comp):,} fully-compared structures)",
-                      showlegend=False)
+                      showlegend=False, height=560)
     return _fig(fig)
 
 

@@ -10,6 +10,19 @@
   // We pin layout.width to the plot element's own width (autosize/responsive proved
   // unreliable on narrow widths). On mobile we also fix the aspect ratio and shrink/stack
   // the title, legends and axis fonts so nothing clips or overlaps.
+  // Word-wrap a title to <= maxChars per line (plotly honours <br> in titles), so long titles
+  // don't clip on narrow screens.
+  function wrapTitle(text, maxChars) {
+    var words = String(text).split(" "), lines = [], cur = "";
+    for (var i = 0; i < words.length; i++) {
+      var word = words[i];
+      if (cur && (cur.length + 1 + word.length) > maxChars) { lines.push(cur); cur = word; }
+      else { cur = cur ? cur + " " + word : word; }
+    }
+    if (cur) lines.push(cur);
+    return lines.join("<br>");
+  }
+
   function renderPlots() {
     if (typeof Plotly === "undefined") return;
     var vw = document.documentElement.clientWidth || window.innerWidth || 360;
@@ -28,45 +41,54 @@
       if (mobile) {
         var hasL2 = !!layout.legend2, hasL = !!layout.legend;
         var legRows = (hasL ? 1 : 0) + (hasL2 ? 1 : 0);
-        var rightAxis = !!(layout.yaxis2 || layout.yaxis3);
-        // Squarer aspect so bubbles aren't vertically squished on a narrow screen.
-        // …except ranked lists (dumbbell) that declare their own required height.
-        if (!keepH) layout.height = Math.max(360, Math.round(w * 0.98)) + legRows * 30;
-        // Legends move BELOW the plot on mobile so they never collide with the title (which
-        // stays at the very top). Bottom margin grows to fit however many legend rows there are;
-        // right margin grows when there are right-hand axes (e.g. the trend's count/rate axes).
+        // Vertically-stacked subplots (the histograms) declare their own height and separate-
+        // domain y-axes (no `overlaying`); overlaying right-hand axes (the trend) are different.
+        var stacked = !!(layout.yaxis2 && !layout.yaxis2.overlaying);
+        var rightAxis = !!((layout.yaxis2 && layout.yaxis2.overlaying) ||
+                           (layout.yaxis3 && layout.yaxis3.overlaying));
+        // Wrap a long title so it doesn't clip off the edges.
+        var titleLines = 1;
+        if (layout.title) {
+          if (typeof layout.title === "string") layout.title = { text: layout.title };
+          if (layout.title.text) {
+            layout.title.text = wrapTitle(layout.title.text, 30);
+            titleLines = layout.title.text.split("<br>").length;
+          }
+        }
+        // Keep the tall server height for stacked subplots / ranked lists; otherwise size to width.
+        if (!keepH && !stacked) layout.height = Math.max(360, Math.round(w * 0.98)) + legRows * 30;
+        // Generous padding all round: title room on top (grows with wrapped lines), legends
+        // below (bottom margin grows per legend row), roomy sides.
         layout.margin = {
-          l: keepH ? 120 : 48,
-          r: rightAxis ? (layout.yaxis3 ? 56 : 42) : 14,
-          t: 44,
-          b: 52 + legRows * 34,
+          l: keepH ? 122 : 56,
+          r: rightAxis ? (layout.yaxis3 ? 58 : 46) : 22,
+          t: 34 + titleLines * 22,
+          b: 60 + legRows * 36,
         };
         if (layout.title) {
-          layout.title.font = Object.assign({}, layout.title.font, { size: 12 });
+          layout.title.font = Object.assign({}, layout.title.font, { size: 12.5 });
           layout.title.x = 0.5; layout.title.xanchor = "center";
-          layout.title.y = 0.99; layout.title.yanchor = "top";
         }
         if (hasL) layout.legend = Object.assign({}, layout.legend,
-          { orientation: "h", x: 0.5, xanchor: "center", y: -0.2, yanchor: "top", font: { size: 10 } });
+          { orientation: "h", x: 0.5, xanchor: "center", y: -0.22, yanchor: "top", font: { size: 10 } });
         if (hasL2) layout.legend2 = Object.assign({}, layout.legend2,
-          { orientation: "h", x: 0.5, xanchor: "center", y: -0.2 - 0.14, yanchor: "top", font: { size: 10 } });
-        // Paper-anchored annotations (e.g. the trend's stats box) sit below the legends on
-        // mobile rather than floating over the data. (Data-anchored labels, like the scatter's
-        // "confidently wrong" tag inside its box, are left where they are.)
+          { orientation: "h", x: 0.5, xanchor: "center", y: -0.22 - 0.15, yanchor: "top", font: { size: 10 } });
+        // Move ONLY my own annotation boxes (identified by their bgcolor) below the legends —
+        // NOT the subplot titles that make_subplots adds as paper-anchored annotations.
         if (layout.annotations && layout.annotations.length) {
-          var annY = -0.2 - legRows * 0.14 - 0.1;
+          var annY = -0.22 - legRows * 0.15 - 0.13;
           var moved = 0;
           layout.annotations = layout.annotations.map(function (a) {
-            if (a && a.xref === "paper" && a.yref === "paper") {
+            if (a && a.xref === "paper" && a.yref === "paper" && a.bgcolor) {
               moved += 1;
               return Object.assign({}, a, { x: 0.0, xanchor: "left", y: annY, yanchor: "top",
                 align: "left", font: Object.assign({}, a.font, { size: 9.5 }) });
             }
             return a;
           });
-          if (moved) { layout.margin.b += 50; layout.height += 40; }
+          if (moved) { layout.margin.b += 52; if (!stacked && !keepH) layout.height += 44; }
         }
-        ["xaxis", "yaxis", "xaxis2", "yaxis2", "yaxis3"].forEach(function (ax) {
+        ["xaxis", "yaxis", "xaxis2", "yaxis2", "xaxis3", "yaxis3"].forEach(function (ax) {
           if (layout[ax] && layout[ax].title) {
             layout[ax].title.font = Object.assign({}, layout[ax].title.font, { size: 10 });
           }
