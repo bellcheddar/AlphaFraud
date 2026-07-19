@@ -359,7 +359,7 @@ def _render_all():
         kpis=payload["kpis"],
         figures=payload["figures"],
         scatter_note=payload["scatter_note"],
-        weeks=db.list_weeks(),
+        weeks=db.dropdown_weeks(8),
         backfill_months=db.list_backfill_months(),
         version=__version__,
     )
@@ -369,7 +369,8 @@ def _render_week(label):
     entities = db.entities_for_week(label)
     if not db.week_exists(label):        # any real run (weekly or backfill); 404 only if unknown
         abort(404)
-    weeks = db.list_weeks()              # genuine weekly releases, for the "jump to" dropdown
+    is_backfill = db.run_kind(label) == "backfill"   # title "Release month" vs "Release week"
+    weeks = db.dropdown_weeks(8)         # latest weekly releases, for the "jump to" dropdown
     weekly = db.deposit_month_trend()
     figures = {
         "scatter": report.fraud_scatter(entities),
@@ -384,6 +385,7 @@ def _render_week(label):
         banner=banner.BANNER_ART,
         label=label,
         is_all=False,
+        is_backfill=is_backfill,
         entities=entities,
         kpis=report.kpis(entities),
         highlights=highlights,

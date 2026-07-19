@@ -318,17 +318,45 @@ def list_weeks() -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def list_backfill_months() -> list[dict]:
-    """The historical monthly backfill runs (kind='backfill'), newest first — offered in the
-    'Jump to' menu as a separate group so the whole 2018→ archive is browsable by month, while
-    the genuine weekly releases stay listed on their own."""
+def dropdown_weeks(limit: int = 8) -> list[dict]:
+    """The latest N weekly releases for the 'Jump to' menu. Counts the ACTUAL analysed entities
+    (screened+compared) per release, not the runs table's n_compared which over-counts. Ordered
+    newest-first and capped at `limit`, so the menu auto-populates the most recent weeks as the
+    weekly watch runs."""
     with connect() as conn:
         rows = conn.execute(
-            """SELECT label, SUM(n_compared) n_compared
-               FROM runs WHERE status='done' AND kind='backfill'
-               GROUP BY label ORDER BY label DESC"""
+            """SELECT r.label, COUNT(e.entity_id) n_compared
+               FROM runs r JOIN entities e ON e.run_id = r.id
+                    AND e.status IN ('screened','compared')
+               WHERE r.status='done' AND r.kind='weekly'
+               GROUP BY r.label ORDER BY r.label DESC LIMIT ?""",
+            (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def list_backfill_months() -> list[dict]:
+    """The historical monthly backfill runs (kind='backfill'), newest first — offered in the
+    'Jump to' menu as a separate group so the whole 2018→ archive is browsable by month. Counts
+    the actual analysed entities per month (matching what the month's page shows)."""
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT r.label, COUNT(e.entity_id) n_compared
+               FROM runs r JOIN entities e ON e.run_id = r.id
+                    AND e.status IN ('screened','compared')
+               WHERE r.status='done' AND r.kind='backfill'
+               GROUP BY r.label ORDER BY r.label DESC"""
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def run_kind(label: str) -> Optional[str]:
+    """'weekly' | 'backfill' | None — lets the release page title itself 'Release month' vs
+    'Release week' for a given label."""
+    with connect() as conn:
+        r = conn.execute(
+            "SELECT kind FROM runs WHERE label=? AND status='done' LIMIT 1", (label,)
+        ).fetchone()
+        return r["kind"] if r else None
 
 
 def week_exists(label: str) -> bool:

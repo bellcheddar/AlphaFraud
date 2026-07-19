@@ -76,9 +76,9 @@
           // series and the black/red tick colours tie the numbers to the right axis.
           if (layout.yaxis2) layout.yaxis2.title = { text: "" };
           if (layout.yaxis3) layout.yaxis3.title = { text: "" };
-          if (!keepH) layout.height = 500;
-          layout.margin = { l: 52, r: 46, t: 34 + titleLines * 22, b: 158 };
-          var ty = -70 / layout.height;   // ~70px below the plot, whatever the height
+          if (!keepH) layout.height = 520;
+          layout.margin = { l: 52, r: 46, t: 34 + titleLines * 22, b: 184 };
+          var ty = -98 / layout.height;   // clear the x-axis title with breathing room
           // 50:50 row below the plot — legend on the LEFT (vertical), stats box on the RIGHT.
           // Wrap the box narrow enough to fit its half so it can't overlap the legend.
           if (hasL) layout.legend = Object.assign({}, layout.legend,
@@ -93,11 +93,12 @@
             l: keepH ? 122 : 56,
             r: rightAxis ? (layout.yaxis3 ? 58 : 46) : 22,
             t: 34 + titleLines * 22,
-            b: (keepH ? 78 : 56) + legRows * 34,
+            b: (keepH ? 104 : 84) + legRows * 34,
           };
-          // Legend just below the plot — a PIXEL offset (not a fraction of the plot height, which
-          // would drop it far below on tall ranked lists like the dumbbell).
-          var ly = -Math.min(0.24, 66 / layout.height);
+          // Legend below the plot — a PIXEL offset (not a fraction of the plot height, which
+          // would drop it far below on tall ranked lists like the dumbbell) — with enough gap to
+          // clear the x-axis title.
+          var ly = -Math.min(0.30, 94 / layout.height);
           if (hasL) layout.legend = Object.assign({}, layout.legend,
             { orientation: "h", x: 0.5, xanchor: "center", y: ly, yanchor: "top", font: { size: 10 } });
           if (hasL2) layout.legend2 = Object.assign({}, layout.legend2,

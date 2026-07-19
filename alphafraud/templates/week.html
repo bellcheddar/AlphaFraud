@@ -21,6 +21,9 @@
   <h1>All structures</h1>
   <p class="sub">Cumulative across every processed release week, to {{ today }}.</p>
   <p class="sub hint">💡 Pick a week from the <strong>Jump to</strong> menu below (or the <a href="{{ url_for('archive') }}">Archive</a> tab) to see that week's <strong>notable releases</strong> — the novel and confidently-wrong highlights called out for each release.</p>
+  {% elif is_backfill %}
+  <h1>Release month {{ label[:7] }}</h1>
+  <p class="sub">All human structures deposited in {{ label[:7] }} (from the historical archive backfill).</p>
   {% else %}
   <h1>Release week {{ label }}</h1>
   {% endif %}
@@ -29,7 +32,7 @@
     <select id="weekpick" onchange="if(this.value)window.location=this.value">
       <option value="{{ url_for('index') }}" {% if is_all %}selected{% endif %}>All structures</option>
       {% if weeks %}
-      <optgroup label="Weekly releases">
+      <optgroup label="Latest weekly releases">
         {% for w in weeks %}
         <option value="{{ url_for('week', label=w.label) }}" {% if not is_all and w.label == label %}selected{% endif %}>{{ w.label }} ({{ w.n_compared }})</option>
         {% endfor %}
@@ -55,7 +58,7 @@
 
   {% if highlights and not is_all %}
   <div class="card featured">
-    <h3 style="margin:0 0 4px">⭐ This week's notable releases</h3>
+    <h3 style="margin:0 0 4px">⭐ {% if is_backfill %}Notable releases this month{% else %}This week's notable releases{% endif %}</h3>
     <p class="verdict {{ highlights.severity }}">{{ highlights.verdict }}</p>
     {% if highlights.rows %}
     <div class="tablewrap">
