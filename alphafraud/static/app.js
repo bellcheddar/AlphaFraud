@@ -26,23 +26,49 @@
 
       var keepH = layout.meta && layout.meta.keepHeight && layout.height;
       if (mobile) {
+        var hasL2 = !!layout.legend2, hasL = !!layout.legend;
+        var legRows = (hasL ? 1 : 0) + (hasL2 ? 1 : 0);
+        var rightAxis = !!(layout.yaxis2 || layout.yaxis3);
         // Squarer aspect so bubbles aren't vertically squished on a narrow screen.
         // …except ranked lists (dumbbell) that declare their own required height.
-        if (!keepH) layout.height = Math.max(320, Math.round(w * 0.95));
-        var hasL2 = !!layout.legend2, hasL = !!layout.legend;
-        layout.margin = { l: keepH ? 132 : 46, r: 14, t: hasL2 ? 120 : (hasL ? 92 : 54), b: 58 };
+        if (!keepH) layout.height = Math.max(360, Math.round(w * 0.98)) + legRows * 30;
+        // Legends move BELOW the plot on mobile so they never collide with the title (which
+        // stays at the very top). Bottom margin grows to fit however many legend rows there are;
+        // right margin grows when there are right-hand axes (e.g. the trend's count/rate axes).
+        layout.margin = {
+          l: keepH ? 120 : 48,
+          r: rightAxis ? (layout.yaxis3 ? 56 : 42) : 14,
+          t: 44,
+          b: 52 + legRows * 34,
+        };
         if (layout.title) {
-          layout.title.font = Object.assign({}, layout.title.font, { size: 13 });
-          layout.title.x = 0.5; layout.title.xanchor = "center"; layout.title.y = 0.985;
+          layout.title.font = Object.assign({}, layout.title.font, { size: 12 });
+          layout.title.x = 0.5; layout.title.xanchor = "center";
+          layout.title.y = 0.99; layout.title.yanchor = "top";
         }
-        // Stack the two legends (colour above size) instead of side by side.
         if (hasL) layout.legend = Object.assign({}, layout.legend,
-          { x: 0, xanchor: "left", y: hasL2 ? 1.19 : 1.12, font: { size: 10 } });
+          { orientation: "h", x: 0.5, xanchor: "center", y: -0.2, yanchor: "top", font: { size: 10 } });
         if (hasL2) layout.legend2 = Object.assign({}, layout.legend2,
-          { x: 0, xanchor: "left", y: 1.09, font: { size: 10 } });
-        ["xaxis", "yaxis", "xaxis2", "yaxis2"].forEach(function (ax) {
+          { orientation: "h", x: 0.5, xanchor: "center", y: -0.2 - 0.14, yanchor: "top", font: { size: 10 } });
+        // Paper-anchored annotations (e.g. the trend's stats box) sit below the legends on
+        // mobile rather than floating over the data. (Data-anchored labels, like the scatter's
+        // "confidently wrong" tag inside its box, are left where they are.)
+        if (layout.annotations && layout.annotations.length) {
+          var annY = -0.2 - legRows * 0.14 - 0.1;
+          var moved = 0;
+          layout.annotations = layout.annotations.map(function (a) {
+            if (a && a.xref === "paper" && a.yref === "paper") {
+              moved += 1;
+              return Object.assign({}, a, { x: 0.0, xanchor: "left", y: annY, yanchor: "top",
+                align: "left", font: Object.assign({}, a.font, { size: 9.5 }) });
+            }
+            return a;
+          });
+          if (moved) { layout.margin.b += 50; layout.height += 40; }
+        }
+        ["xaxis", "yaxis", "xaxis2", "yaxis2", "yaxis3"].forEach(function (ax) {
           if (layout[ax] && layout[ax].title) {
-            layout[ax].title.font = Object.assign({}, layout[ax].title.font, { size: 11 });
+            layout[ax].title.font = Object.assign({}, layout[ax].title.font, { size: 10 });
           }
         });
       } else if (!layout.height) {
