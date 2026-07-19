@@ -76,29 +76,35 @@
           // series and the black/red tick colours tie the numbers to the right axis.
           if (layout.yaxis2) layout.yaxis2.title = { text: "" };
           if (layout.yaxis3) layout.yaxis3.title = { text: "" };
-          if (!keepH) layout.height = 470;
-          layout.margin = { l: 52, r: 46, t: 34 + titleLines * 22, b: 128 };
+          if (!keepH) layout.height = 500;
+          layout.margin = { l: 52, r: 46, t: 34 + titleLines * 22, b: 158 };
+          var ty = -70 / layout.height;   // ~70px below the plot, whatever the height
           // 50:50 row below the plot — legend on the LEFT (vertical), stats box on the RIGHT.
+          // Wrap the box narrow enough to fit its half so it can't overlap the legend.
           if (hasL) layout.legend = Object.assign({}, layout.legend,
-            { orientation: "v", x: 0, xanchor: "left", y: -0.18, yanchor: "top", font: { size: 9.5 } });
-          layout.annotations[annIdx] = Object.assign({}, layout.annotations[annIdx],
-            { x: 1, xanchor: "right", y: -0.18, yanchor: "top", align: "left",
-              font: Object.assign({}, layout.annotations[annIdx].font, { size: 9 }) });
+            { orientation: "v", x: 0, xanchor: "left", y: ty, yanchor: "top", font: { size: 9 } });
+          var ann = layout.annotations[annIdx];
+          layout.annotations[annIdx] = Object.assign({}, ann,
+            { x: 1, xanchor: "right", y: ty, yanchor: "top", align: "left",
+              text: (ann.text || "").split("<br>").map(function (s) { return wrapTitle(s, 26); }).join("<br>"),
+              font: Object.assign({}, ann.font, { size: 8.5 }) });
         } else {
           layout.margin = {
             l: keepH ? 122 : 56,
             r: rightAxis ? (layout.yaxis3 ? 58 : 46) : 22,
             t: 34 + titleLines * 22,
-            b: 60 + legRows * 36,
+            b: (keepH ? 78 : 56) + legRows * 34,
           };
-          // Legends below the plot, centred; my stats box (if any) below the legends.
+          // Legend just below the plot — a PIXEL offset (not a fraction of the plot height, which
+          // would drop it far below on tall ranked lists like the dumbbell).
+          var ly = -Math.min(0.24, 66 / layout.height);
           if (hasL) layout.legend = Object.assign({}, layout.legend,
-            { orientation: "h", x: 0.5, xanchor: "center", y: -0.22, yanchor: "top", font: { size: 10 } });
+            { orientation: "h", x: 0.5, xanchor: "center", y: ly, yanchor: "top", font: { size: 10 } });
           if (hasL2) layout.legend2 = Object.assign({}, layout.legend2,
-            { orientation: "h", x: 0.5, xanchor: "center", y: -0.22 - 0.15, yanchor: "top", font: { size: 10 } });
+            { orientation: "h", x: 0.5, xanchor: "center", y: ly - 44 / layout.height, yanchor: "top", font: { size: 10 } });
           if (annIdx >= 0) {
             layout.annotations[annIdx] = Object.assign({}, layout.annotations[annIdx],
-              { x: 0.0, xanchor: "left", y: -0.22 - legRows * 0.15 - 0.13, yanchor: "top",
+              { x: 0.0, xanchor: "left", y: ly - (legRows + 1) * 44 / layout.height, yanchor: "top",
                 align: "left", font: Object.assign({}, layout.annotations[annIdx].font, { size: 9.5 }) });
             layout.margin.b += 52; if (!stacked && !keepH) layout.height += 44;
           }
