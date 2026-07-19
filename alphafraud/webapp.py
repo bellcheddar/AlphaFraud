@@ -360,6 +360,7 @@ def _render_all():
         figures=payload["figures"],
         scatter_note=payload["scatter_note"],
         weeks=db.list_weeks(),
+        backfill_months=db.list_backfill_months(),
         version=__version__,
     )
 
@@ -389,6 +390,7 @@ def _render_week(label):
         figures=figures,
         scatter_note=report.sampling_note(entities),
         weeks=weeks,
+        backfill_months=db.list_backfill_months(),
         version=__version__,
     )
 

@@ -46,6 +46,12 @@
         var stacked = !!(layout.yaxis2 && !layout.yaxis2.overlaying);
         var rightAxis = !!((layout.yaxis2 && layout.yaxis2.overlaying) ||
                            (layout.yaxis3 && layout.yaxis3.overlaying));
+        // Index of MY stats box (a paper annotation with a bgcolor) — not make_subplots' titles.
+        var annIdx = -1;
+        (layout.annotations || []).forEach(function (a, i) {
+          if (a && a.xref === "paper" && a.yref === "paper" && a.bgcolor) annIdx = i;
+        });
+        var trendLike = rightAxis && annIdx >= 0;   // the 3-axis trend with a stats box
         // Wrap a long title so it doesn't clip off the edges.
         var titleLines = 1;
         if (layout.title) {
@@ -54,45 +60,49 @@
             layout.title.text = wrapTitle(layout.title.text, 30);
             titleLines = layout.title.text.split("<br>").length;
           }
-        }
-        // Keep the tall server height for stacked subplots / ranked lists; otherwise size to width.
-        if (!keepH && !stacked) layout.height = Math.max(360, Math.round(w * 0.98)) + legRows * 30;
-        // Generous padding all round: title room on top (grows with wrapped lines), legends
-        // below (bottom margin grows per legend row), roomy sides.
-        layout.margin = {
-          l: keepH ? 122 : 56,
-          r: rightAxis ? (layout.yaxis3 ? 58 : 46) : 22,
-          t: 34 + titleLines * 22,
-          b: 60 + legRows * 36,
-        };
-        if (layout.title) {
           layout.title.font = Object.assign({}, layout.title.font, { size: 12.5 });
           layout.title.x = 0.5; layout.title.xanchor = "center";
         }
-        if (hasL) layout.legend = Object.assign({}, layout.legend,
-          { orientation: "h", x: 0.5, xanchor: "center", y: -0.22, yanchor: "top", font: { size: 10 } });
-        if (hasL2) layout.legend2 = Object.assign({}, layout.legend2,
-          { orientation: "h", x: 0.5, xanchor: "center", y: -0.22 - 0.15, yanchor: "top", font: { size: 10 } });
-        // Move ONLY my own annotation boxes (identified by their bgcolor) below the legends —
-        // NOT the subplot titles that make_subplots adds as paper-anchored annotations.
-        if (layout.annotations && layout.annotations.length) {
-          var annY = -0.22 - legRows * 0.15 - 0.13;
-          var moved = 0;
-          layout.annotations = layout.annotations.map(function (a) {
-            if (a && a.xref === "paper" && a.yref === "paper" && a.bgcolor) {
-              moved += 1;
-              return Object.assign({}, a, { x: 0.0, xanchor: "left", y: annY, yanchor: "top",
-                align: "left", font: Object.assign({}, a.font, { size: 9.5 }) });
-            }
-            return a;
-          });
-          if (moved) { layout.margin.b += 52; if (!stacked && !keepH) layout.height += 44; }
-        }
+        // Keep the tall server height for stacked subplots / ranked lists; otherwise size to width.
+        if (!keepH && !stacked) layout.height = Math.max(360, Math.round(w * 0.98)) + legRows * 30;
         ["xaxis", "yaxis", "xaxis2", "yaxis2", "xaxis3", "yaxis3"].forEach(function (ax) {
           if (layout[ax] && layout[ax].title) {
             layout[ax].title.font = Object.assign({}, layout[ax].title.font, { size: 10 });
           }
         });
+
+        if (trendLike) {
+          // The two right-hand axis titles overlap on a phone; drop them — the legend names each
+          // series and the black/red tick colours tie the numbers to the right axis.
+          if (layout.yaxis2) layout.yaxis2.title = { text: "" };
+          if (layout.yaxis3) layout.yaxis3.title = { text: "" };
+          if (!keepH) layout.height = 470;
+          layout.margin = { l: 52, r: 46, t: 34 + titleLines * 22, b: 128 };
+          // 50:50 row below the plot — legend on the LEFT (vertical), stats box on the RIGHT.
+          if (hasL) layout.legend = Object.assign({}, layout.legend,
+            { orientation: "v", x: 0, xanchor: "left", y: -0.18, yanchor: "top", font: { size: 9.5 } });
+          layout.annotations[annIdx] = Object.assign({}, layout.annotations[annIdx],
+            { x: 1, xanchor: "right", y: -0.18, yanchor: "top", align: "left",
+              font: Object.assign({}, layout.annotations[annIdx].font, { size: 9 }) });
+        } else {
+          layout.margin = {
+            l: keepH ? 122 : 56,
+            r: rightAxis ? (layout.yaxis3 ? 58 : 46) : 22,
+            t: 34 + titleLines * 22,
+            b: 60 + legRows * 36,
+          };
+          // Legends below the plot, centred; my stats box (if any) below the legends.
+          if (hasL) layout.legend = Object.assign({}, layout.legend,
+            { orientation: "h", x: 0.5, xanchor: "center", y: -0.22, yanchor: "top", font: { size: 10 } });
+          if (hasL2) layout.legend2 = Object.assign({}, layout.legend2,
+            { orientation: "h", x: 0.5, xanchor: "center", y: -0.22 - 0.15, yanchor: "top", font: { size: 10 } });
+          if (annIdx >= 0) {
+            layout.annotations[annIdx] = Object.assign({}, layout.annotations[annIdx],
+              { x: 0.0, xanchor: "left", y: -0.22 - legRows * 0.15 - 0.13, yanchor: "top",
+                align: "left", font: Object.assign({}, layout.annotations[annIdx].font, { size: 9.5 }) });
+            layout.margin.b += 52; if (!stacked && !keepH) layout.height += 44;
+          }
+        }
       } else if (!layout.height) {
         layout.height = 440;
       }

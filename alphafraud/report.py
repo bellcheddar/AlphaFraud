@@ -311,13 +311,14 @@ def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
     for i, e in enumerate(ranked):
         cx += [e["tm_by_experiment"], e["mean_plddt"] / 100.0, None]
         cy += [i, i, None]
-    fig.add_trace(go.Scatter(x=cx, y=cy, mode="lines", showlegend=False, hoverinfo="skip",
-                             line=dict(color="rgba(120,140,160,0.5)", width=2)))
+    fig.add_trace(go.Scatter(x=cx, y=cy, mode="lines", hoverinfo="skip",
+                             name="difference (the miss)", legendrank=3,
+                             line=dict(color="rgba(120,140,160,0.6)", width=2)))
 
     ys = list(range(n))
     fig.add_trace(go.Scatter(
         x=[e["tm_by_experiment"] for e in ranked], y=ys, mode="markers",
-        name="actual (TM-score)", cliponaxis=False,
+        name="actual (TM-score)", cliponaxis=False, legendrank=1,
         marker=dict(color=BRAND["red"], size=9, line=dict(width=0.6, color="white")),
         customdata=cd,
         hovertemplate=("<b>%{customdata[0]}</b><br>%{customdata[1]}<br>"
@@ -327,7 +328,7 @@ def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
     ))
     fig.add_trace(go.Scatter(
         x=[e["mean_plddt"] / 100.0 for e in ranked], y=ys, mode="markers",
-        name="AlphaFold claim (pLDDT)", cliponaxis=False,
+        name="AlphaFold claim (pLDDT)", cliponaxis=False, legendrank=2,
         marker=dict(color=BRAND["primary"], size=9, line=dict(width=0.6, color="white")),
         customdata=cd,
         hovertemplate=("<b>%{customdata[0]}</b><br>%{customdata[1]}<br>"
@@ -338,7 +339,7 @@ def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
 
     fig.update_layout(
         title=f"The {n} worst proteins: what AlphaFold promised vs. what the structure showed",
-        xaxis_title="score 0–1  (TM-score ● · pLDDT/100 ●)",
+        xaxis_title="score (0–1)",
         legend=dict(orientation="h", y=1.03, x=0, itemsizing="constant"),
         # Tall, fixed-height list: ~19 px/row. app.js honours meta.keepHeight on mobile.
         height=max(320, 132 + 19 * n),

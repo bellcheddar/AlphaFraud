@@ -318,6 +318,19 @@ def list_weeks() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def list_backfill_months() -> list[dict]:
+    """The historical monthly backfill runs (kind='backfill'), newest first — offered in the
+    'Jump to' menu as a separate group so the whole 2018→ archive is browsable by month, while
+    the genuine weekly releases stay listed on their own."""
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT label, SUM(n_compared) n_compared
+               FROM runs WHERE status='done' AND kind='backfill'
+               GROUP BY label ORDER BY label DESC"""
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def week_exists(label: str) -> bool:
     """Any completed run with this label (weekly OR backfill) — lets a historical month still
     load by direct URL even though it isn't listed among the weekly releases."""

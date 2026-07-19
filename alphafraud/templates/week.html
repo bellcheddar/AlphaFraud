@@ -28,9 +28,20 @@
     <label for="weekpick">Jump to:</label>
     <select id="weekpick" onchange="if(this.value)window.location=this.value">
       <option value="{{ url_for('index') }}" {% if is_all %}selected{% endif %}>All structures</option>
-      {% for w in weeks %}
-      <option value="{{ url_for('week', label=w.label) }}" {% if not is_all and w.label == label %}selected{% endif %}>{{ w.label }} ({{ w.n_compared }})</option>
-      {% endfor %}
+      {% if weeks %}
+      <optgroup label="Weekly releases">
+        {% for w in weeks %}
+        <option value="{{ url_for('week', label=w.label) }}" {% if not is_all and w.label == label %}selected{% endif %}>{{ w.label }} ({{ w.n_compared }})</option>
+        {% endfor %}
+      </optgroup>
+      {% endif %}
+      {% if backfill_months %}
+      <optgroup label="Archive — by deposit month">
+        {% for w in backfill_months %}
+        <option value="{{ url_for('week', label=w.label) }}" {% if not is_all and w.label == label %}selected{% endif %}>{{ w.label[:7] }} ({{ w.n_compared }})</option>
+        {% endfor %}
+      </optgroup>
+      {% endif %}
     </select>
   </div>
 
