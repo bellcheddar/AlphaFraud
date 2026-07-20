@@ -7,13 +7,13 @@
   <p class="sub">Two ways to browse AlphaFold's failures. Every week we automatically catch the single most
   striking confidently-wrong structure from that week's PDB release and build its panel straight from the
   AlphaFraud metrics. Beneath the weekly archive sit our hand-curated deep-dives — worst-offenders explored
-  in depth. In every viewer the colouring is Cα deviation from the AlphaFold model (blue = agree, red = wrong).</p>
+  in depth.</p>
 
   {% if featured %}
   <div class="exsection">
     <h2 class="exsection-h">🎣 Fresh catch — example of the week {{ featured.week }}</h2>
     <p class="sub">Auto-selected from this release's confidently-wrong catches and written deterministically
-    from the database — no hand-curation. (Biology is left to the curated deep-dives below.)</p>
+    from the database — no hand-curation.</p>
   </div>
   {% set x = featured %}
   {% include "_expanel.html" %}
