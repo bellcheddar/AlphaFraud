@@ -238,6 +238,7 @@ python3 AlphaFraud.py serve --port 8000
 </table></div>
 <h2>📊 Output</h2>
 <p>The web app serves live from SQLite. Every plot carries a plain-language explanatory panel (what the axes mean, the cutoffs, a take-home summary, and a per-metric breakdown giving both a lay explanation and the equation, e.g. <code>TM = (1/L) Σᵢ 1/(1 + (dᵢ/d₀)²)</code>) plus a CSV export; every table exports to CSV too.</p>
+<p>The site is live at <strong><a href="https://alphafraud.mdeller.com/">alphafraud.mdeller.com</a></strong>.</p>
 <div class="emd-table-wrap"><table class="emd-data-table">
 <thead>
 <tr>
@@ -247,7 +248,7 @@ python3 AlphaFraud.py serve --port 8000
 </thead>
 <tbody>
 <tr>
-<td data-label="Route"><code>/</code></td>
+<td data-label="Route"><a href="https://alphafraud.mdeller.com/"><code>/</code></a></td>
 <td data-label="Shows">Cumulative dashboard across every processed week: KPIs, the pLDDT-vs-TM fraud-quadrant scatter, metric histograms, the weekly trend, and a top-ranked table. A pulldown jumps to any single week</td>
 </tr>
 <tr>
@@ -259,19 +260,19 @@ python3 AlphaFraud.py serve --port 8000
 <td data-label="Shows">Per-structure detail: per-residue error tracks, calibration scatter, distance-matrix and PAE-vs-observed heatmaps, per-domain breakdown, and every metric</td>
 </tr>
 <tr>
-<td data-label="Route"><code>/leaderboard</code></td>
+<td data-label="Route"><a href="https://alphafraud.mdeller.com/leaderboard"><code>/leaderboard</code></a></td>
 <td data-label="Shows">The all-time worst AlphaFold failures across every processed week</td>
 </tr>
 <tr>
-<td data-label="Route"><code>/analysis</code></td>
+<td data-label="Route"><a href="https://alphafraud.mdeller.com/analysis"><code>/analysis</code></a></td>
 <td data-label="Shows">Structural deep dive over the worst offenders: fold/family enrichment (Wilson-CI + Fisher), sequence-similarity clustering, failure-mode PCA, theme flags, per-superfamily blind-spot scorecards, conformational-heterogeneity detection, a "new this week" ribbon, and RCSB + DOI links on every structure</td>
 </tr>
 <tr>
-<td data-label="Route"><code>/examples</code></td>
+<td data-label="Route"><a href="https://alphafraud.mdeller.com/examples"><code>/examples</code></a></td>
 <td data-label="Shows">Curated storytelling layer: a positive control (an excellent AlphaFold match), an auto-generated "example of the week" plus a full weekly-release archive, and hand-authored deep-dive panels with interactive viewers (see below)</td>
 </tr>
 <tr>
-<td data-label="Route"><code>/archive</code></td>
+<td data-label="Route"><a href="https://alphafraud.mdeller.com/archive"><code>/archive</code></a></td>
 <td data-label="Shows">Every PDB release week since the 2018 cutoff, at weekly granularity, each linking to that week's structures and confidently-wrong count</td>
 </tr>
 <tr>
@@ -281,14 +282,366 @@ python3 AlphaFraud.py serve --port 8000
 </tbody>
 </table></div>
 <h2>🔬 Examples</h2>
-<p>The <strong>Examples</strong> tab turns raw catches into readable stories and deliberately shows both sides of AlphaFold's record, not just the failures:</p>
+<p>The <strong><a href="https://alphafraud.mdeller.com/examples">Examples</a></strong> tab turns raw catches into readable stories and deliberately shows both sides of AlphaFold's record, not just the failures:</p>
 <ul>
-<li><strong>A positive control.</strong> The page opens with the one thing the rest of the site does not: an <em>excellent</em> match. Human Artemis (DCLRE1C), a genuinely novel post-cutoff nuclease (only 29% identity to anything AlphaFold trained on), was predicted blind to TM-score 0.996, lDDT 0.985 and 0.45 Å Cα-RMSD at a justified mean pLDDT of 95, and AlphaFraud scores it FRAUD 0.02. It is the proof that the pipeline certifies good predictions, not just hunts for bad ones.</li>
-<li><strong>An auto "example of the week".</strong> After every weekly run the pipeline picks that release's most instructive confidently-wrong catch and writes its panel deterministically from the database (no LLM), badged and dated.</li>
-<li><strong>A complete weekly archive.</strong> Every PDB release week since the 2018 cutoff is listed: weeks with a catch expand to a full panel with its Cα-deviation ribbon, and the quiet weeks (where AlphaFold was never overconfident) are recorded too, collapsed to the most recent by default.</li>
-<li><strong>Curated deep-dives.</strong> Hand-authored panels across the failure spectrum: ordinary single-chain globular folds AlphaFold gets <em>subtly</em> wrong (right fold, wrong conformation or assembly — the PP2A scaffold, STIM1, Aha1, WWP2) and the dramatic whole-fold catastrophes (TMEM106B, alpha-synuclein, transthyretin, factor X). Each panel carries live metrics, an interactive 3Dmol.js viewer (deviation colouring plus the AlphaFold "ghost") and a structure / mechanism / disease write-up.</li>
-<li><strong>Linked from the scatter.</strong> The curated examples are overlaid on the home fraud-quadrant plot as pulsing red (failure) and green (accurate) markers, each labelled with its protein name and clickable straight through to its panel.</li>
+<li><strong>A positive control.</strong> The page opens with the one thing the rest of the site does not: an <em>excellent</em> match. Human <strong><a href="https://alphafraud.mdeller.com/examples#ex-6TT5_1">Artemis (DCLRE1C)</a></strong>, a genuinely novel post-cutoff nuclease (only 29% identity to anything AlphaFold trained on), was predicted blind to TM-score 0.996, lDDT 0.985 and 0.45 Å Cα-RMSD at a justified mean pLDDT of 95, and AlphaFraud scores it FRAUD 0.02. It is the proof that the pipeline certifies good predictions, not just hunts for bad ones.</li>
+<li><strong>An auto <a href="https://alphafraud.mdeller.com/examples">"example of the week"</a>.</strong> After every weekly run the pipeline picks that release's most instructive confidently-wrong catch and writes its panel deterministically from the database (no LLM), badged and dated.</li>
+<li><strong>A <a href="https://alphafraud.mdeller.com/examples">complete weekly archive</a>.</strong> Every PDB release week since the 2018 cutoff is listed: weeks with a catch expand to a full panel with its Cα-deviation ribbon, and the quiet weeks (where AlphaFold was never overconfident) are recorded too, collapsed to the most recent by default.</li>
+<li><strong>Curated deep-dives.</strong> Hand-authored panels across the failure spectrum: ordinary single-chain globular folds AlphaFold gets <em>subtly</em> wrong (right fold, wrong conformation or assembly — the <a href="https://alphafraud.mdeller.com/examples#ex-8UWB_3">PP2A scaffold</a>, <a href="https://alphafraud.mdeller.com/examples#ex-6YEL_1">STIM1</a>, <a href="https://alphafraud.mdeller.com/examples#ex-7DME_1">Aha1</a>, <a href="https://alphafraud.mdeller.com/examples#ex-6RSS_1">WWP2</a>) and the dramatic whole-fold catastrophes (<a href="https://alphafraud.mdeller.com/examples#ex-7U14_1">TMEM106B</a>, <a href="https://alphafraud.mdeller.com/examples#ex-9A1Q_1">alpha-synuclein</a>, <a href="https://alphafraud.mdeller.com/examples#ex-9BZS_1">transthyretin</a>, <a href="https://alphafraud.mdeller.com/examples#ex-6Q9F_2">factor X</a>). Each panel carries live metrics, an interactive 3Dmol.js viewer (deviation colouring plus the AlphaFold "ghost") and a structure / mechanism / disease write-up.</li>
+<li><strong>Linked from the scatter.</strong> The curated examples are overlaid on the <a href="https://alphafraud.mdeller.com/">home fraud-quadrant plot</a> as pulsing red (failure) and green (accurate) markers, each labelled with its protein name and clickable straight through to its panel.</li>
 </ul>
+<p>Each panel is summarised below — click any title to open its live, interactive version. Metrics: <strong>TM-score</strong> and <strong>lDDT</strong> (1.0 = identical), <strong>Cα-RMSD</strong> (0 Å = identical), <strong>pLDDT</strong> (AlphaFold's own confidence, 0–100), <strong>FRAUD</strong> (confidence-weighted error, higher = worse), <strong>novelty</strong> (100% = wholly unseen before AlphaFold's cutoff).</p>
+<h3>🟢 Protein Artemis (DCLRE1C) · <a href="https://alphafraud.mdeller.com/examples#ex-6TT5_1"><code>6TT5_1</code></a></h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Field</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Field"><strong>Take-home</strong></td>
+<td data-label="Detail">A novel post-cutoff nuclease AlphaFold predicted blind almost perfectly — the control proving AlphaFraud certifies good predictions, not only failures</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>KPIs</strong></td>
+<td data-label="Detail">TM <strong>0.996</strong> · lDDT 0.985 · pLDDT 95.2 · Cα-RMSD 0.45 Å · FRAUD <strong>0.02</strong> · novelty 71%</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Stats</strong></td>
+<td data-label="Detail">11 depositions, <strong>0</strong> confidently wrong · SS-Q3 92.5% · pLDDT↔lDDT +0.56 (calibrated)</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Structure</strong></td>
+<td data-label="Detail">Metallo-β-lactamase + β-CASP nuclease domain with a Zn active site; the disordered regulatory C-terminus sits (correctly) outside the crystallised fold</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Why AlphaFold gets it right</strong></td>
+<td data-label="Detail">A single, conserved globular domain with a deep MSA and one native conformation — AlphaFold's ideal regime; confidence is earned (PAE-overconfident 0.00)</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Biology &amp; disease</strong></td>
+<td data-label="Detail">NHEJ endonuclease that opens V(D)J hairpins with DNA-PKcs; loss of function causes radiosensitive SCID / Omenn; pursued as a radiosensitiser drug target</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Key fact</strong></td>
+<td data-label="Detail">29% identity to anything pre-cutoff yet GDT_TS 99.2 — genuine generalisation, not memorisation</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🔴 PP2A scaffold subunit A / PR65 (PPP2R1A) · <a href="https://alphafraud.mdeller.com/examples#ex-8UWB_3"><code>8UWB_3</code></a></h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Field</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Field"><strong>Take-home</strong></td>
+<td data-label="Detail">Near-maximal confidence (pLDDT 97) on a flexible 15-HEAT solenoid whose curvature is wrong for 99% of residues</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>KPIs</strong></td>
+<td data-label="Detail">TM 0.293 · lDDT 0.311 · pLDDT 96.8 · Cα-RMSD 15.0 Å · FRAUD 0.77 · novelty 0%</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Stats</strong></td>
+<td data-label="Detail">26 depositions, 1 confidently wrong (this one) · pLDDT↔lDDT −0.13 (confidence carries no signal)</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Structure</strong></td>
+<td data-label="Detail">15 tandem HEAT repeats forming a horseshoe α-solenoid — a spring, not a fixed ruler</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Why AlphaFold gets it wrong</strong></td>
+<td data-label="Detail">Local helices are right, but tiny per-repeat hinge errors compound across 15 repeats into a grossly wrong global shape — a curvature failure, not a fold failure</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Biology &amp; disease</strong></td>
+<td data-label="Detail">Sole scaffold of the PP2A tumour-suppressor phosphatase; cancer hotspots (P179R, R183, S256F…) cluster in the B56-binding repeats</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Key fact</strong></td>
+<td data-label="Detail">The source paper needed an experimental trimer structure to guide the prediction</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🔴 Stromal interaction molecule 1 / CC1 (STIM1) · <a href="https://alphafraud.mdeller.com/examples#ex-6YEL_1"><code>6YEL_1</code></a></h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Field</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Field"><strong>Take-home</strong></td>
+<td data-label="Detail">A bistable three-helix Ca²⁺ switch; AlphaFold committed to one conformer, the structure is the other</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>KPIs</strong></td>
+<td data-label="Detail">TM 0.389 · lDDT 0.341 · pLDDT 78.9 · Cα-RMSD 35.8 Å · FRAUD 0.75 · novelty 2%</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Stats</strong></td>
+<td data-label="Detail">1 deposition, confidently wrong · SS-Q3 69.6% (secondary structure right, packing wrong)</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Structure</strong></td>
+<td data-label="Detail">CC1 is a compact antiparallel three-helix bundle that toggles between clamped (resting) and extended (active) states</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Why AlphaFold gets it wrong</strong></td>
+<td data-label="Detail">Right fold class, wrong tertiary packing — a single-answer predictor cannot represent a two-state switch</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Biology &amp; disease</strong></td>
+<td data-label="Detail">Gates store-operated Ca²⁺ entry via Orai1; gain-of-function → Stormorken / tubular aggregate myopathy; loss → CRAC-channelopathy</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Key fact</strong></td>
+<td data-label="Detail">35.8 Å RMSD with correct secondary structure = a conformer error, not a misfold</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🔴 Activator of Hsp90 ATPase 1 / Aha1 (AHSA1) · <a href="https://alphafraud.mdeller.com/examples#ex-7DME_1"><code>7DME_1</code></a></h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Field</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Field"><strong>Take-home</strong></td>
+<td data-label="Detail">Two well-folded domains bolted together at the wrong angle — a flexible-linker ensemble collapsed to one guess</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>KPIs</strong></td>
+<td data-label="Detail">TM 0.432 · lDDT 0.748 · pLDDT 83.3 · Cα-RMSD 23.4 Å · FRAUD 0.82 · novelty 0%</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Stats</strong></td>
+<td data-label="Detail">4 depositions, 1 confidently wrong · pLDDT↔lDDT +0.33 (high confidence hides the joint)</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Structure</strong></td>
+<td data-label="Detail">N- and C-terminal domains on a partly-ordered linker; each folds correctly in isolation</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Why AlphaFold gets it wrong</strong></td>
+<td data-label="Detail">Domains are right (lDDT 0.75) but their relative orientation is wrong (TM 0.43) — a conformational-ensemble failure, not a misfold</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Biology &amp; disease</strong></td>
+<td data-label="Detail">Strongest stimulator of the Hsp90 ATPase; drives ΔF508-CFTR maturation (cystic-fibrosis target) and pathological tau</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Key fact</strong></td>
+<td data-label="Detail">The pieces are right; only the assembly instruction is wrong</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🔴 NEDD4-like E3 ligase WWP2 / WW module (WWP2) · <a href="https://alphafraud.mdeller.com/examples#ex-6RSS_1"><code>6RSS_1</code></a></h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Field</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Field"><strong>Take-home</strong></td>
+<td data-label="Detail">A tiny two-Trp β-sheet AlphaFold folds fine, but the deposited chain's inter-module geometry is flexible — and, tellingly, the model was honestly unsure</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>KPIs</strong></td>
+<td data-label="Detail">TM 0.46 · lDDT 0.503 · pLDDT 74.5 · Cα-RMSD 21.9 Å · FRAUD 0.71 · novelty 8%</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Stats</strong></td>
+<td data-label="Detail">7 depositions, 1 confidently wrong · pLDDT↔lDDT +0.15 (lowest confidence of the set)</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Structure</strong></td>
+<td data-label="Detail">NEDD4-family HECT E3 ligase; the WW domain is a ~38-residue three-stranded antiparallel β-sheet that reads PPxY motifs</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Why AlphaFold gets it wrong</strong></td>
+<td data-label="Detail">Uncertain relative orientation between small folded modules — and its low pLDDT half-admits the uncertainty</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Biology &amp; disease</strong></td>
+<td data-label="Detail">Ubiquitinates SMAD7, PTEN, TP53, OCT4; isoform balance shifts drive EMT and metastasis</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Key fact</strong></td>
+<td data-label="Detail">The "honest" failure of the set — low confidence tracking real uncertainty</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🔴 Transmembrane protein 106B (TMEM106B) · <a href="https://alphafraud.mdeller.com/examples#ex-7U14_1"><code>7U14_1</code></a></h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Field</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Field"><strong>Take-home</strong></td>
+<td data-label="Detail">AlphaFold built a tidy globular β-sandwich at pLDDT 94; the real structure is a novel brain amyloid — every ordered residue wrong</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>KPIs</strong></td>
+<td data-label="Detail">TM 0.157 · lDDT 0.536 · pLDDT 94.4 · Cα-RMSD 27.1 Å · FRAUD 0.87 · novelty <strong>100%</strong></td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Stats</strong></td>
+<td data-label="Detail">29 depositions, <strong>27</strong> confidently wrong · pLDDT↔lDDT 0.03 (confidence uninformative)</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Structure</strong></td>
+<td data-label="Detail">Native luminal domain is a fibronectin-III β-sandwich; the deposited form is a five-layered cross-β amyloid core</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Why AlphaFold gets it wrong</strong></td>
+<td data-label="Detail">Amyloid is a self-templating polymer state absent from training, and the sequence is 100% novel — nothing steers it off its globular prior</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Biology &amp; disease</strong></td>
+<td data-label="Detail">Lysosomal protein; top GWAS hit for FTLD-TDP; its C-terminal domain forms fibrils across ageing and neurodegeneration</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Key fact</strong></td>
+<td data-label="Detail">100% sequence-novel — no pre-2018 fibril template existed</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🔴 Alpha-synuclein (SNCA) · <a href="https://alphafraud.mdeller.com/examples#ex-9A1Q_1"><code>9A1Q_1</code></a></h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Field</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Field"><strong>Take-home</strong></td>
+<td data-label="Detail">A protein with no single fold; AlphaFold's confidence is actively <em>anti</em>-correlated with accuracy</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>KPIs</strong></td>
+<td data-label="Detail">TM 0.138 · lDDT 0.177 · pLDDT 75.2 · Cα-RMSD 36.3 Å · FRAUD 0.71 · novelty 0%</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Stats</strong></td>
+<td data-label="Detail"><strong>210</strong> depositions, <strong>206</strong> confidently wrong — the archive's most-repeated failure · pLDDT↔lDDT −0.29</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Structure</strong></td>
+<td data-label="Detail">140-residue intrinsically disordered monomer; the deposited forms are cryo-EM cross-β fibrils</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Why AlphaFold gets it wrong</strong></td>
+<td data-label="Detail">No native fold to predict, and polymorph-specific packing is not in the sequence — where it is more confident it is measurably more wrong</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Biology &amp; disease</strong></td>
+<td data-label="Detail">Presynaptic protein; fibrils define Parkinson's, DLB and multiple system atrophy; PD mutations A30P/E46K/H50Q/G51D/A53T</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Key fact</strong></td>
+<td data-label="Detail">210 depositions, 206 confidently wrong — the most-deposited catch on the site</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🔴 Transthyretin (TTR) · <a href="https://alphafraud.mdeller.com/examples#ex-9BZS_1"><code>9BZS_1</code></a></h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Field</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Field"><strong>Take-home</strong></td>
+<td data-label="Detail">pLDDT 98 on the native tetramer fold; the deposited cardiac amyloid fibril scores TM 0.21 — one of the starkest confidently-wrong cases</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>KPIs</strong></td>
+<td data-label="Detail">TM 0.214 · lDDT 0.489 · pLDDT 98.0 · Cα-RMSD 22.8 Å · FRAUD <strong>0.95</strong> · novelty 0%</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Stats</strong></td>
+<td data-label="Detail">160 depositions, 34 confidently wrong · pLDDT↔lDDT −0.16</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Structure</strong></td>
+<td data-label="Detail">Native 127-aa β-sandwich homotetramer with thyroxine sites; the amyloid form is a cross-β fibril from cleaved segments</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Why AlphaFold gets it wrong</strong></td>
+<td data-label="Detail">A wrong-<em>state</em> failure: pLDDT measures confidence in the known native fold, not whether a deposition <em>is</em> that state; TTR is 0% novel, squarely in training</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Biology &amp; disease</strong></td>
+<td data-label="Detail">Thyroxine/retinol transporter; ATTR amyloidosis (wild-type cardiac + hereditary V30M); uniquely druggable (tafamidis, patisiran)</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Key fact</strong></td>
+<td data-label="Detail">FRAUD 0.95 — near the very top of the whole site</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🔴 Coagulation factor X (F10) · <a href="https://alphafraud.mdeller.com/examples#ex-6Q9F_2"><code>6Q9F_2</code></a></h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Field</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Field"><strong>Take-home</strong></td>
+<td data-label="Detail">Not a refold but a wrong-<em>context</em> capture — a 39-residue EGF1 fragment threaded through a partner enzyme's active site</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>KPIs</strong></td>
+<td data-label="Detail">TM 0.127 · lDDT 0.468 · pLDDT 93.5 · Cα-RMSD 6.6 Å · FRAUD 0.37 · novelty 0%</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Stats</strong></td>
+<td data-label="Detail">47 depositions, 26 confidently wrong · pLDDT↔lDDT −0.59</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Structure</strong></td>
+<td data-label="Detail">Modular zymogen (Gla–EGF1–EGF2–protease); the worst deposition is a linear EGF1 peptide in AspH's channel, not a folded module</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Why AlphaFold gets it wrong</strong></td>
+<td data-label="Detail">A context failure, not aggregation — the RMSD is modest (6.6 Å) but TM collapses because a linear fragment has no compact fold to superpose</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Biology &amp; disease</strong></td>
+<td data-label="Detail">Central coagulation zymogen; activated factor Xa is the target of rivaroxaban, apixaban and edoxaban</td>
+</tr>
+<tr>
+<td data-label="Field"><strong>Key fact</strong></td>
+<td data-label="Detail">The non-amyloid contrast — the error is missing biological context (fragment / complex / PTM), not misfolding</td>
+</tr>
+</tbody>
+</table></div>
 <h2>🧮 Coverage and skipped entities</h2>
 <p>Not every deposited entity can be compared. AlphaFold DB holds a single model per human UniProt sequence (monomers only), so anything that does not map cleanly to one accession, has no model covering its resolved range, or is too small or too large to compare is recorded as <em>skipped</em> rather than forced through.</p>
 <p>The completed full-archive backfill (finished 2026-07-18) processed <strong>96,827</strong> post-cutoff human entities: <strong>82,796 analysed</strong> (85.5%; 67,314 fast-screened plus 15,482 fully compared), <strong>1,941 confidently wrong</strong> (2.3% of analysed, 431 of them sequence-novel), <strong>13,908 skipped</strong> (14.4%), and <strong>123 unrecoverable errors</strong> (0.1%, broken coordinate-less files). The skips break down as:</p>
