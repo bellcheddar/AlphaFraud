@@ -183,9 +183,11 @@ def _downsample_points(entities: list[dict], cap: int = 6000) -> tuple[list[dict
     return kept, len(entities) - len(kept)
 
 
-def fraud_scatter(entities: list[dict], zoom: bool = False) -> str:
+def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dict] = None) -> str:
     """The pLDDT-vs-TM 'fraud quadrant'. `zoom=True` restricts the axes to just the
-    confidently-wrong region (pLDDT ≥ CONFIDENT_PLDDT, TM < WRONG_TM) for a closer look."""
+    confidently-wrong region (pLDDT ≥ CONFIDENT_PLDDT, TM < WRONG_TM) for a closer look.
+    `highlights` overlays the curated deep-dive examples as clickable, pulsing stars (green =
+    the accurate control, red = the failures), each linking to its Examples-tab panel."""
     points, omitted = _downsample_points(entities)
     fig = go.Figure()
     # Shade the fraud quadrant: confident (pLDDT > threshold) yet wrong (TM < threshold).
@@ -229,6 +231,19 @@ def fraud_scatter(entities: list[dict], zoom: bool = False) -> str:
         fig.add_trace(go.Scatter(
             x=[None], y=[None], mode="markers", name=f"FRAUD {frac}", legend="legend2",
             marker=dict(color="rgba(120,140,160,0.75)", size=6 + 20 * frac, line=dict(width=0.4, color="white")),
+        ))
+    # Overlay the curated deep-dive examples as clickable, pulsing stars (drawn last = on top).
+    if highlights and not zoom:
+        fig.add_trace(go.Scatter(
+            x=[h["x"] for h in highlights], y=[h["y"] for h in highlights],
+            mode="markers", name="★ deep-dive examples", meta={"example": True}, cliponaxis=False,
+            marker=dict(
+                symbol="star", size=17,
+                color=[("#0a8a4f" if h.get("good") else BRAND["red"]) for h in highlights],
+                line=dict(width=1.6, color="white")),
+            customdata=[[h["eid"], h["name"], h["href"], h["mode"]] for h in highlights],
+            hovertemplate=("<b>%{customdata[1]}</b><br>%{customdata[3]}<br>"
+                           "▶ click to open the deep-dive<extra></extra>"),
         ))
     title = ("Confidently wrong — zoomed on the red zone (high confidence, low agreement)"
              if zoom else "AlphaFold confidence vs. agreement with experiment")

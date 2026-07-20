@@ -3,7 +3,7 @@
 {% macro r2(v) %}{% if v is none %}—{% elif v is number %}{{ '%.2f'|format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
 {% macro stat(label, val, cls='') %}<div class="exstat {{ cls }}"><div class="exstat-n">{{ val }}</div><div class="exstat-l">{{ label }}</div></div>{% endmacro %}
 {% set e = x.entity %}
-<article class="expanel{% if fresh %} expanel-fresh{% endif %}{% if x.kind == 'match' %} expanel-match{% endif %}">
+<article id="ex-{{ x.entity_id }}" class="expanel{% if fresh %} expanel-fresh{% endif %}{% if x.kind == 'match' %} expanel-match{% endif %}">
   {% if fresh %}<div class="fresh-badge"><span class="fresh-spark" aria-hidden="true">✨</span> NEW</div>{% endif %}
   <header class="exhead">
     <div class="exhead-title">
@@ -72,7 +72,7 @@
         <summary><span class="exsec-h">🧬 Structure &amp; architecture</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
         <div class="exsec-body">{% for p in x.structure %}<p>{{ p }}</p>{% endfor %}</div>
       </details>
-      <details class="exsec"{% if x.kind == 'match' %} open{% endif %}>
+      <details class="exsec">
         <summary><span class="exsec-h">{% if x.kind == 'match' %}✅ Why AlphaFold gets it right{% else %}❌ Why AlphaFold gets it wrong{% endif %}</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
         <div class="exsec-body">{% for p in x.why_wrong %}<p>{{ p }}</p>{% endfor %}</div>
       </details>

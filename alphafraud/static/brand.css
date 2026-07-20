@@ -210,7 +210,14 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 .exsection-h { margin: 0; font-size: 18px; color: var(--primary); }
 .exsection:first-of-type { margin-top: 18px; }
 .expanel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg, 16px);
-  box-shadow: var(--shadow); padding: 22px; margin: 22px 0; }
+  box-shadow: var(--shadow); padding: 22px; margin: 22px 0; scroll-margin-top: 84px; }
+/* Flash a panel when arrived at via a #ex-<id> link from the scatter. */
+.expanel:target { animation: exTargetFlash 1.8s ease; }
+@keyframes exTargetFlash {
+  0%, 100% { box-shadow: var(--shadow); }
+  20%, 55% { box-shadow: 0 0 0 3px var(--primary), var(--shadow); }
+}
+@media (prefers-reduced-motion: reduce) { .expanel:target { animation: none; outline: 2px solid var(--primary); } }
 .exhead-title h2 { margin: 0; font-size: 21px; }
 .exgene { color: var(--muted); font-weight: 600; font-size: 14px; letter-spacing: .04em; }
 .exchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }

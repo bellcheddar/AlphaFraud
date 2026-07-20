@@ -345,6 +345,24 @@ def _snapshot_fresh(updated_at: Optional[str], ttl: int) -> bool:
         return False
 
 
+def _example_highlights():
+    """Overlay points for the 9 curated deep-dive examples on the home scatter: the accurate
+    control (green) + the eight failures (red), each linking to its Examples-tab panel."""
+    from . import examples as ex
+    out = []
+    for e in [ex.CONTROL] + list(ex.EXAMPLES):
+        row = db.get_entity(e["entity_id"])
+        if not row or row.get("mean_plddt") is None or row.get("tm_by_experiment") is None:
+            continue
+        label = e["name"] + (f" ({e['gene']})" if e.get("gene") else "")
+        out.append({
+            "eid": e["entity_id"], "name": label, "mode": e["failure_mode"],
+            "x": row["mean_plddt"], "y": row["tm_by_experiment"],
+            "good": e.get("kind") == "match", "href": "/examples#ex-" + e["entity_id"],
+        })
+    return out
+
+
 def _render_all():
     """The default landing page: cumulative view across every processed week.
 
@@ -358,7 +376,7 @@ def _render_all():
         weekly = db.deposit_month_trend()
         payload = {
             "figures": {
-                "scatter": report.fraud_scatter(rows),
+                "scatter": report.fraud_scatter(rows, highlights=_example_highlights()),
                 "scatter_zoom": report.fraud_scatter(rows, zoom=True),
                 "dumbbell": report.fraud_dumbbell(rows),
                 "histograms": report.metric_histograms(rows),

@@ -577,11 +577,17 @@
     return /^[0-9A-Za-z]{4}_/.test(eid) ? eid : null;
   }
 
+  function isExamplePoint(d) {
+    var p = d && d.points && d.points[0];
+    return !!(p && p.data && p.data.meta && p.data.meta.example);
+  }
+
   window.wireScatterPreview = function (el) {
     if (!el || el._ribbonHoverWired || !el.on) return;
     // Any plot whose points carry an entity_id in customdata[0] (fraud scatter, dumbbell).
     el._ribbonHoverWired = true;
     el.on("plotly_hover", function (d) {
+      el._pulsePaused = true;                          // freeze the star pulse so its tooltip is stable
       var eid = eidOf(d);
       if (!eid) return;
       el.style.cursor = "pointer";                   // signal the point is clickable
@@ -594,11 +600,32 @@
       y = Math.min(y, window.innerHeight - 200);
       box.style.left = x + "px"; box.style.top = y + "px";
     });
-    el.on("plotly_unhover", function () { el.style.cursor = ""; hide(); });
-    // Click a point → open that structure's entry page.
+    el.on("plotly_unhover", function () { el._pulsePaused = false; el.style.cursor = ""; hide(); });
+    // Click a curated example star → jump to its Examples-tab panel; any other point → entry page.
     el.on("plotly_click", function (d) {
+      if (isExamplePoint(d)) {
+        var href = d.points[0].customdata && d.points[0].customdata[2];
+        if (href) { window.location.href = href; return; }
+      }
       var eid = eidOf(d);
       if (eid) window.location.href = "/entry/" + encodeURIComponent(eid);
     });
+    startExamplePulse(el);
   };
+
+  // Gently pulse the deep-dive example stars (size oscillation) so they catch the eye.
+  function startExamplePulse(el) {
+    if (!window.Plotly || el._exPulse) return;
+    try { if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (e) {}
+    var idx = -1;
+    (el.data || []).forEach(function (t, i) { if (t.meta && t.meta.example) idx = i; });
+    if (idx < 0) return;
+    var t0 = Date.now();
+    el._exPulse = setInterval(function () {
+      if (!document.body.contains(el)) { clearInterval(el._exPulse); el._exPulse = null; return; }
+      if (el._pulsePaused) return;                     // hold steady while the user hovers
+      var s = 17 + 5 * Math.sin((Date.now() - t0) / 300);
+      try { Plotly.restyle(el, { "marker.size": s }, [idx]); } catch (e) { /* mid-react */ }
+    }, 90);
+  }
 })();
