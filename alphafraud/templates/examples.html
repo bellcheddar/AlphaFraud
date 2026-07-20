@@ -6,9 +6,13 @@
 
 {% block content %}
   <h1>Examples — AlphaFold's blind spots, up close</h1>
-  <p class="sub">Worst-offending protein families, each a different way for AlphaFold to be
-  confidently wrong. Rotate any structure — the colouring is Cα deviation from the AlphaFold model
-  (blue = agree, red = wrong); toggle the AlphaFold “ghost” to see what it predicted.</p>
+  <p class="sub">Eight of AlphaFold's worst calls on freshly-deposited human structures, split into two
+  kinds of failure. The first four are ordinary single-chain globular proteins — a flexible phosphatase
+  scaffold, a Ca²⁺-sensing switch, a two-domain co-chaperone and a tiny WW module — where AlphaFold gets
+  the fold right but commits, often at very high confidence, to the wrong conformation or domain
+  arrangement. The last four are the dramatic whole-fold catastrophes: a novel membrane amyloid, a
+  disordered monomer, a folded tetramer that amyloids, and a multidomain zymogen caught in the wrong
+  biological context.</p>
 
   {% set ns = namespace(cur='') %}
   {% for x in examples %}
@@ -53,29 +57,40 @@
           drag to rotate · scroll to zoom · toggle the AlphaFold “ghost” to see what it predicted.</p>
       </div>
 
-      <div class="exstats">
-        {{ stat('worst TM-score', r2(e.tm_by_experiment) if e else '—', 'bad') }}
-        {{ stat('mean pLDDT', r2(e.mean_plddt) if e else '—') }}
-        {{ stat('FRAUD score', r2(e.fraud_score) if e else '—', 'bad') }}
-        {{ stat('structures', '×' ~ (x.fam.n or 1)) }}
-        {{ stat('conf. wrong', (x.fam.n_wrong or 0) ~ '/' ~ (x.fam.n or 0)) }}
-        {{ stat('novelty', (nov(e.novelty_identity)|round|int ~ '%') if e and e.novelty_identity is not none else '—') }}
+      <div class="exside">
+        <div class="exstats">
+          {{ stat('worst TM-score', r2(e.tm_by_experiment) if e else '—', 'bad') }}
+          {{ stat('mean pLDDT', r2(e.mean_plddt) if e else '—') }}
+          {{ stat('FRAUD score', r2(e.fraud_score) if e else '—', 'bad') }}
+          {{ stat('structures', '×' ~ (x.fam.n or 1)) }}
+          {{ stat('conf. wrong', (x.fam.n_wrong or 0) ~ '/' ~ (x.fam.n or 0)) }}
+          {{ stat('novelty', (nov(e.novelty_identity)|round|int ~ '%') if e and e.novelty_identity is not none else '—') }}
+        </div>
+        <aside class="exfacts">
+          <h4>Key facts</h4>
+          <ul>{% for f in x.key_facts %}<li>{{ f }}</li>{% endfor %}</ul>
+          {% if x.citation and x.citation.doi %}
+          <p class="exdoi"><a href="https://doi.org/{{ x.citation.doi }}" target="_blank" rel="noopener">📄 {{ x.citation.title }}</a>{% if x.citation.year %} ({{ x.citation.year }}){% endif %}</p>
+          {% endif %}
+        </aside>
       </div>
     </div>
 
     <div class="exbody">
       <div class="exsections">
-        <section><h3>🧬 Structure &amp; architecture</h3>{% for p in x.structure %}<p>{{ p }}</p>{% endfor %}</section>
-        <section><h3>❌ Why AlphaFold gets it wrong</h3>{% for p in x.why_wrong %}<p>{{ p }}</p>{% endfor %}</section>
-        <section><h3>🩺 Biology &amp; disease</h3>{% for p in x.biology %}<p>{{ p }}</p>{% endfor %}</section>
+        <details class="exsec">
+          <summary><span class="exsec-h">🧬 Structure &amp; architecture</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
+          <div class="exsec-body">{% for p in x.structure %}<p>{{ p }}</p>{% endfor %}</div>
+        </details>
+        <details class="exsec">
+          <summary><span class="exsec-h">❌ Why AlphaFold gets it wrong</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
+          <div class="exsec-body">{% for p in x.why_wrong %}<p>{{ p }}</p>{% endfor %}</div>
+        </details>
+        <details class="exsec">
+          <summary><span class="exsec-h">🩺 Biology &amp; disease</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
+          <div class="exsec-body">{% for p in x.biology %}<p>{{ p }}</p>{% endfor %}</div>
+        </details>
       </div>
-      <aside class="exfacts">
-        <h4>Key facts</h4>
-        <ul>{% for f in x.key_facts %}<li>{{ f }}</li>{% endfor %}</ul>
-        {% if x.citation and x.citation.doi %}
-        <p class="exdoi"><a href="https://doi.org/{{ x.citation.doi }}" target="_blank" rel="noopener">📄 {{ x.citation.title }}</a>{% if x.citation.year %} ({{ x.citation.year }}){% endif %}</p>
-        {% endif %}
-      </aside>
     </div>
   </article>
   {% endfor %}

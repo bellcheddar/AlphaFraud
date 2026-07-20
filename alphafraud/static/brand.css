@@ -204,23 +204,35 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
   font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow); }
 .btn-primary:hover { background: var(--primary-dark, #155a9c); }
 .exv-hint { font-size: 12px; color: var(--muted); margin: 8px 2px 0; }
+.exside { display: flex; flex-direction: column; gap: 12px; align-self: start; }
 .exstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .exstat { background: rgba(120,140,160,.06); border: 1px solid var(--border); border-radius: 9px; padding: 10px 8px; text-align: center; }
 .exstat-n { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
 .exstat.bad .exstat-n { color: var(--red); }
 .exstat-l { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
-.exbody { display: grid; grid-template-columns: 1.7fr 1fr; gap: 20px; margin-top: 18px; }
-.exsections section { margin-bottom: 16px; }
-.exsections h3 { font-size: 15px; margin: 0 0 6px; }
-.exsections p { font-size: 14px; line-height: 1.6; margin: 0 0 9px; color: var(--ink); }
-.exfacts { background: rgba(120,140,160,.05); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; align-self: start; }
+/* Key facts now sit directly under the KPI tiles, in the same right-hand column. */
+.exfacts { background: rgba(120,140,160,.05); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
 .exfacts h4 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .exfacts ul { margin: 0; padding-left: 18px; }
 .exfacts li { font-size: 13px; line-height: 1.5; margin-bottom: 7px; }
 .exdoi { margin: 12px 0 0; font-size: 12.5px; }
 .exdoi a { color: var(--primary); text-decoration: none; }
+/* Full-width collapsible narrative sections (collapsed by default). */
+.exbody { margin-top: 18px; }
+.exsec { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; background: rgba(120,140,160,.03); }
+.exsec > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; padding: 12px 15px; }
+.exsec > summary::-webkit-details-marker { display: none; }
+.exsec-h { font-size: 15px; font-weight: 700; }
+.exsec-toggle { font-size: 12.5px; color: var(--primary); font-weight: 600; white-space: nowrap; }
+.exsec-toggle::after { content: "Read more ▾"; }
+.exsec[open] .exsec-toggle::after { content: "Show less ▴"; }
+.exsec > summary:hover .exsec-toggle { text-decoration: underline; }
+.exsec-body { padding: 0 15px 13px; }
+.exsec-body p { font-size: 14px; line-height: 1.6; margin: 0 0 9px; color: var(--ink); }
+.exsec-body p:last-child { margin-bottom: 0; }
 @media (max-width: 760px) {
-  .exgrid, .exbody { grid-template-columns: 1fr; }
+  .exgrid { grid-template-columns: 1fr; }
   .expanel { padding: 16px; }
   .exstats { grid-template-columns: repeat(3, 1fr); }
 }
