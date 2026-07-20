@@ -174,6 +174,54 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
   .lb-uni { display: none; }
 }
 
+/* --- Examples tab: annotated deep-dive panels --- */
+.expanel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow); padding: 22px; margin: 22px 0; }
+.exhead-title h2 { margin: 0; font-size: 21px; }
+.exgene { color: var(--muted); font-weight: 600; font-size: 14px; letter-spacing: .04em; }
+.exchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: rgba(120,140,160,.14);
+  color: var(--muted); font-weight: 600; text-transform: lowercase; }
+.chip.mode { background: rgba(214,39,40,.12); color: var(--red); text-transform: none; }
+.chip.uni { background: rgba(30,115,190,.12); color: var(--primary); text-decoration: none; }
+.exheadline { font-size: 15px; line-height: 1.5; margin: 14px 0 16px; color: var(--ink); font-weight: 500;
+  border-left: 3px solid var(--primary); padding-left: 12px; }
+.exgrid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; align-items: start; }
+.exviewer { position: relative; background: rgba(120,140,160,.05); border: 1px solid var(--border);
+  border-radius: 10px; min-height: 300px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.exv-ribbon { width: 100%; height: auto; display: block; }
+.exv-canvas { position: relative; width: 100%; height: 340px; }
+.exv-tools { position: absolute; left: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 5px; z-index: 5; }
+.exv-tools button { font-size: 11.5px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 7px;
+  background: var(--card); color: var(--ink); cursor: pointer; box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.1)); }
+.exv-tools button:hover { border-color: var(--primary); }
+.exv-tools button.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+.exv-launch { position: absolute; z-index: 4; }
+.btn-primary { padding: 9px 16px; border: none; border-radius: 8px; background: var(--primary); color: #fff;
+  font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow); }
+.btn-primary:hover { background: var(--primary-dark, #155a9c); }
+.exv-hint { font-size: 12px; color: var(--muted); margin: 8px 2px 0; }
+.exstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.exstat { background: rgba(120,140,160,.06); border: 1px solid var(--border); border-radius: 9px; padding: 10px 8px; text-align: center; }
+.exstat-n { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+.exstat.bad .exstat-n { color: var(--red); }
+.exstat-l { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
+.exbody { display: grid; grid-template-columns: 1.7fr 1fr; gap: 20px; margin-top: 18px; }
+.exsections section { margin-bottom: 16px; }
+.exsections h3 { font-size: 15px; margin: 0 0 6px; }
+.exsections p { font-size: 14px; line-height: 1.6; margin: 0 0 9px; color: var(--ink); }
+.exfacts { background: rgba(120,140,160,.05); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; align-self: start; }
+.exfacts h4 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.exfacts ul { margin: 0; padding-left: 18px; }
+.exfacts li { font-size: 13px; line-height: 1.5; margin-bottom: 7px; }
+.exdoi { margin: 12px 0 0; font-size: 12.5px; }
+.exdoi a { color: var(--primary); text-decoration: none; }
+@media (max-width: 760px) {
+  .exgrid, .exbody { grid-template-columns: 1fr; }
+  .expanel { padding: 16px; }
+  .exstats { grid-template-columns: repeat(3, 1fr); }
+}
+
 .ribbonhero { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
 .ribbonhero-visual { flex: 0 0 auto; width: min(430px, 100%); }
 .ribbonhero-visual img {

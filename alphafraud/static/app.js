@@ -416,6 +416,89 @@
   };
 })();
 
+/* ---- Enhanced multi-structure viewer for the Examples tab (style/colour/ghost/spin tools) ---- */
+(function () {
+  var loaded = false, loading = false;
+  function devColor(b) {
+    if (b < 0) return 0x9aa7b3;
+    var d = Math.max(0, Math.min(b, 10));
+    var s = [[0,[30,115,190]],[1,[74,159,212]],[2,[120,190,180]],[3,[252,185,0]],[6,[232,89,12]],[10,[200,30,30]]];
+    for (var i = 0; i < s.length - 1; i++) { var a = s[i], c = s[i + 1];
+      if (d <= c[0]) { var t = c[0] === a[0] ? 0 : (d - a[0]) / (c[0] - a[0]);
+        return (Math.round(a[1][0]+(c[1][0]-a[1][0])*t)<<16)|(Math.round(a[1][1]+(c[1][1]-a[1][1])*t)<<8)|Math.round(a[1][2]+(c[1][2]-a[1][2])*t); } }
+    return 0xc81e1e;
+  }
+  function load3Dmol(cb) {
+    if (loaded && window.$3Dmol) { cb(); return; }
+    if (loading) { setTimeout(function () { load3Dmol(cb); }, 150); return; }
+    loading = true;
+    var s = document.createElement("script"); s.src = "/static/3Dmol-min.js";
+    s.onload = function () { loaded = true; cb(); }; document.head.appendChild(s);
+  }
+  function applySS(model, pdb) {
+    var map = {};
+    pdb.split("\n").forEach(function (line) {
+      if (line.lastIndexOf("HELIX", 0) === 0) { for (var i = parseInt(line.substring(21,25),10); i <= parseInt(line.substring(33,37),10); i++) map[i] = "h"; }
+      else if (line.lastIndexOf("SHEET", 0) === 0) { for (var j = parseInt(line.substring(22,26),10); j <= parseInt(line.substring(33,37),10); j++) map[j] = "s"; }
+    });
+    model.selectedAtoms({}).forEach(function (a) { a.ss = map[a.resi] || "c"; });
+  }
+  var GHOST = { cartoon: { color: 0x2563eb, style: "trace", thickness: 0.9 } };
+  var STYLES = ["cartoon", "stick", "sphere", "surface"], COLORS = ["deviation", "spectrum", "chain", "sstruc"];
+  var SLAB = { cartoon: "Cartoon", stick: "Sticks", sphere: "Spheres", surface: "Surface" };
+  var CLAB = { deviation: "Cα deviation", spectrum: "Rainbow N→C", chain: "By chain", sstruc: "By 2° structure" };
+  function colorSpec(c) {
+    if (c === "deviation") return { colorfunc: devColor };
+    if (c === "spectrum") return { color: "spectrum" };
+    if (c === "chain") return { colorscheme: "chainHetatm" };
+    return { colorscheme: "ssPyMOL" };
+  }
+  function applyStyle(v, model, si, ci) {
+    v.removeAllSurfaces(); var cs = colorSpec(COLORS[ci]), st = STYLES[si];
+    if (st === "cartoon") model.setStyle({}, { cartoon: Object.assign({ arrows: true }, cs) });
+    else if (st === "stick") model.setStyle({}, { stick: Object.assign({ radius: 0.16 }, cs) });
+    else if (st === "sphere") model.setStyle({}, { sphere: Object.assign({ scale: 0.28 }, cs) });
+    else { model.setStyle({}, { cartoon: Object.assign({}, cs) }); try { v.addSurface($3Dmol.SurfaceType.VDW, Object.assign({ opacity: 0.65 }, cs), {}); } catch (e) {} }
+    v.render();
+  }
+  function initViewer(root) {
+    var canvas = root.querySelector(".exv-canvas"), img = root.querySelector(".exv-ribbon"),
+        tools = root.querySelector(".exv-tools"), launch = root.querySelector(".exv-launch"),
+        coordsUrl = root.getAttribute("data-coords"), ghostUrl = root.getAttribute("data-ghost");
+    var viewer = null, model = null, ghost = null, ghostOn = false, spin = false, si = 0, ci = 0;
+    function relabel() {
+      var b1 = root.querySelector('[data-act="style"]'), b2 = root.querySelector('[data-act="color"]');
+      if (b1) b1.textContent = "🎨 " + SLAB[STYLES[si]]; if (b2) b2.textContent = "🌈 " + CLAB[COLORS[ci]];
+    }
+    if (!coordsUrl) { if (launch) launch.style.display = "none"; return; }
+    launch.addEventListener("click", function () {
+      launch.textContent = "loading…";
+      load3Dmol(function () {
+        fetch(coordsUrl).then(function (r) { return r.text(); }).then(function (pdb) {
+          if (img) img.style.display = "none"; canvas.style.display = "block"; tools.style.display = "flex"; launch.style.display = "none";
+          viewer = $3Dmol.createViewer(canvas, { backgroundAlpha: 0 });
+          model = viewer.addModel(pdb, "pdb"); applySS(model, pdb);
+          applyStyle(viewer, model, si, ci); relabel(); viewer.zoomTo(); viewer.render();
+        }).catch(function () { launch.textContent = "could not load coordinates"; });
+      });
+    });
+    tools.addEventListener("click", function (e) {
+      var btn = e.target.closest("button"); if (!btn || !viewer) return;
+      var act = btn.getAttribute("data-act");
+      if (act === "style") { si = (si + 1) % STYLES.length; applyStyle(viewer, model, si, ci); relabel(); }
+      else if (act === "color") { ci = (ci + 1) % COLORS.length; applyStyle(viewer, model, si, ci); relabel(); }
+      else if (act === "spin") { spin = !spin; viewer.spin(spin ? "y" : false, 0.6); btn.classList.toggle("on", spin); }
+      else if (act === "reset") { viewer.zoomTo(); viewer.render(); }
+      else if (act === "ghost") {
+        if (ghost) { ghostOn = !ghostOn; ghost.setStyle({}, ghostOn ? GHOST : {}); viewer.render(); btn.classList.toggle("on", ghostOn); }
+        else if (ghostUrl) { btn.textContent = "loading…"; fetch(ghostUrl).then(function (r) { return r.text(); }).then(function (g) {
+          ghost = viewer.addModel(g, "pdb"); ghost.setStyle({}, GHOST); ghostOn = true; viewer.render(); btn.textContent = "👻 AF ghost"; btn.classList.add("on"); }); }
+      }
+    });
+  }
+  document.addEventListener("DOMContentLoaded", function () { document.querySelectorAll(".exviewer").forEach(initViewer); });
+})();
+
 /* ---- Ribbon hover-preview on the fraud-quadrant scatter ---- */
 (function () {
   var box = null, img = null;

@@ -253,6 +253,19 @@ def create_app() -> Flask:
         return render_template("leaderboard.html", banner=banner.BANNER_ART,
                                groups=groups, stats=stats, version=__version__)
 
+    @app.route("/examples")
+    def examples():
+        from . import examples as ex
+        items = []
+        for e in ex.EXAMPLES:
+            entity = db.get_entity(e["entity_id"])
+            metrics = json.loads(entity["metrics_json"] or "{}") if entity else {}
+            items.append({**e, "entity": entity, "metrics": metrics,
+                          "fam": db.family_summary(e["uniprot"]),
+                          "citation": db.entity_citation(e["entity_id"])})
+        return render_template("examples.html", banner=banner.BANNER_ART,
+                               examples=items, version=__version__)
+
     @app.route("/analysis")
     def analysis():
         snap = db.load_snapshot("cumulative")

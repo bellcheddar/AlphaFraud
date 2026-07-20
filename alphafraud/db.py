@@ -349,6 +349,29 @@ def list_backfill_months() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def entity_citation(entity_id: str) -> dict:
+    """The primary-literature citation for an entity, from its enrichment annotation."""
+    with connect() as conn:
+        r = conn.execute(
+            "SELECT citation_doi, citation_title, citation_journal, citation_year "
+            "FROM entity_annotations WHERE entity_id=?", (entity_id,)).fetchone()
+        if not r:
+            return {}
+        return {"doi": r["citation_doi"], "title": r["citation_title"],
+                "journal": r["citation_journal"], "year": r["citation_year"]}
+
+
+def family_summary(uniprot: str) -> dict:
+    """Live per-protein stats for the Examples panels: deposition count, confidently-wrong count,
+    worst TM, mean pLDDT."""
+    with connect() as conn:
+        r = conn.execute(
+            f"""SELECT COUNT(*) n, SUM(confidently_wrong) n_wrong,
+                       MIN(tm_by_experiment) min_tm, AVG(mean_plddt) mean_plddt
+                FROM entities WHERE uniprot=? AND {ANALYSED}""", (uniprot,)).fetchone()
+        return dict(r) if r else {}
+
+
 def run_kind(label: str) -> Optional[str]:
     """'weekly' | 'backfill' | None — lets the release page title itself 'Release month' vs
     'Release week' for a given label."""
