@@ -39,8 +39,8 @@
 
       var keepH = layout.meta && layout.meta.keepHeight && layout.height;
       if (mobile) {
-        var hasL2 = !!layout.legend2, hasL = !!layout.legend;
-        var legRows = (hasL ? 1 : 0) + (hasL2 ? 1 : 0);
+        var hasL2 = !!layout.legend2, hasL = !!layout.legend, hasL3 = !!layout.legend3;
+        var legRows = (hasL ? 1 : 0) + (hasL2 ? 1 : 0) + (hasL3 ? 1 : 0);
         // Vertically-stacked subplots (the histograms) declare their own height and separate-
         // domain y-axes (no `overlaying`); overlaying right-hand axes (the trend) are different.
         var stacked = !!(layout.yaxis2 && !layout.yaxis2.overlaying);
@@ -103,6 +103,8 @@
             { orientation: "h", x: 0.5, xanchor: "center", y: ly, yanchor: "top", font: { size: 10 } });
           if (hasL2) layout.legend2 = Object.assign({}, layout.legend2,
             { orientation: "h", x: 0.5, xanchor: "center", y: ly - 44 / layout.height, yanchor: "top", font: { size: 10 } });
+          if (hasL3) layout.legend3 = Object.assign({}, layout.legend3,
+            { orientation: "h", x: 0.5, xanchor: "center", y: ly - 88 / layout.height, yanchor: "top", font: { size: 10 } });
           if (annIdx >= 0) {
             layout.annotations[annIdx] = Object.assign({}, layout.annotations[annIdx],
               { x: 0.0, xanchor: "left", y: ly - (legRows + 1) * 44 / layout.height, yanchor: "top",

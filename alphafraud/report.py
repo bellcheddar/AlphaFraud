@@ -260,14 +260,14 @@ def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dic
             hovertemplate=("<b>%{customdata[1]}</b><br>%{customdata[3]}<br>"
                            "▶ click to open the deep-dive<extra></extra>"),
         ))
-        # Explicit red/green legend swatches so "deep-dive examples" reads clearly.
+        # Explicit red/green legend swatches (their own legend row) so red/green reads clearly.
         if any(not h.get("good") for h in hl):
             fig.add_trace(go.Scatter(
-                x=[None], y=[None], mode="markers", name="example — confidently wrong",
+                x=[None], y=[None], mode="markers", name="example — confidently wrong", legend="legend3",
                 marker=dict(symbol="circle", size=11, color=BRAND["red"], line=dict(width=1.5, color="white"))))
         if any(h.get("good") for h in hl):
             fig.add_trace(go.Scatter(
-                x=[None], y=[None], mode="markers", name="example — accurate",
+                x=[None], y=[None], mode="markers", name="example — accurate", legend="legend3",
                 marker=dict(symbol="circle", size=11, color=GREEN, line=dict(width=1.5, color="white"))))
         # Label every example marker with its protein name as a clickable link to its Examples
         # panel (green for the accurate control, red for the failures). Alternate above/below.
@@ -286,12 +286,13 @@ def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dic
         title=title,
         xaxis_title="mean pLDDT (AlphaFold confidence)",
         yaxis_title="TM-score to experiment",
-        # Two legends stacked and left-aligned: point/example colours on top, the FRAUD marker-size
-        # key below it with its title sitting ABOVE the size dots.
-        height=520,
-        legend=dict(orientation="h", y=1.26, x=0, itemsizing="constant", font=dict(size=11)),
-        legend2=dict(orientation="h", y=1.08, x=0, itemsizing="trace",
+        # Top row: point-type colours (left) + the FRAUD marker-size key to their RIGHT, both on the
+        # same line so the icons align; the red/green example swatches sit on a second row below.
+        height=540,
+        legend=dict(orientation="h", y=1.30, x=0, itemsizing="constant", font=dict(size=11)),
+        legend2=dict(orientation="h", y=1.30, x=0.60, itemsizing="trace",
                      title=dict(text="Marker size", side="top"), font=dict(size=11)),
+        legend3=dict(orientation="h", y=1.12, x=0, itemsizing="constant", font=dict(size=11)),
     )
     if zoom:                                # restrict to the confidently-wrong box
         fig.update_xaxes(range=[config.CONFIDENT_PLDDT, 100.5])
@@ -299,7 +300,7 @@ def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dic
     else:
         fig.update_xaxes(range=[0, 102])   # headroom so pLDDT~100 markers sit inside the frame
         fig.update_yaxes(range=[0, 1.03])
-    return _fig(fig, top=150)              # room for the two stacked legend rows above the plot
+    return _fig(fig, top=170)              # room for the two legend rows above the plot
 
 
 def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
