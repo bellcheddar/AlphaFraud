@@ -141,6 +141,8 @@ Each panel is summarised below — click any title to open its live, interactive
 | Field | Detail |
 |---|---|
 | **Take-home** | A novel post-cutoff nuclease AlphaFold predicted blind almost perfectly — the control proving AlphaFraud certifies good predictions, not only failures |
+| **AlphaFold vs experimental** | <a href="https://alphafraud.mdeller.com/examples#ex-6TT5_1"><img src="https://alphafraud.mdeller.com/ribbon/6TT5_1.svg" alt="Experimental structure of 6TT5_1 coloured by Cα deviation from AlphaFold" width="380"></a><br><sub>Experimental structure coloured by Cα deviation from AlphaFold (blue = agree, red = diverges) — click for the interactive 3D viewer with the AlphaFold "ghost" overlay</sub> |
+| **Link to live example** | **[Open the interactive panel →](https://alphafraud.mdeller.com/examples#ex-6TT5_1)** |
 | **KPIs** | TM **0.996** · lDDT 0.985 · pLDDT 95.2 · Cα-RMSD 0.45 Å · FRAUD **0.02** · novelty 71% |
 | **Stats** | 11 depositions, **0** confidently wrong · SS-Q3 92.5% · pLDDT↔lDDT +0.56 (calibrated) |
 | **Structure** | Metallo-β-lactamase + β-CASP nuclease domain with a Zn active site; the disordered regulatory C-terminus sits (correctly) outside the crystallised fold |
@@ -153,6 +155,8 @@ Each panel is summarised below — click any title to open its live, interactive
 | Field | Detail |
 |---|---|
 | **Take-home** | Near-maximal confidence (pLDDT 97) on a flexible 15-HEAT solenoid whose curvature is wrong for 99% of residues |
+| **AlphaFold vs experimental** | <a href="https://alphafraud.mdeller.com/examples#ex-8UWB_3"><img src="https://alphafraud.mdeller.com/ribbon/8UWB_3.svg" alt="Experimental structure of 8UWB_3 coloured by Cα deviation from AlphaFold" width="380"></a><br><sub>Experimental structure coloured by Cα deviation from AlphaFold (blue = agree, red = diverges) — click for the interactive 3D viewer with the AlphaFold "ghost" overlay</sub> |
+| **Link to live example** | **[Open the interactive panel →](https://alphafraud.mdeller.com/examples#ex-8UWB_3)** |
 | **KPIs** | TM 0.293 · lDDT 0.311 · pLDDT 96.8 · Cα-RMSD 15.0 Å · FRAUD 0.77 · novelty 0% |
 | **Stats** | 26 depositions, 1 confidently wrong (this one) · pLDDT↔lDDT −0.13 (confidence carries no signal) |
 | **Structure** | 15 tandem HEAT repeats forming a horseshoe α-solenoid — a spring, not a fixed ruler |
@@ -165,6 +169,8 @@ Each panel is summarised below — click any title to open its live, interactive
 | Field | Detail |
 |---|---|
 | **Take-home** | A bistable three-helix Ca²⁺ switch; AlphaFold committed to one conformer, the structure is the other |
+| **AlphaFold vs experimental** | <a href="https://alphafraud.mdeller.com/examples#ex-6YEL_1"><img src="https://alphafraud.mdeller.com/ribbon/6YEL_1.svg" alt="Experimental structure of 6YEL_1 coloured by Cα deviation from AlphaFold" width="380"></a><br><sub>Experimental structure coloured by Cα deviation from AlphaFold (blue = agree, red = diverges) — click for the interactive 3D viewer with the AlphaFold "ghost" overlay</sub> |
+| **Link to live example** | **[Open the interactive panel →](https://alphafraud.mdeller.com/examples#ex-6YEL_1)** |
 | **KPIs** | TM 0.389 · lDDT 0.341 · pLDDT 78.9 · Cα-RMSD 35.8 Å · FRAUD 0.75 · novelty 2% |
 | **Stats** | 1 deposition, confidently wrong · SS-Q3 69.6% (secondary structure right, packing wrong) |
 | **Structure** | CC1 is a compact antiparallel three-helix bundle that toggles between clamped (resting) and extended (active) states |
@@ -177,6 +183,8 @@ Each panel is summarised below — click any title to open its live, interactive
 | Field | Detail |
 |---|---|
 | **Take-home** | Two well-folded domains bolted together at the wrong angle — a flexible-linker ensemble collapsed to one guess |
+| **AlphaFold vs experimental** | <a href="https://alphafraud.mdeller.com/examples#ex-7DME_1"><img src="https://alphafraud.mdeller.com/ribbon/7DME_1.svg" alt="Experimental structure of 7DME_1 coloured by Cα deviation from AlphaFold" width="380"></a><br><sub>Experimental structure coloured by Cα deviation from AlphaFold (blue = agree, red = diverges) — click for the interactive 3D viewer with the AlphaFold "ghost" overlay</sub> |
+| **Link to live example** | **[Open the interactive panel →](https://alphafraud.mdeller.com/examples#ex-7DME_1)** |
 | **KPIs** | TM 0.432 · lDDT 0.748 · pLDDT 83.3 · Cα-RMSD 23.4 Å · FRAUD 0.82 · novelty 0% |
 | **Stats** | 4 depositions, 1 confidently wrong · pLDDT↔lDDT +0.33 (high confidence hides the joint) |
 | **Structure** | N- and C-terminal domains on a partly-ordered linker; each folds correctly in isolation |
@@ -189,6 +197,8 @@ Each panel is summarised below — click any title to open its live, interactive
 | Field | Detail |
 |---|---|
 | **Take-home** | A tiny two-Trp β-sheet AlphaFold folds fine, but the deposited chain's inter-module geometry is flexible — and, tellingly, the model was honestly unsure |
+| **AlphaFold vs experimental** | <a href="https://alphafraud.mdeller.com/examples#ex-6RSS_1"><img src="https://alphafraud.mdeller.com/ribbon/6RSS_1.svg" alt="Experimental structure of 6RSS_1 coloured by Cα deviation from AlphaFold" width="380"></a><br><sub>Experimental structure coloured by Cα deviation from AlphaFold (blue = agree, red = diverges) — click for the interactive 3D viewer with the AlphaFold "ghost" overlay</sub> |
+| **Link to live example** | **[Open the interactive panel →](https://alphafraud.mdeller.com/examples#ex-6RSS_1)** |
 | **KPIs** | TM 0.46 · lDDT 0.503 · pLDDT 74.5 · Cα-RMSD 21.9 Å · FRAUD 0.71 · novelty 8% |
 | **Stats** | 7 depositions, 1 confidently wrong · pLDDT↔lDDT +0.15 (lowest confidence of the set) |
 | **Structure** | NEDD4-family HECT E3 ligase; the WW domain is a ~38-residue three-stranded antiparallel β-sheet that reads PPxY motifs |
@@ -201,6 +211,8 @@ Each panel is summarised below — click any title to open its live, interactive
 | Field | Detail |
 |---|---|
 | **Take-home** | AlphaFold built a tidy globular β-sandwich at pLDDT 94; the real structure is a novel brain amyloid — every ordered residue wrong |
+| **AlphaFold vs experimental** | <a href="https://alphafraud.mdeller.com/examples#ex-7U14_1"><img src="https://alphafraud.mdeller.com/ribbon/7U14_1.svg" alt="Experimental structure of 7U14_1 coloured by Cα deviation from AlphaFold" width="380"></a><br><sub>Experimental structure coloured by Cα deviation from AlphaFold (blue = agree, red = diverges) — click for the interactive 3D viewer with the AlphaFold "ghost" overlay</sub> |
+| **Link to live example** | **[Open the interactive panel →](https://alphafraud.mdeller.com/examples#ex-7U14_1)** |
 | **KPIs** | TM 0.157 · lDDT 0.536 · pLDDT 94.4 · Cα-RMSD 27.1 Å · FRAUD 0.87 · novelty **100%** |
 | **Stats** | 29 depositions, **27** confidently wrong · pLDDT↔lDDT 0.03 (confidence uninformative) |
 | **Structure** | Native luminal domain is a fibronectin-III β-sandwich; the deposited form is a five-layered cross-β amyloid core |
@@ -213,6 +225,8 @@ Each panel is summarised below — click any title to open its live, interactive
 | Field | Detail |
 |---|---|
 | **Take-home** | A protein with no single fold; AlphaFold's confidence is actively *anti*-correlated with accuracy |
+| **AlphaFold vs experimental** | <a href="https://alphafraud.mdeller.com/examples#ex-9A1Q_1"><img src="https://alphafraud.mdeller.com/ribbon/9A1Q_1.svg" alt="Experimental structure of 9A1Q_1 coloured by Cα deviation from AlphaFold" width="380"></a><br><sub>Experimental structure coloured by Cα deviation from AlphaFold (blue = agree, red = diverges) — click for the interactive 3D viewer with the AlphaFold "ghost" overlay</sub> |
+| **Link to live example** | **[Open the interactive panel →](https://alphafraud.mdeller.com/examples#ex-9A1Q_1)** |
 | **KPIs** | TM 0.138 · lDDT 0.177 · pLDDT 75.2 · Cα-RMSD 36.3 Å · FRAUD 0.71 · novelty 0% |
 | **Stats** | **210** depositions, **206** confidently wrong — the archive's most-repeated failure · pLDDT↔lDDT −0.29 |
 | **Structure** | 140-residue intrinsically disordered monomer; the deposited forms are cryo-EM cross-β fibrils |
@@ -225,6 +239,8 @@ Each panel is summarised below — click any title to open its live, interactive
 | Field | Detail |
 |---|---|
 | **Take-home** | pLDDT 98 on the native tetramer fold; the deposited cardiac amyloid fibril scores TM 0.21 — one of the starkest confidently-wrong cases |
+| **AlphaFold vs experimental** | <a href="https://alphafraud.mdeller.com/examples#ex-9BZS_1"><img src="https://alphafraud.mdeller.com/ribbon/9BZS_1.svg" alt="Experimental structure of 9BZS_1 coloured by Cα deviation from AlphaFold" width="380"></a><br><sub>Experimental structure coloured by Cα deviation from AlphaFold (blue = agree, red = diverges) — click for the interactive 3D viewer with the AlphaFold "ghost" overlay</sub> |
+| **Link to live example** | **[Open the interactive panel →](https://alphafraud.mdeller.com/examples#ex-9BZS_1)** |
 | **KPIs** | TM 0.214 · lDDT 0.489 · pLDDT 98.0 · Cα-RMSD 22.8 Å · FRAUD **0.95** · novelty 0% |
 | **Stats** | 160 depositions, 34 confidently wrong · pLDDT↔lDDT −0.16 |
 | **Structure** | Native 127-aa β-sandwich homotetramer with thyroxine sites; the amyloid form is a cross-β fibril from cleaved segments |
@@ -237,6 +253,8 @@ Each panel is summarised below — click any title to open its live, interactive
 | Field | Detail |
 |---|---|
 | **Take-home** | Not a refold but a wrong-*context* capture — a 39-residue EGF1 fragment threaded through a partner enzyme's active site |
+| **AlphaFold vs experimental** | <a href="https://alphafraud.mdeller.com/examples#ex-6Q9F_2"><img src="https://alphafraud.mdeller.com/ribbon/6Q9F_2.svg" alt="Experimental structure of 6Q9F_2 coloured by Cα deviation from AlphaFold" width="380"></a><br><sub>Experimental structure coloured by Cα deviation from AlphaFold (blue = agree, red = diverges) — click for the interactive 3D viewer with the AlphaFold "ghost" overlay</sub> |
+| **Link to live example** | **[Open the interactive panel →](https://alphafraud.mdeller.com/examples#ex-6Q9F_2)** |
 | **KPIs** | TM 0.127 · lDDT 0.468 · pLDDT 93.5 · Cα-RMSD 6.6 Å · FRAUD 0.37 · novelty 0% |
 | **Stats** | 47 depositions, 26 confidently wrong · pLDDT↔lDDT −0.59 |
 | **Structure** | Modular zymogen (Gla–EGF1–EGF2–protease); the worst deposition is a linear EGF1 peptide in AspH's channel, not a folded module |
