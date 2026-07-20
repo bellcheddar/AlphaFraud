@@ -6,12 +6,18 @@
 
 {% block content %}
   <h1>Examples — AlphaFold's blind spots, up close</h1>
-  <p class="sub">Four of the worst-offending protein families, each a different way for AlphaFold to
-  be confidently wrong: a novel membrane amyloid, a disordered monomer, a folded tetramer that
-  amyloids, and a multidomain protein caught in the wrong context. Rotate each structure — the
-  colouring is Cα deviation from the AlphaFold model (blue = agree, red = wrong).</p>
+  <p class="sub">Worst-offending protein families, each a different way for AlphaFold to be
+  confidently wrong. Rotate any structure — the colouring is Cα deviation from the AlphaFold model
+  (blue = agree, red = wrong); toggle the AlphaFold “ghost” to see what it predicted.</p>
 
+  {% set ns = namespace(cur='') %}
   {% for x in examples %}
+  {% if x.section and x.section != ns.cur %}{% set ns.cur = x.section %}
+  <div class="exsection">
+    <h2 class="exsection-h">{{ x.section }}</h2>
+    {% if x.section_note %}<p class="sub">{{ x.section_note }}</p>{% endif %}
+  </div>
+  {% endif %}
   {% set e = x.entity %}
   <article class="expanel">
     <header class="exhead">

@@ -175,6 +175,9 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 }
 
 /* --- Examples tab: annotated deep-dive panels --- */
+.exsection { margin: 30px 0 4px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+.exsection-h { margin: 0; font-size: 18px; color: var(--primary); }
+.exsection:first-of-type { margin-top: 18px; }
 .expanel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg, 16px);
   box-shadow: var(--shadow); padding: 22px; margin: 22px 0; }
 .exhead-title h2 { margin: 0; font-size: 21px; }

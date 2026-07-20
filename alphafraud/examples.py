@@ -6,9 +6,275 @@ renders as an identically-formatted annotated panel with an interactive 3D viewe
 Keep the prose here; the numbers come from the DB at render time so they never go stale.
 """
 
-# Ordered worst-first-ish, but curated for a spread of failure modes.
+# Two curated sections: ordinary globular folds AlphaFold gets subtly wrong (the surprising
+# cases — right fold, wrong conformation/assembly), then the dramatic whole-fold catastrophes.
 EXAMPLES = [
+    # ---- Section 1: ordinary single-chain globular folds ----
     {
+        "section": "Ordinary folds AlphaFold still gets wrong",
+        "section_note": (
+            "AlphaFold is genuinely good at compact, single-chain globular folds — which is exactly "
+            "why these four are so telling. Each is a regular folded protein, not an amyloid, a "
+            "membrane protein, or a disordered chain. AlphaFold gets the fold essentially right, then "
+            "commits — often at very high confidence — to the wrong conformation, curvature, or "
+            "inter-domain pose. The failure is subtle, and its rarity is itself the finding."),
+        "uniprot": "P30153",
+        "gene": "PPP2R1A",
+        "name": "PP2A scaffold subunit A (PR65)",
+        "entity_id": "8UWB_3",
+        "entry": "8UWB",
+        "chain": "C",
+        "failure_mode": "Right fold, wrong curvature (flexible α-solenoid)",
+        "badges": ["globular", "flexible scaffold", "tumour suppressor"],
+        "headline": (
+            "AlphaFold assigns mean pLDDT 96.8 — near-maximal confidence — to a 15-repeat HEAT "
+            "solenoid whose global curvature is wrong for 99% of its residues: a textbook case of high "
+            "confidence in the wrong spring state."),
+        "structure": [
+            "The PP2A A/scaffold subunit (PR65) is built entirely from 15 tandem HEAT repeats, each an "
+            "antiparallel pair of ~39-residue α-helices (a short 'A' helix and a longer 'B' helix) "
+            "joined by a turn. Successive repeats stack side-by-side into a superhelical, horseshoe-"
+            "shaped α-solenoid ~90 Å long, with no β-structure or globular core — architecturally "
+            "distinct from most folds in the AlphaFraud set.",
+            "Functionally it is a bipartite assembly platform: HEAT repeats 1–10 form the concave "
+            "surface that recruits one of ~26 regulatory B-family subunits, while repeats 11–15 dock "
+            "the catalytic C subunit, together forming the PP2A heterotrimer. Critically the solenoid "
+            "is not a rigid ruler: inter-repeat hinge angles — concentrated around repeats 5–7 and the "
+            "B/C-subunit interface — flex between 'open'/extended and 'clamped'/compact states "
+            "depending on which subunits are bound. PR65 is a spring, not a fixed curve.",
+        ],
+        "why_wrong": [
+            "This is a confidence paradox. Mean pLDDT 96.8 says AlphaFold is essentially certain of "
+            "the local geometry of every HEAT-repeat helix pair — reasonable, because the repeat unit "
+            "is a simple, well-constrained motif. Yet TM-score 0.293, Cα-RMSD 15.0 Å, lDDT 0.311 and a "
+            "0.99 confidently-wrong-residue fraction show the assembled molecule is grossly wrong in "
+            "overall shape against the deposited PR65 subunit of 8UWB.",
+            "It is a curvature/hinge failure, not a fold failure: AlphaFold locks onto one static "
+            "superhelical bend, but tiny per-repeat angular errors compound multiplicatively across 15 "
+            "tandem repeats into tens of Ångströms of end-to-end displacement — exactly what a global "
+            "metric like TM-score punishes while the more local lDDT (0.31, not near-zero) partially "
+            "forgives. The near-zero pLDDT↔lDDT correlation (−0.13) confirms confidence carries no "
+            "diagnostic signal. The source paper had to solve an experimental PP2A trimer to guide "
+            "AlphaFold2-Multimer rather than trust single-sequence prediction of the assembly.",
+        ],
+        "biology": [
+            "PP2A is one of the cell's two dominant serine/threonine phosphatases, an obligate A–B–C "
+            "heterotrimer that dephosphorylates substrates across the cell cycle, Akt/PI3K and MYC "
+            "signalling, apoptosis and the DNA-damage response — a major tumour suppressor. PPP2R1A is "
+            "the sole scaffold onto which combinatorial exchange of B subunits builds an estimated "
+            "~100 distinct holoenzymes with different specificities and localisations.",
+            "PPP2R1A is recurrently mutated in endometrial and ovarian carcinomas, with hotspots "
+            "(P179R, R183W/P, S256F, W257G/L/C, R258H) clustering in HEAT repeats 5–7 that disrupt "
+            "B56-family binding without abolishing C-subunit docking — uncoupling substrate targeting "
+            "from catalysis. Germline variants cause a neurodevelopmental disorder. PP2A reactivation "
+            "by small-molecule activators (SMAPs) is an active oncology strategy exploiting exactly "
+            "the scaffold flexibility this structure captures.",
+        ],
+        "key_facts": [
+            "Fold: 15 tandem HEAT repeats (paired antiparallel α-helices) forming an elongated, flexible α-solenoid",
+            "No single fixed curvature — inter-repeat hinges flex between open and clamped states",
+            "Assembly platform of the PP2A heterotrimer: repeats 1–10 bind B subunits, 11–15 bind catalytic C",
+            "AF failure: pLDDT 96.8 (near-maximal) yet lDDT 0.311, TM 0.293, RMSD 15.0 Å — 99% confidently wrong",
+            "Root cause: hinge/curvature error compounding across 15 repeats, not a secondary-structure error",
+            "Disease: master tumour-suppressor scaffold; cancer hotspots (P179R, R183, S256F, W257, R258H) in the B56-binding repeats",
+        ],
+    },
+    {
+        "uniprot": "Q13586",
+        "gene": "STIM1",
+        "name": "Stromal interaction molecule 1 (CC1)",
+        "entity_id": "6YEL_1",
+        "entry": "6YEL",
+        "chain": "A",
+        "failure_mode": "Bistable conformational switch — wrong conformer",
+        "badges": ["globular", "conformational switch", "single chain"],
+        "headline": (
+            "A single folded three-helix coiled-coil switch that toggles between a clamped-shut resting "
+            "bundle and an extended active state — AlphaFold committed to one conformer, and the "
+            "deposited structure is the other."),
+        "structure": [
+            "STIM1 is a type-I single-pass ER membrane protein: an N-terminal luminal EF-hand/SAM "
+            "domain senses ER Ca²⁺, followed by one transmembrane helix, and a cytosolic region of "
+            "stacked coiled-coil segments — CC1, then the CC2–CC3 pair that folds into the CAD/SOAR "
+            "module that ultimately traps and gates Orai1. CC1 (~238–343) is not a simple two-stranded "
+            "coiled coil but a compact, antiparallel three-helix bundle held together by a hydrophobic "
+            "interhelical seam.",
+            "In the resting cell this bundle folds back on itself so that CC1α3 clamps CAD/SOAR "
+            "intramolecularly, holding STIM1 'tight' and autoinhibited. Store depletion collapses the "
+            "luminal Ca²⁺ signal, propagates across the membrane and releases the clamp, letting CC1 "
+            "and the whole C-terminus adopt an 'extended' conformation that frees CAD/SOAR to engage "
+            "Orai1. CC1 is a genuinely bistable folded module — two legitimate, functionally distinct "
+            "tertiary arrangements of the same helical content.",
+        ],
+        "why_wrong": [
+            "This is emphatically not disorder or amyloid: SS-Q3 of 69.6% confirms AlphaFold gets the "
+            "local chemistry right — CC1 is helical, and the model largely agrees on where the helices "
+            "are. What collapses is tertiary packing: lDDT 0.341, TM-score 0.389 and Cα-RMSD 35.8 Å — "
+            "the signature of correct secondary structure wrapped around the wrong global arrangement.",
+            "Consistent with AlphaFold's known bias toward continuous, extended coiled-coil geometry "
+            "for heptad-rich sequences, it most likely predicted CC1 as a single elongated helix or "
+            "open hairpin — the 'extended', CAD-releasing conformation — while 6YEL captures the "
+            "compact, folded-back three-helix bundle of the autoinhibited state (or vice versa). A "
+            "single-sequence predictor trained to output one static structure has no mechanism to "
+            "represent a switch with two functionally required minima; it commits to one at pLDDT 78.9, "
+            "leaving 84% of residues confidently wrong. The fold class is correct; the conformer is not.",
+        ],
+        "biology": [
+            "STIM1 is the ER-resident Ca²⁺ sensor that initiates store-operated Ca²⁺ entry (SOCE). "
+            "Ca²⁺ loss from the EF-SAM domain triggers luminal unfolding and oligomerisation, "
+            "redistribution to ER–plasma-membrane junctions, and release of the CC1 clamp so that "
+            "CAD/SOAR can capture and gate Orai1 CRAC channels — driving Ca²⁺ influx essential for "
+            "T-cell and mast-cell activation, muscle excitation–contraction coupling and platelet "
+            "function.",
+            "The CC1α1–α2 contacts set the activation threshold. Gain-of-function mutations such as "
+            "R304W disrupt these contacts, elongate the helix and destabilise the tight resting bundle, "
+            "producing constitutive CAD exposure — underlying Stormorken syndrome and tubular aggregate "
+            "myopathy. Loss-of-function STIM1 mutations abolish CRAC activity, causing "
+            "CRAC-channelopathy immunodeficiency. CC1 is the structural fulcrum between healthy and "
+            "diseased Ca²⁺ signalling.",
+        ],
+        "key_facts": [
+            "Single-chain ER Ca²⁺ sensor; CC1 (~238–343) is a compact three-helix antiparallel bundle, not a simple coiled coil",
+            "Genuine conformational switch: 'tight' autoinhibited bundle (resting) vs 'extended' CAD-releasing state (activated)",
+            "AF failure: right fold class (helical, SS-Q3 69.6%) but wrong conformer/packing — lDDT 0.341, TM 0.389, RMSD 35.8 Å",
+            "pLDDT 78.9 with 84% confidently-wrong residues — confident in one state of a two-state switch",
+            "Function: gates release of CAD/SOAR to trap and open Orai1 CRAC channels (store-operated Ca²⁺ entry)",
+            "Disease: gain-of-function CC1 mutations (R304W) → Stormorken / tubular aggregate myopathy; loss-of-function → CRAC-channelopathy",
+        ],
+    },
+    {
+        "uniprot": "O95433",
+        "gene": "AHSA1",
+        "name": "Activator of Hsp90 ATPase 1 (Aha1)",
+        "entity_id": "7DME_1",
+        "entry": "7DME",
+        "chain": "A",
+        "failure_mode": "Right domains, wrong inter-domain pose (flexible linker)",
+        "badges": ["globular", "flexible linker", "co-chaperone"],
+        "headline": (
+            "Two well-folded domains on a flexible tether — AlphaFold committed to a single, plausible "
+            "relative pose of a conformationally dynamic co-chaperone, and the deposited solution "
+            "structure sampled a different one."),
+        "structure": [
+            "Human Aha1 (338 aa) is built from two compact globular domains: an N-terminal domain (NTD, "
+            "~1–156, a Rossmann-like α/β fold) and a C-terminal domain (CTD, ~157–338, a curved "
+            "β-sandwich), joined by a linker that is only partly ordered even when Aha1 is docked on "
+            "its partner. Each domain individually folds robustly and is well characterised in "
+            "isolation.",
+            "In the extended, Hsp90-bound state the NTD engages the Hsp90 middle domain and the CTD "
+            "packs against the N-terminal ATPase domains, stabilising the closed, hydrolysis-competent "
+            "state in an asymmetric 1:2 stoichiometry. But this domain-bridging arrangement is an "
+            "induced state: free Aha1 in solution is intrinsically dynamic, its NTD and CTD tumbling "
+            "largely independently and sampling a broad distribution of inter-domain orientations. Aha1 "
+            "behaves less like one rigid two-domain protein and more like two folded modules loosely "
+            "constrained by a flexible hinge.",
+        ],
+        "why_wrong": [
+            "The numbers tell an intra-domain-correct, inter-domain-wrong story. lDDT is a moderate "
+            "0.748 and SS-Q3 is 74.3% — both domains fold essentially correctly, far better than "
+            "genuinely misfolded targets. But TM-score collapses to 0.432 with a 23.4 Å Cα-RMSD, and "
+            "85% of residues are confidently wrong despite mean pLDDT 83.3.",
+            "AlphaFold has built two accurate local folds, then bolted them together at one specific, "
+            "self-consistent NTD–CTD angle and buried the joint in a high-pLDDT interface — exactly the "
+            "behaviour its confidence metric should flag but does not (pLDDT↔lDDT correlation only "
+            "+0.33), because the network has no way to represent an ensemble. The NMR solution structure "
+            "(7DME) instead reflects the flexible, loosely coupled reality: whichever discrete pose "
+            "AlphaFold picked, the linker's real freedom put the deposited orientation far from it. A "
+            "textbook flexible-linker failure — the pieces are right, the assembly instruction is wrong.",
+        ],
+        "biology": [
+            "Aha1 is the strongest known stimulator of Hsp90's intrinsically slow ATPase, accelerating "
+            "the conformational cycle required to mature a broad swath of Hsp90 clients — kinases, "
+            "steroid hormone receptors and disease-relevant misfolded proteins. It binds Hsp90 "
+            "asymmetrically (one Aha1 per dimer suffices), with its NTD engaging the Hsp90 middle "
+            "domain and its CTD stabilising the closed N-domain interface, and also shows independent "
+            "holdase-like chaperone activity toward stress-denatured proteins.",
+            "The partnership has direct disease relevance: Aha1 drives maturation of ΔF508-CFTR, and "
+            "reducing Aha1 improves ΔF508-CFTR trafficking — a strategy of interest in cystic fibrosis; "
+            "Aha1 also promotes accumulation of pathological tau, implicating it in tauopathies. Given "
+            "Hsp90's centrality to oncogenic client maturation, the Aha1–Hsp90 interface is an actively "
+            "pursued target for allosteric modulation in cancer and proteostasis disease.",
+        ],
+        "key_facts": [
+            "Hsp90 co-chaperone; the strongest known stimulator of the Hsp90 ATPase cycle",
+            "Two independently well-folded globular domains (NTD, CTD) joined by a flexible linker — no single rigid pose in isolation",
+            "AF failure: correct domain folds (lDDT 0.75, SS-Q3 74%) assembled at the wrong relative orientation (TM 0.43, RMSD 23.4 Å)",
+            "Misleading confidence: mean pLDDT 83.3 but 85% confidently-wrong residues, pLDDT↔lDDT correlation only +0.33",
+            "Binds Hsp90 asymmetrically (NTD→middle domain, CTD→N-domain interface); also an independent holdase",
+            "Disease: drives ΔF508-CFTR maturation (cystic fibrosis target) and pathological tau accumulation; Hsp90 axis is a cancer target",
+        ],
+    },
+    {
+        "uniprot": "O00308",
+        "gene": "WWP2",
+        "name": "NEDD4-like E3 ubiquitin ligase WWP2 (WW module)",
+        "entity_id": "6RSS_1",
+        "entry": "6RSS",
+        "chain": "A",
+        "failure_mode": "Flexible inter-module geometry — honest low confidence",
+        "badges": ["globular", "small fold", "E3 ligase"],
+        "headline": (
+            "Each WW module of WWP2 is a textbook three-stranded β-sheet AlphaFold folds correctly in "
+            "isolation — but the deposited chain has no single fixed inter-module geometry, and "
+            "AlphaFold guessed one anyway; tellingly, at only pLDDT 74.5, it was honestly unsure."),
+        "structure": [
+            "Full-length WWP2 (870 aa) has the canonical NEDD4-family layout: an N-terminal C2 domain, "
+            "four WW domains (WW1–WW4) that read PPxY/LPxY motifs in substrates, and a C-terminal HECT "
+            "domain that forms the E3~ubiquitin thioester. Each WW domain is one of the smallest "
+            "autonomously folding units known — ~35–40 residues, a three-stranded antiparallel β-sheet "
+            "stabilised by two invariant tryptophans packing its hydrophobic face.",
+            "In the resting enzyme WWP2 is autoinhibited: the 2,3-linker wraps onto the HECT domain, "
+            "occluding its allosteric ubiquitin site — relieved by ubiquitin binding, multivalent WW "
+            "engagement by adaptors such as Ndfip1, or linker phosphorylation. Separately, "
+            "isoform-specific pairing of WW3 and WW4 recognises PY-motif partners (e.g. Smad7) with an "
+            "inter-domain geometry that is not fixed: it shifts with ligand identity and phosphorylation "
+            "state.",
+        ],
+        "why_wrong": [
+            "The chemistry is trivial: a two-Trp, three-strand β-sheet is exactly the small, "
+            "high-contact-order motif AlphaFold nails routinely. Yet mean pLDDT here is only 74.5 — the "
+            "model is honestly hedging — and everything downstream is bad: TM-score 0.46, lDDT 0.503, "
+            "Cα-RMSD 21.9 Å, SS-Q3 63%, 73% of residues confidently wrong, and a pLDDT↔lDDT correlation "
+            "of just +0.15.",
+            "The 109-residue deposited chain pairs the native WW fold with a second, unrelated folded "
+            "module (an NMR solubility-tag partner) via a short flexible tether — structurally the same "
+            "problem as native WW3–WW4 tandems having no single relative orientation. Given one sequence "
+            "and no knowledge of which pose (or which fusion) was actually captured, AlphaFold predicted "
+            "a specific, wrong relative packing — a linker/inter-module geometry failure layered on top "
+            "of individually correct small folds, not a misfolded core. Here the honest thing is that "
+            "its confidence, uniquely low among these examples, half-admits the uncertainty.",
+        ],
+        "biology": [
+            "WWP2 is a HECT-family E3 ubiquitin ligase of the NEDD4-like clan, using its WW domains as "
+            "substrate-recognition modules that dock PY-motif partners for K48- or K63-linked "
+            "ubiquitination. Validated substrates include SMAD7 and SMAD2/3 (TGF-β pathway), PTEN, TP53 "
+            "and the pluripotency factor OCT4, alongside roles touching chromatin regulators and "
+            "autophagy machinery.",
+            "Because WWP2 arises as multiple splice isoforms with different WW-domain complements, the "
+            "same locus produces enzymes with opposing substrate preferences — WWP2-C preferentially "
+            "degrades the TGF-β inhibitor SMAD7 and promotes EMT/metastasis, while WWP2-N targets "
+            "SMAD2/3. Autoinhibition via the 2,3-linker keeps basal activity low until relieved by "
+            "ubiquitin binding or phosphorylation. WWP2 dysregulation and isoform-ratio shifts are "
+            "implicated in cancers (SMAD/TGF-β and PTEN/p53 axes), osteoblast and cardiac remodelling, "
+            "and stem-cell biology via OCT4 turnover.",
+        ],
+        "key_facts": [
+            "NEDD4-family HECT E3 ubiquitin ligase: N-terminal C2 domain, four WW domains (WW1–WW4), C-terminal catalytic HECT",
+            "WW domains are ~35–40-residue, two-Trp, three-stranded antiparallel β-sheets — among the smallest stable folds",
+            "AF failure: uncertain/flexible relative orientation between small folded modules, not a misfolded core",
+            "Substrates: SMAD7, SMAD2/3, PTEN, TP53, OCT4 — substrate choice is isoform- and WW-composition-dependent",
+            "Autoinhibited by 2,3-linker–HECT packing; relieved by ubiquitin binding, multivalent WW engagement or phosphorylation",
+            "Honest failure: mean pLDDT only 74.5 with pLDDT↔lDDT correlation +0.15 — the model is genuinely, correctly unsure",
+        ],
+    },
+    # ---- Section 2: the dramatic whole-fold catastrophes ----
+    {
+        "section": "The dramatic failures — aggregation, disorder & context",
+        "section_note": (
+            "The headline catches: whole-fold catastrophes where AlphaFold's confident native "
+            "prediction and the deposited coordinates are essentially unrelated — a novel membrane "
+            "amyloid, a disordered monomer forced into a fibril, a folded tetramer that amyloids, and a "
+            "multidomain zymogen captured in the wrong biological context."),
         "uniprot": "Q9NUM4",
         "gene": "TMEM106B",
         "name": "Transmembrane protein 106B",
