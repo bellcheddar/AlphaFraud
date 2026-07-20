@@ -601,31 +601,36 @@
       box.style.left = x + "px"; box.style.top = y + "px";
     });
     el.on("plotly_unhover", function () { el._pulsePaused = false; el.style.cursor = ""; hide(); });
-    // Click a curated example star → jump to its Examples-tab panel; any other point → entry page.
+    // Click a curated deep-dive example → jump to its Examples-tab panel; any other point → entry.
+    // Route by entity id (built into el._exLinks) so it works no matter which trace resolves.
     el.on("plotly_click", function (d) {
-      if (isExamplePoint(d)) {
-        var href = d.points[0].customdata && d.points[0].customdata[2];
-        if (href) { window.location.href = href; return; }
-      }
       var eid = eidOf(d);
+      if (eid && el._exLinks && el._exLinks[eid]) { window.location.href = el._exLinks[eid]; return; }
+      if (isExamplePoint(d) && d.points[0].customdata && d.points[0].customdata[2]) {
+        window.location.href = d.points[0].customdata[2]; return;
+      }
       if (eid) window.location.href = "/entry/" + encodeURIComponent(eid);
     });
     startExamplePulse(el);
   };
 
-  // Gently pulse the deep-dive example stars (size oscillation) so they catch the eye.
+  // Pulse + grow the deep-dive example markers so they catch the eye (all users, always).
   function startExamplePulse(el) {
     if (!window.Plotly || el._exPulse) return;
-    try { if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (e) {}
     var idx = -1;
     (el.data || []).forEach(function (t, i) { if (t.meta && t.meta.example) idx = i; });
     if (idx < 0) return;
+    // Map entity id -> Examples-tab link so clicks route correctly regardless of trace hit.
+    el._exLinks = {};
+    ((el.data[idx] && el.data[idx].customdata) || []).forEach(function (row) {
+      if (row && row[0] && row[2]) el._exLinks[row[0]] = row[2];
+    });
     var t0 = Date.now();
     el._exPulse = setInterval(function () {
       if (!document.body.contains(el)) { clearInterval(el._exPulse); el._exPulse = null; return; }
       if (el._pulsePaused) return;                     // hold steady while the user hovers
-      var s = 17 + 5 * Math.sin((Date.now() - t0) / 300);
+      var s = 18 + 6 * Math.sin((Date.now() - t0) / 300);   // grows ~12..24 px
       try { Plotly.restyle(el, { "marker.size": s }, [idx]); } catch (e) { /* mid-react */ }
-    }, 90);
+    }, 80);
   }
 })();

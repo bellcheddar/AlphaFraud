@@ -186,9 +186,12 @@ def _downsample_points(entities: list[dict], cap: int = 6000) -> tuple[list[dict
 def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dict] = None) -> str:
     """The pLDDT-vs-TM 'fraud quadrant'. `zoom=True` restricts the axes to just the
     confidently-wrong region (pLDDT ≥ CONFIDENT_PLDDT, TM < WRONG_TM) for a closer look.
-    `highlights` overlays the curated deep-dive examples as clickable, pulsing stars (green =
+    `highlights` re-draws the curated deep-dive examples as clickable, pulsing markers (green =
     the accurate control, red = the failures), each linking to its Examples-tab panel."""
     points, omitted = _downsample_points(entities)
+    # The examples are pulled OUT of the main cloud and redrawn as their own highlight trace, so a
+    # click lands on the highlight point (linking to the Examples tab), not the buried original.
+    hl_eids = {h["eid"] for h in highlights} if (highlights and not zoom) else set()
     fig = go.Figure()
     # Shade the fraud quadrant: confident (pLDDT > threshold) yet wrong (TM < threshold).
     fig.add_shape(
@@ -204,7 +207,8 @@ def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dic
         )
     for novel, color, name in [(1, BRAND["amber"], "novel sequence"), (0, BRAND["primary"], "has pre-cutoff homolog")]:
         pts = [e for e in points if bool(e.get("is_novel")) == bool(novel)
-               and e.get("mean_plddt") is not None and e.get("tm_by_experiment") is not None]
+               and e.get("mean_plddt") is not None and e.get("tm_by_experiment") is not None
+               and e.get("entity_id") not in hl_eids]
         if not pts:
             continue
         fig.add_trace(go.Scatter(
@@ -232,15 +236,17 @@ def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dic
             x=[None], y=[None], mode="markers", name=f"FRAUD {frac}", legend="legend2",
             marker=dict(color="rgba(120,140,160,0.75)", size=6 + 20 * frac, line=dict(width=0.4, color="white")),
         ))
-    # Overlay the curated deep-dive examples as clickable, pulsing stars (drawn last = on top).
-    if highlights and not zoom:
+    # Redraw the curated deep-dive examples as their own circle markers (same style as the cloud,
+    # but red for failures / green for the accurate control), drawn last so they sit on top and
+    # own the hover/click. JS pulses their size (see startExamplePulse).
+    if hl_eids:
         fig.add_trace(go.Scatter(
             x=[h["x"] for h in highlights], y=[h["y"] for h in highlights],
-            mode="markers", name="★ deep-dive examples", meta={"example": True}, cliponaxis=False,
+            mode="markers", name="deep-dive examples", meta={"example": True}, cliponaxis=False,
             marker=dict(
-                symbol="star", size=17,
+                symbol="circle", size=15,
                 color=[("#0a8a4f" if h.get("good") else BRAND["red"]) for h in highlights],
-                line=dict(width=1.6, color="white")),
+                line=dict(width=2, color="white")),
             customdata=[[h["eid"], h["name"], h["href"], h["mode"]] for h in highlights],
             hovertemplate=("<b>%{customdata[1]}</b><br>%{customdata[3]}<br>"
                            "▶ click to open the deep-dive<extra></extra>"),
