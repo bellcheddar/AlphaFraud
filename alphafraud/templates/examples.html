@@ -40,10 +40,19 @@
           <span class="exsec-toggle" aria-hidden="true"></span>
         </summary>
         <div class="arc-body">
-          <p class="exheadline">{{ a.data.headline }}</p>
-          {% for p in a.data.structure %}<p>{{ p }}</p>{% endfor %}
-          {% for p in a.data.why_wrong %}<p>{{ p }}</p>{% endfor %}
-          <p class="arc-link"><a href="{{ url_for('entry', entity_id=a.entity_id) }}">Open full analysis for {{ a.data.entry }}_{{ a.data.chain }} →</a></p>
+          <div class="arc-prose">
+            <p class="exheadline">{{ a.data.headline }}</p>
+            {% for p in a.data.structure %}<p>{{ p }}</p>{% endfor %}
+            {% for p in a.data.why_wrong %}<p>{{ p }}</p>{% endfor %}
+            <p class="arc-link"><a href="{{ url_for('entry', entity_id=a.entity_id) }}">Open full analysis for {{ a.data.entry }}_{{ a.data.chain }} →</a></p>
+          </div>
+          {% set aru = ribbon_url(a.entity_id) %}
+          {% if aru %}
+          <div class="arc-thumb">
+            <img src="{{ aru }}" alt="Cα-deviation ribbon of {{ a.data.entry }}_{{ a.data.chain }}" loading="lazy">
+            <span class="arc-thumb-cap">{{ a.data.entry }}_{{ a.data.chain }} · Cα deviation</span>
+          </div>
+          {% endif %}
         </div>
       </details>
       {% endfor %}
