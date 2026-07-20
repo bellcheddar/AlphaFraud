@@ -374,10 +374,11 @@ def _render_all():
     if not (payload and _snapshot_fresh(payload.get("_updated_at"), HOME_CACHE_TTL)):
         rows = db.all_entities_scalar()      # all analysed entities, worst-FRAUD first
         weekly = db.deposit_month_trend()
+        hl = _example_highlights()
         payload = {
             "figures": {
-                "scatter": report.fraud_scatter(rows, highlights=_example_highlights()),
-                "scatter_zoom": report.fraud_scatter(rows, zoom=True),
+                "scatter": report.fraud_scatter(rows, highlights=hl),
+                "scatter_zoom": report.fraud_scatter(rows, zoom=True, highlights=hl),
                 "dumbbell": report.fraud_dumbbell(rows),
                 "histograms": report.metric_histograms(rows),
                 "trend": report.trend_figure(weekly, cw_trend=db.cw_rate_trend()) if len(weekly) > 1 else None,
