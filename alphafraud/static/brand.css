@@ -231,10 +231,42 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 .exsec-body { padding: 0 15px 13px; }
 .exsec-body p { font-size: 14px; line-height: 1.6; margin: 0 0 9px; color: var(--ink); }
 .exsec-body p:last-child { margin-bottom: 0; }
+/* Weekly archive: compact, filterable, natively-collapsible list of every prior catch. */
+.arccard { padding: 0; overflow: hidden; }
+.arc-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); }
+.arc-head .exsection-h { margin: 0 0 4px; }
+.arc-head .sub { margin: 0 0 10px; }
+.arc-search { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); color: var(--ink); font-size: 14px; }
+.arcrow { border-bottom: 1px solid var(--border); }
+.arcrow:last-of-type { border-bottom: none; }
+.arcrow > summary { list-style: none; cursor: pointer; display: grid;
+  grid-template-columns: 92px minmax(0,1fr) auto auto auto auto 20px; align-items: center; gap: 12px;
+  padding: 11px 18px; font-size: 13.5px; }
+.arcrow > summary::-webkit-details-marker { display: none; }
+.arcrow:hover { background: rgba(120,140,160,.05); }
+.arc-week { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.arc-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-mode { white-space: nowrap; }
+.arc-m { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; font-size: 12.5px; }
+.arc-m.bad { color: var(--red); font-weight: 600; }
+.arcrow .exsec-toggle::after { content: "▾"; }
+.arcrow[open] .exsec-toggle::after { content: "▴"; }
+.arc-body { padding: 2px 18px 16px; }
+.arc-body p { font-size: 13.5px; line-height: 1.6; margin: 0 0 8px; color: var(--ink); }
+.arc-body .exheadline { font-size: 14px; margin: 6px 0 12px; }
+.arc-link a { font-weight: 600; }
+.arc-empty { padding: 20px; color: var(--muted); text-align: center; }
 @media (max-width: 760px) {
   .exgrid { grid-template-columns: 1fr; }
   .expanel { padding: 16px; }
   .exstats { grid-template-columns: repeat(3, 1fr); }
+  .arcrow > summary { grid-template-columns: 1fr auto auto; grid-auto-rows: min-content;
+    row-gap: 3px; column-gap: 8px; }
+  .arc-week { grid-column: 1 / -1; }
+  .arc-name { grid-column: 1 / 2; }
+  .arc-hide-xs { display: none; }
+  .arcrow .exsec-toggle { display: none; }
 }
 
 .ribbonhero { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }

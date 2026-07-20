@@ -292,11 +292,29 @@
     });
   }
 
+  function initExampleArchive() {
+    var search = document.getElementById("arcSearch"),
+        list = document.getElementById("arcList");
+    if (!search || !list) return;
+    var rows = list.querySelectorAll(".arcrow"),
+        empty = document.getElementById("arcEmpty");
+    search.addEventListener("input", function () {
+      var q = search.value.trim().toLowerCase(), shown = 0;
+      rows.forEach(function (r) {
+        var hit = !q || (r.getAttribute("data-key") || "").indexOf(q) !== -1;
+        r.style.display = hit ? "" : "none";
+        if (hit) shown++;
+      });
+      if (empty) empty.hidden = shown !== 0;
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     renderPlots();
     document.querySelectorAll("table.sortable").forEach(initTable);
     initFilters();
     initLeaderboardGroups();
+    initExampleArchive();
     loadStats();
     setInterval(loadStats, 60000);
   });

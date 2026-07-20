@@ -253,18 +253,27 @@ def create_app() -> Flask:
         return render_template("leaderboard.html", banner=banner.BANNER_ART,
                                groups=groups, stats=stats, version=__version__)
 
+    def _enrich_example(e, citation=None):
+        entity = db.get_entity(e["entity_id"])
+        metrics = json.loads(entity["metrics_json"] or "{}") if entity else {}
+        return {**e, "entity": entity, "metrics": metrics,
+                "fam": db.family_summary(e["uniprot"]),
+                "citation": citation if citation is not None else db.entity_citation(e["entity_id"])}
+
     @app.route("/examples")
     def examples():
         from . import examples as ex
-        items = []
-        for e in ex.EXAMPLES:
-            entity = db.get_entity(e["entity_id"])
-            metrics = json.loads(entity["metrics_json"] or "{}") if entity else {}
-            items.append({**e, "entity": entity, "metrics": metrics,
-                          "fam": db.family_summary(e["uniprot"]),
-                          "citation": db.entity_citation(e["entity_id"])})
+        items = [_enrich_example(e) for e in ex.EXAMPLES]
+        # Auto 'example of the week': featured newest + browsable archive of all prior weeks.
+        feat = db.latest_weekly_example()
+        featured = None
+        if feat:
+            featured = _enrich_example(feat["data"], citation=feat["data"].get("citation"))
+            featured["week"] = feat["week"]
+        archive = db.archive_weekly_examples()
         return render_template("examples.html", banner=banner.BANNER_ART,
-                               examples=items, version=__version__)
+                               examples=items, featured=featured, archive=archive,
+                               version=__version__)
 
     @app.route("/analysis")
     def analysis():

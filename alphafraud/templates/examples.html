@@ -1,18 +1,56 @@
 {% extends "base.html" %}
 {% set active = 'examples' %}
 {% block title %}Examples &middot; AlphaFraud{% endblock %}
-{% macro r2(v) %}{% if v is none %}—{% elif v is number %}{{ '%.2f'|format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
-{% macro stat(label, val, cls='') %}<div class="exstat {{ cls }}"><div class="exstat-n">{{ val }}</div><div class="exstat-l">{{ label }}</div></div>{% endmacro %}
 
 {% block content %}
   <h1>Examples — AlphaFold's blind spots, up close</h1>
-  <p class="sub">Eight of AlphaFold's worst calls on freshly-deposited human structures, split into two
-  kinds of failure. The first four are ordinary single-chain globular proteins — a flexible phosphatase
-  scaffold, a Ca²⁺-sensing switch, a two-domain co-chaperone and a tiny WW module — where AlphaFold gets
-  the fold right but commits, often at very high confidence, to the wrong conformation or domain
-  arrangement. The last four are the dramatic whole-fold catastrophes: a novel membrane amyloid, a
-  disordered monomer, a folded tetramer that amyloids, and a multidomain zymogen caught in the wrong
-  biological context.</p>
+  <p class="sub">Two ways to browse AlphaFold's failures. Every week we automatically catch the single most
+  striking confidently-wrong structure from that week's PDB release and build its panel straight from the
+  AlphaFraud metrics. Beneath the weekly archive sit our hand-curated deep-dives — worst-offenders explored
+  in depth. In every viewer the colouring is Cα deviation from the AlphaFold model (blue = agree, red = wrong).</p>
+
+  {% if featured %}
+  <div class="exsection">
+    <h2 class="exsection-h">🎣 Fresh catch — example of the week {{ featured.week }}</h2>
+    <p class="sub">Auto-selected from this release's confidently-wrong catches and written deterministically
+    from the database — no hand-curation. (Biology is left to the curated deep-dives below.)</p>
+  </div>
+  {% set x = featured %}
+  {% include "_expanel.html" %}
+
+  {% if archive %}
+  <section class="card arccard">
+    <div class="arc-head">
+      <h2 class="exsection-h">🗄️ Weekly archive — {{ archive|length }} previous catches</h2>
+      <p class="sub">Every prior week's automatically-selected catch. Click a row to read its panel; open the
+      full analysis for heatmaps and per-residue detail.</p>
+      <input type="search" id="arcSearch" class="arc-search" placeholder="Filter by protein, UniProt, week or failure mode…" aria-label="Filter archive">
+    </div>
+    <div class="arclist" id="arcList">
+      {% for a in archive %}
+      <details class="arcrow" data-key="{{ (a.week ~ ' ' ~ a.data.name ~ ' ' ~ a.uniprot ~ ' ' ~ a.failure_mode)|lower }}">
+        <summary>
+          <span class="arc-week">{{ a.week }}</span>
+          <span class="arc-name">{{ a.data.name }}{% if a.data.gene %} <span class="exgene">{{ a.data.gene }}</span>{% endif %}</span>
+          <span class="chip mode arc-mode">{{ a.failure_mode }}</span>
+          <span class="arc-m">TM {{ '%.2f'|format(a.tm) if a.tm is not none else '—' }}</span>
+          <span class="arc-m arc-hide-xs">pLDDT {{ '%.0f'|format(a.plddt) if a.plddt is not none else '—' }}</span>
+          <span class="arc-m bad">FRAUD {{ '%.2f'|format(a.fraud_score) if a.fraud_score is not none else '—' }}</span>
+          <span class="exsec-toggle" aria-hidden="true"></span>
+        </summary>
+        <div class="arc-body">
+          <p class="exheadline">{{ a.data.headline }}</p>
+          {% for p in a.data.structure %}<p>{{ p }}</p>{% endfor %}
+          {% for p in a.data.why_wrong %}<p>{{ p }}</p>{% endfor %}
+          <p class="arc-link"><a href="{{ url_for('entry', entity_id=a.entity_id) }}">Open full analysis for {{ a.data.entry }}_{{ a.data.chain }} →</a></p>
+        </div>
+      </details>
+      {% endfor %}
+      <p class="arc-empty" id="arcEmpty" hidden>No catches match that filter.</p>
+    </div>
+  </section>
+  {% endif %}
+  {% endif %}
 
   {% set ns = namespace(cur='') %}
   {% for x in examples %}
@@ -22,76 +60,6 @@
     {% if x.section_note %}<p class="sub">{{ x.section_note }}</p>{% endif %}
   </div>
   {% endif %}
-  {% set e = x.entity %}
-  <article class="expanel">
-    <header class="exhead">
-      <div class="exhead-title">
-        <h2>{{ x.name }} <span class="exgene">{{ x.gene }}</span></h2>
-        <div class="exchips">
-          <span class="chip mode">{{ x.failure_mode }}</span>
-          {% for b in x.badges %}<span class="chip">{{ b }}</span>{% endfor %}
-          <a class="chip uni" href="https://www.uniprot.org/uniprotkb/{{ x.uniprot }}" target="_blank" rel="noopener">{{ x.uniprot }} ↗</a>
-        </div>
-      </div>
-    </header>
-
-    <p class="exheadline">{{ x.headline }}</p>
-
-    <div class="exgrid">
-      <div class="exviewcol">
-        <div class="exviewer" data-eid="{{ x.entity_id }}"
-             data-coords="{{ coords_url(x.entity_id) or '' }}" data-ghost="{{ ghost_url(x.entity_id) or '' }}">
-          {% set ru = ribbon_url(x.entity_id) %}
-          {% if ru %}<img class="exv-ribbon" src="{{ ru }}" alt="Cα-deviation ribbon of {{ x.entry }}" loading="lazy">{% endif %}
-          <div class="exv-canvas" style="display:none"></div>
-          <div class="exv-tools" style="display:none">
-            <button data-act="style" type="button">🎨 Cartoon</button>
-            <button data-act="color" type="button">🌈 Cα deviation</button>
-            <button data-act="ghost" type="button">👻 AF ghost</button>
-            <button data-act="spin" type="button">🔁 spin</button>
-            <button data-act="reset" type="button">⤢ reset</button>
-          </div>
-          {% if ru %}<button class="exv-launch btn-primary" type="button">🔄 Launch interactive 3D</button>{% endif %}
-        </div>
-        <p class="exv-hint">Worst deposition: <a href="{{ url_for('entry', entity_id=x.entity_id) }}">{{ x.entry }}_{{ x.chain }}</a> ·
-          drag to rotate · scroll to zoom · toggle the AlphaFold “ghost” to see what it predicted.</p>
-      </div>
-
-      <div class="exside">
-        <div class="exstats">
-          {{ stat('worst TM-score', r2(e.tm_by_experiment) if e else '—', 'bad') }}
-          {{ stat('mean pLDDT', r2(e.mean_plddt) if e else '—') }}
-          {{ stat('FRAUD score', r2(e.fraud_score) if e else '—', 'bad') }}
-          {{ stat('structures', '×' ~ (x.fam.n or 1)) }}
-          {{ stat('conf. wrong', (x.fam.n_wrong or 0) ~ '/' ~ (x.fam.n or 0)) }}
-          {{ stat('novelty', (nov(e.novelty_identity)|round|int ~ '%') if e and e.novelty_identity is not none else '—') }}
-        </div>
-        <aside class="exfacts">
-          <h4>Key facts</h4>
-          <ul>{% for f in x.key_facts %}<li>{{ f }}</li>{% endfor %}</ul>
-          {% if x.citation and x.citation.doi %}
-          <p class="exdoi"><a href="https://doi.org/{{ x.citation.doi }}" target="_blank" rel="noopener">📄 {{ x.citation.title }}</a>{% if x.citation.year %} ({{ x.citation.year }}){% endif %}</p>
-          {% endif %}
-        </aside>
-      </div>
-    </div>
-
-    <div class="exbody">
-      <div class="exsections">
-        <details class="exsec">
-          <summary><span class="exsec-h">🧬 Structure &amp; architecture</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
-          <div class="exsec-body">{% for p in x.structure %}<p>{{ p }}</p>{% endfor %}</div>
-        </details>
-        <details class="exsec">
-          <summary><span class="exsec-h">❌ Why AlphaFold gets it wrong</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
-          <div class="exsec-body">{% for p in x.why_wrong %}<p>{{ p }}</p>{% endfor %}</div>
-        </details>
-        <details class="exsec">
-          <summary><span class="exsec-h">🩺 Biology &amp; disease</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
-          <div class="exsec-body">{% for p in x.biology %}<p>{{ p }}</p>{% endfor %}</div>
-        </details>
-      </div>
-    </div>
-  </article>
+  {% include "_expanel.html" %}
   {% endfor %}
 {% endblock %}

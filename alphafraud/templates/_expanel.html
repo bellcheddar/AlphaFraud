@@ -1,0 +1,77 @@
+{#- One annotated example panel. Expects `x` (an enriched example dict) in context.
+   Curated examples carry a `biology` section; auto 'example of the week' panels omit it. -#}
+{% macro r2(v) %}{% if v is none %}—{% elif v is number %}{{ '%.2f'|format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
+{% macro stat(label, val, cls='') %}<div class="exstat {{ cls }}"><div class="exstat-n">{{ val }}</div><div class="exstat-l">{{ label }}</div></div>{% endmacro %}
+{% set e = x.entity %}
+<article class="expanel">
+  <header class="exhead">
+    <div class="exhead-title">
+      <h2>{{ x.name }} <span class="exgene">{{ x.gene }}</span></h2>
+      <div class="exchips">
+        <span class="chip mode">{{ x.failure_mode }}</span>
+        {% for b in x.badges %}<span class="chip{% if b == 'auto' %} auto{% endif %}">{{ b }}</span>{% endfor %}
+        <a class="chip uni" href="https://www.uniprot.org/uniprotkb/{{ x.uniprot }}" target="_blank" rel="noopener">{{ x.uniprot }} ↗</a>
+      </div>
+    </div>
+  </header>
+
+  <p class="exheadline">{{ x.headline }}</p>
+
+  <div class="exgrid">
+    <div class="exviewcol">
+      <div class="exviewer" data-eid="{{ x.entity_id }}"
+           data-coords="{{ coords_url(x.entity_id) or '' }}" data-ghost="{{ ghost_url(x.entity_id) or '' }}">
+        {% set ru = ribbon_url(x.entity_id) %}
+        {% if ru %}<img class="exv-ribbon" src="{{ ru }}" alt="Cα-deviation ribbon of {{ x.entry }}" loading="lazy">{% endif %}
+        <div class="exv-canvas" style="display:none"></div>
+        <div class="exv-tools" style="display:none">
+          <button data-act="style" type="button">🎨 Cartoon</button>
+          <button data-act="color" type="button">🌈 Cα deviation</button>
+          <button data-act="ghost" type="button">👻 AF ghost</button>
+          <button data-act="spin" type="button">🔁 spin</button>
+          <button data-act="reset" type="button">⤢ reset</button>
+        </div>
+        {% if ru %}<button class="exv-launch btn-primary" type="button">🔄 Launch interactive 3D</button>{% endif %}
+      </div>
+      <p class="exv-hint">Worst deposition: <a href="{{ url_for('entry', entity_id=x.entity_id) }}">{{ x.entry }}_{{ x.chain }}</a> ·
+        drag to rotate · scroll to zoom · toggle the AlphaFold “ghost” to see what it predicted.</p>
+    </div>
+
+    <div class="exside">
+      <div class="exstats">
+        {{ stat('worst TM-score', r2(e.tm_by_experiment) if e else '—', 'bad') }}
+        {{ stat('mean pLDDT', r2(e.mean_plddt) if e else '—') }}
+        {{ stat('FRAUD score', r2(e.fraud_score) if e else '—', 'bad') }}
+        {{ stat('structures', '×' ~ (x.fam.n or 1)) }}
+        {{ stat('conf. wrong', (x.fam.n_wrong or 0) ~ '/' ~ (x.fam.n or 0)) }}
+        {{ stat('novelty', (nov(e.novelty_identity)|round|int ~ '%') if e and e.novelty_identity is not none else '—') }}
+      </div>
+      <aside class="exfacts">
+        <h4>Key facts</h4>
+        <ul>{% for f in x.key_facts %}<li>{{ f }}</li>{% endfor %}</ul>
+        {% if x.citation and x.citation.doi %}
+        <p class="exdoi"><a href="https://doi.org/{{ x.citation.doi }}" target="_blank" rel="noopener">📄 {{ x.citation.title }}</a>{% if x.citation.year %} ({{ x.citation.year }}){% endif %}</p>
+        {% endif %}
+      </aside>
+    </div>
+  </div>
+
+  <div class="exbody">
+    <div class="exsections">
+      <details class="exsec">
+        <summary><span class="exsec-h">🧬 Structure &amp; architecture</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
+        <div class="exsec-body">{% for p in x.structure %}<p>{{ p }}</p>{% endfor %}</div>
+      </details>
+      <details class="exsec">
+        <summary><span class="exsec-h">❌ Why AlphaFold gets it wrong</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
+        <div class="exsec-body">{% for p in x.why_wrong %}<p>{{ p }}</p>{% endfor %}</div>
+      </details>
+      {% if x.biology %}
+      <details class="exsec">
+        <summary><span class="exsec-h">🩺 Biology &amp; disease</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
+        <div class="exsec-body">{% for p in x.biology %}<p>{{ p }}</p>{% endfor %}</div>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+</article>

@@ -120,6 +120,21 @@ CREATE TABLE IF NOT EXISTS analysis_snapshots (
     updated_at  TEXT
 );
 
+-- One auto-generated 'example of the week' per PDB release date (see examples_auto.py).
+-- Rebuilt after every run; the newest row is the featured 'Fresh catch', the rest the archive.
+CREATE TABLE IF NOT EXISTS weekly_examples (
+    week          TEXT PRIMARY KEY,     -- release_date this catch was released (the weekly cycle)
+    entity_id     TEXT,
+    uniprot       TEXT,
+    failure_mode  TEXT,
+    fraud_score   REAL,
+    tm            REAL,
+    plddt         REAL,
+    is_novel      INTEGER,
+    data_json     TEXT,                 -- full templated example dict (headline, sections, facts…)
+    created_at    TEXT
+);
+
 -- Lightweight visitor counter for the header stats panel (IPs are hashed, never stored raw).
 CREATE TABLE IF NOT EXISTS visits (
     ip_hash     TEXT PRIMARY KEY,
@@ -370,6 +385,84 @@ def family_summary(uniprot: str) -> dict:
                        MIN(tm_by_experiment) min_tm, AVG(mean_plddt) mean_plddt
                 FROM entities WHERE uniprot=? AND {ANALYSED}""", (uniprot,)).fetchone()
         return dict(r) if r else {}
+
+
+# --------------------------------------------------------------------------------------
+# Weekly auto-examples ('example of the week' + archive) — see examples_auto.py
+# --------------------------------------------------------------------------------------
+
+_WEEKLY_EXAMPLES_DDL = """
+CREATE TABLE IF NOT EXISTS weekly_examples (
+    week TEXT PRIMARY KEY, entity_id TEXT, uniprot TEXT, failure_mode TEXT,
+    fraud_score REAL, tm REAL, plddt REAL, is_novel INTEGER, data_json TEXT, created_at TEXT
+);
+"""
+
+# Joined fields examples_auto.build() needs. Kept in sync with that module.
+_AUTO_SRC_COLS = (
+    "e.entity_id, e.entry_id, e.chain, e.uniprot, e.uniprot_name, e.description, "
+    "e.release_date, e.tm_by_experiment, e.mean_plddt, e.fraud_score, e.lddt, e.ca_rmsd, "
+    "e.is_novel, e.novelty_identity, e.metrics_json, "
+    "a.seq_length, a.n_chains, a.cath_name, a.cath_class, a.scop2_sf, "
+    "a.citation_doi, a.citation_title, a.citation_year, "
+    "a.is_amyloid, a.is_assembly, a.is_idr, a.is_coiledcoil"
+)
+
+
+def rebuild_weekly_examples() -> int:
+    """Regenerate the auto 'example of the week' for every release date that has a confidently-
+    wrong catch. Picks the best non-curated catch per week (novel first, then FRAUD), builds its
+    templated panel deterministically, and replaces the table. Returns the number of weeks."""
+    from . import examples_auto as ea
+    with connect() as conn:
+        conn.execute(_WEEKLY_EXAMPLES_DDL)
+        rows = conn.execute(
+            f"SELECT {_AUTO_SRC_COLS} FROM entities e "
+            "LEFT JOIN entity_annotations a ON a.entity_id = e.entity_id "
+            f"WHERE e.confidently_wrong=1 AND e.uniprot IS NOT NULL AND e.release_date IS NOT NULL "
+            "AND length(e.release_date) >= 10 "
+            "ORDER BY e.release_date DESC, e.is_novel DESC, e.fraud_score DESC"
+        ).fetchall()
+        # One winner per release week: first row per date (already ranked), skipping curated families.
+        picked: dict[str, sqlite3.Row] = {}
+        for r in rows:
+            if r["uniprot"] in ea.CURATED_UNIPROTS:
+                continue
+            wk = r["release_date"][:10]
+            if wk not in picked:
+                picked[wk] = r
+        conn.execute("DELETE FROM weekly_examples")
+        now = _now()
+        for wk, r in picked.items():
+            data = ea.build(r)
+            conn.execute(
+                "INSERT INTO weekly_examples (week, entity_id, uniprot, failure_mode, fraud_score, "
+                "tm, plddt, is_novel, data_json, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (wk, r["entity_id"], r["uniprot"], data["failure_mode"], r["fraud_score"],
+                 r["tm_by_experiment"], r["mean_plddt"], r["is_novel"], json.dumps(data), now))
+        return len(picked)
+
+
+def _weekly_example_row(r: sqlite3.Row) -> dict:
+    d = dict(r)
+    d["data"] = json.loads(d.pop("data_json") or "{}")
+    return d
+
+
+def latest_weekly_example() -> Optional[dict]:
+    """The most recent week's auto example (the featured 'Fresh catch'), or None."""
+    with connect() as conn:
+        conn.execute(_WEEKLY_EXAMPLES_DDL)
+        r = conn.execute("SELECT * FROM weekly_examples ORDER BY week DESC LIMIT 1").fetchone()
+        return _weekly_example_row(r) if r else None
+
+
+def archive_weekly_examples() -> list[dict]:
+    """All auto examples EXCEPT the featured latest, newest first — the browsable archive."""
+    with connect() as conn:
+        conn.execute(_WEEKLY_EXAMPLES_DDL)
+        rows = conn.execute("SELECT * FROM weekly_examples ORDER BY week DESC").fetchall()
+        return [_weekly_example_row(r) for r in rows[1:]]
 
 
 def run_kind(label: str) -> Optional[str]:

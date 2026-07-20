@@ -138,6 +138,18 @@ def cmd_analyze(args) -> int:
     return 0
 
 
+def cmd_weekly_examples(_args) -> int:
+    from alphafraud import db
+
+    db.init_schema()
+    n = db.rebuild_weekly_examples()
+    banner.ok(f"Rebuilt auto 'example of the week' for {n} weeks.")
+    feat = db.latest_weekly_example()
+    if feat:
+        banner.info(f"Featured (latest): {feat['week']}  {feat['entity_id']}  {feat['uniprot']}")
+    return 0
+
+
 def cmd_serve(args) -> int:
     from alphafraud.webapp import create_app
 
@@ -197,6 +209,10 @@ def main(argv=None) -> int:
     p_an = sub.add_parser("analyze", help="enrich the compared set + rebuild the Analysis snapshot")
     p_an.add_argument("--limit", type=int, help="max entities to enrich this pass")
     p_an.set_defaults(func=cmd_analyze)
+
+    sub.add_parser("weekly-examples",
+                   help="regenerate the auto 'example of the week' + archive (deterministic, no LLM)"
+                   ).set_defaults(func=cmd_weekly_examples)
 
     p_serve = sub.add_parser("serve", help="local dev web server")
     p_serve.add_argument("--port", type=int, default=8000)
