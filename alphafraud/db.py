@@ -435,6 +435,42 @@ def leaderboard(limit: int = 100, novel_only: bool = False) -> list[dict]:
         return [dict(r) for r in conn.execute(q, (limit,)).fetchall()]
 
 
+def leaderboard_grouped(max_proteins: int = 80, max_members: int = 40) -> list[dict]:
+    """Worst offenders GROUPED by protein for a collapsible leaderboard. Returns the worst
+    `max_proteins` UniProts (ranked by their single worst FRAUD score), each with its worst
+    deposition as the group header and up to `max_members` depositions as expandable rows."""
+    with connect() as conn:
+        tops = conn.execute(
+            f"""SELECT uniprot, MAX(fraud_score) wf, COUNT(*) n
+                FROM entities WHERE {ANALYSED} AND uniprot IS NOT NULL
+                GROUP BY uniprot ORDER BY wf DESC, n DESC LIMIT ?""", (max_proteins,)).fetchall()
+        unis = [r["uniprot"] for r in tops]
+        counts = {r["uniprot"]: r["n"] for r in tops}
+        if not unis:
+            return []
+        ph = ",".join("?" * len(unis))
+        rows = conn.execute(
+            f"""SELECT {_SCALAR_COLS} FROM entities
+                WHERE {ANALYSED} AND uniprot IN ({ph})
+                ORDER BY confidently_wrong DESC, fraud_score DESC, tm_by_experiment ASC""",
+            unis).fetchall()
+    from collections import defaultdict
+    by = defaultdict(list)
+    for r in rows:
+        by[r["uniprot"]].append(dict(r))
+    groups = []
+    for uni in unis:                       # preserve the worst-first protein order
+        members = by.get(uni)
+        if not members:
+            continue
+        groups.append({
+            "uniprot": uni, "worst": members[0], "n": counts[uni],
+            "n_wrong": sum(1 for m in members if m.get("confidently_wrong")),
+            "members": members[:max_members], "truncated": len(members) > max_members,
+        })
+    return groups
+
+
 def uniprot_deposition_counts() -> dict:
     """{uniprot: number of analysed depositions} — how many structures of each protein we hold.
     Lets views show a '×N' badge (AlphaFold DB has one model per sequence, so N depositions all

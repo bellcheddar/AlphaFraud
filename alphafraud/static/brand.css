@@ -143,6 +143,36 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 }
 .ribbonthumb:hover { transform: scale(1.12); }
 :root[data-theme="dark"] .ribbonthumb { background: rgba(180,200,220,.06); }
+.ribbonthumb.sm { width: 34px; height: 30px; }
+
+/* --- Grouped, fit-width worst-offenders table (no horizontal scroll) --- */
+.lbgroups { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px;
+  border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); box-shadow: var(--shadow); }
+.lbgroups th, .lbgroups td { padding: 8px 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lbgroups thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--border); }
+.lbgroups .num { text-align: right; font-variant-numeric: tabular-nums; }
+.lbgroups col, .lb-prot { }
+.lbgroups .lb-prot { width: auto; }
+.lbgroups .lb-n { width: 46px; }
+.lbgroups th.num, .lbgroups td.num { width: 58px; }
+.lbgroups .lb-flag { width: 52px; text-align: center; }
+.lb-group { cursor: pointer; border-top: 1px solid var(--border); }
+.lb-group:hover { background: rgba(120,140,160,.06); }
+.lb-group:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.lb-caret { display: inline-block; width: 12px; color: var(--muted); transition: transform .12s ease; font-size: 11px; }
+.lb-group[aria-expanded="true"] .lb-caret { transform: rotate(90deg); }
+.lb-name { font-weight: 600; }
+.lb-uni { font-size: 11px; color: var(--muted); margin-left: 6px; }
+.lb-member { background: rgba(120,140,160,.035); font-size: 13px; }
+.lb-member td { border-top: 1px dashed var(--border); }
+.lb-memcell { padding-left: 22px; display: flex; align-items: center; gap: 7px; }
+.lb-nov { color: var(--muted); font-size: 12px; }
+.lb-more td { font-size: 12px; padding-left: 22px; }
+@media (max-width: 430px) {
+  .lb-hide-xs { display: none; }
+  .lbgroups th, .lbgroups td { padding: 7px 5px; font-size: 13px; }
+  .lb-uni { display: none; }
+}
 
 .ribbonhero { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
 .ribbonhero-visual { flex: 0 0 auto; width: min(430px, 100%); }

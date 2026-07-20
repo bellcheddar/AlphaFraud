@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% set active = 'leaderboard' %}
 {% block title %}Worst offenders &middot; AlphaFraud{% endblock %}
-{% macro fmt(v) %}{% if v is none %}—{% else %}{{ v }}{% endif %}{% endmacro %}
 {% macro r2(v) %}{% if v is none %}—{% elif v is number %}{{ '%.2f'|format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
+{% macro flagcell(e) %}{% if e.confidently_wrong %}<span class="badge wrong">wrong</span>{% else %}<span class="badge ok">ok</span>{% endif %}{% endmacro %}
 
 {% block content %}
   <h1>Worst offenders — all time</h1>
-  <p class="sub">Every structure AlphaFold got most wrong, across all processed weeks. Confidently
-  wrong first (high pLDDT, low TM), then by FRAUD score. Novel + wrong is the strongest evidence
-  against "folding is solved".</p>
+  <p class="sub">Grouped by protein (AlphaFold has one model per sequence, so every deposition of a
+  protein shares it). Worst first — confidently wrong, then by FRAUD score. Tap a protein to expand
+  its individual structures.</p>
 
   {% set total = stats.n or 0 %}
   <div class="kpis">
@@ -19,39 +19,58 @@
   </div>
 
   <div class="toolbar">
-    <input type="search" id="tableSearch" placeholder="filter by PDB id, UniProt, protein…">
-    <label><input type="checkbox" id="wrongOnly"> confidently wrong only</label>
-    <label><input type="checkbox" id="novelOnly"> novel only</label>
+    <input type="search" id="lbSearch" placeholder="filter by protein, UniProt, PDB…">
+    <button class="dl" type="button" id="lbExpandAll">Expand all</button>
   </div>
-  <div class="tablewrap">
-    <table id="dataTable" class="sortable">
-      <thead><tr>
-        <th>PDB</th><th>UniProt</th><th>Protein</th><th title="How many deposited structures of this protein we hold — all share the one AlphaFold model">Structures</th><th>Week</th><th>Novelty %</th>
-        <th>pLDDT</th><th>TM</th><th>lDDT</th><th>FRAUD</th><th>Flag</th>
-      </tr></thead>
-      <tbody>
-        {% for e in entities %}
-        <tr class="{% if e.confidently_wrong %}wrong{% endif %}" data-wrong="{{ 1 if e.confidently_wrong else 0 }}" data-novel="{{ 1 if e.is_novel else 0 }}">
-          <td class="pdbcell">
-            {% set ru = ribbon_url(e.entity_id) %}
-            {% if ru %}<a href="{{ url_for('entry', entity_id=e.entity_id) }}"><img class="ribbonthumb" src="{{ ru }}" loading="lazy" alt="Cα deviation ribbon for {{ e.entry_id }}"></a>{% endif %}
-            <a href="{{ url_for('entry', entity_id=e.entity_id) }}">{{ e.entry_id }}_{{ e.chain }}</a>
-          </td>
-          <td>{% if e.uniprot %}<a href="https://www.uniprot.org/uniprotkb/{{ e.uniprot }}" target="_blank" rel="noopener">{{ e.uniprot }}</a>{% endif %}</td>
-          <td>{{ (e.description or '')[:42] }}</td>
-          {% set dc = dep_counts.get(e.uniprot, 1) if e.uniprot else 1 %}
-          <td class="num" data-sort="{{ dc }}">{% if dc > 1 %}<span class="badge dep" title="{{ dc }} deposited structures of this protein all share the same AlphaFold model">×{{ dc }}</span>{% else %}1{% endif %}</td>
-          <td data-sort="{{ e.release_date }}">{{ (e.release_date or '')[:10] }}</td>
-          <td class="num" data-sort="{{ nov(e.novelty_identity) if e.novelty_identity is not none else -1 }}">{{ r2(nov(e.novelty_identity)) }}{% if e.is_novel %} <span class="badge novel">novel</span>{% endif %}</td>
-          <td class="num" data-sort="{{ e.mean_plddt if e.mean_plddt is not none else -1 }}">{{ r2(e.mean_plddt) }}</td>
-          <td class="num" data-sort="{{ e.tm_by_experiment if e.tm_by_experiment is not none else -1 }}">{{ r2(e.tm_by_experiment) }}</td>
-          <td class="num" data-sort="{{ e.lddt if e.lddt is not none else -1 }}">{{ r2(e.lddt) }}</td>
-          <td class="num" data-sort="{{ e.fraud_score if e.fraud_score is not none else -1 }}">{{ r2(e.fraud_score) }}</td>
-          <td>{% if e.confidently_wrong %}<span class="badge wrong">wrong</span>{% else %}<span class="badge ok">ok</span>{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <div class="dlbar"><button class="dl" onclick="downloadTableCsv('dataTable','alphafraud_leaderboard.csv')">⬇ Download CSV</button></div>
+
+  <table class="lbgroups" id="lbTable">
+    <thead>
+      <tr>
+        <th class="lb-prot">Protein</th>
+        <th class="lb-n num" title="structures of this protein (confidently wrong)">×N</th>
+        <th class="num">TM</th>
+        <th class="num lb-hide-xs">pLDDT</th>
+        <th class="num">FRAUD</th>
+        <th class="lb-flag"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in groups %}
+      {% set w = g.worst %}
+      <tr class="lb-group" data-key="{{ (g.uniprot ~ ' ' ~ (w.description or '') ~ ' ' ~ w.entry_id)|lower }}" aria-expanded="false" tabindex="0">
+        <td class="lb-prot">
+          <span class="lb-caret">▸</span>
+          <span class="lb-name" title="{{ w.description }}">{{ w.description or w.uniprot }}</span>
+          {% if w.is_novel %}<span class="badge novel">novel</span>{% endif %}
+          <a class="lb-uni" href="https://www.uniprot.org/uniprotkb/{{ g.uniprot }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ g.uniprot }}</a>
+        </td>
+        <td class="lb-n num">{% if g.n > 1 %}<span class="badge dep">×{{ g.n }}</span>{% else %}1{% endif %}</td>
+        <td class="num">{{ r2(w.tm_by_experiment) }}</td>
+        <td class="num lb-hide-xs">{{ r2(w.mean_plddt) }}</td>
+        <td class="num">{{ r2(w.fraud_score) }}</td>
+        <td class="lb-flag">{{ flagcell(w) }}</td>
+      </tr>
+      {% for e in g.members %}
+      <tr class="lb-member" data-parent="{{ g.uniprot }}" hidden>
+        <td class="lb-prot lb-memcell">
+          {% set ru = ribbon_url(e.entity_id) %}
+          {% if ru %}<a href="{{ url_for('entry', entity_id=e.entity_id) }}"><img class="ribbonthumb sm" src="{{ ru }}" loading="lazy" alt=""></a>{% endif %}
+          <a href="{{ url_for('entry', entity_id=e.entity_id) }}">{{ e.entry_id }}_{{ e.chain }}</a>
+        </td>
+        <td class="lb-n num">{% if e.novelty_identity is not none %}<span class="lb-nov" title="novelty">{{ nov(e.novelty_identity)|round|int }}%</span>{% endif %}</td>
+        <td class="num">{{ r2(e.tm_by_experiment) }}</td>
+        <td class="num lb-hide-xs">{{ r2(e.mean_plddt) }}</td>
+        <td class="num">{{ r2(e.fraud_score) }}</td>
+        <td class="lb-flag">{{ flagcell(e) }}</td>
+      </tr>
+      {% endfor %}
+      {% if g.truncated %}
+      <tr class="lb-member lb-more" data-parent="{{ g.uniprot }}" hidden>
+        <td colspan="6" class="hint">…and more depositions of this protein (showing the worst {{ g.members|length }} of {{ g.n }}).</td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if not groups %}<p class="hint">No analysed structures yet.</p>{% endif %}
 {% endblock %}

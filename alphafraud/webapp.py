@@ -247,12 +247,11 @@ def create_app() -> Flask:
 
     @app.route("/leaderboard")
     def leaderboard():
-        rows = db.leaderboard(limit=200)
+        groups = db.leaderboard_grouped(max_proteins=80)
         stats = db.overall_stats()
         stats["median_tm"] = db.median_tm()      # match the home-page KPI (median, not mean)
         return render_template("leaderboard.html", banner=banner.BANNER_ART,
-                               entities=rows, stats=stats,
-                               dep_counts=db.uniprot_deposition_counts(), version=__version__)
+                               groups=groups, stats=stats, version=__version__)
 
     @app.route("/analysis")
     def analysis():

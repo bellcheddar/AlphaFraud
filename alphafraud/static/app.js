@@ -245,10 +245,58 @@
     }).catch(function () {});
   }
 
+  // ---- Grouped worst-offenders table: collapsible groups + filter ----
+  function initLeaderboardGroups() {
+    var table = document.getElementById("lbTable");
+    if (!table) return;
+
+    function membersOf(uni) {
+      return table.querySelectorAll('tr.lb-member[data-parent="' + (window.CSS && CSS.escape ? CSS.escape(uni) : uni) + '"]');
+    }
+    function setOpen(group, open) {
+      var uni = group.querySelector(".lb-uni") ? group.getAttribute("data-key") : null;
+      group.setAttribute("aria-expanded", open ? "true" : "false");
+      // members are the following sibling rows until the next .lb-group
+      var tr = group.nextElementSibling;
+      while (tr && !tr.classList.contains("lb-group")) {
+        if (tr.classList.contains("lb-member")) { if (open) tr.removeAttribute("hidden"); else tr.setAttribute("hidden", ""); }
+        tr = tr.nextElementSibling;
+      }
+    }
+    table.querySelectorAll("tr.lb-group").forEach(function (g) {
+      g.addEventListener("click", function () { setOpen(g, g.getAttribute("aria-expanded") !== "true"); });
+      g.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(g, g.getAttribute("aria-expanded") !== "true"); }
+      });
+    });
+
+    var expandAll = document.getElementById("lbExpandAll"), allOpen = false;
+    if (expandAll) expandAll.addEventListener("click", function () {
+      allOpen = !allOpen;
+      table.querySelectorAll("tr.lb-group").forEach(function (g) { setOpen(g, allOpen); });
+      expandAll.textContent = allOpen ? "Collapse all" : "Expand all";
+    });
+
+    var search = document.getElementById("lbSearch");
+    if (search) search.addEventListener("input", function () {
+      var q = search.value.trim().toLowerCase();
+      table.querySelectorAll("tr.lb-group").forEach(function (g) {
+        var hit = !q || (g.getAttribute("data-key") || "").indexOf(q) !== -1;
+        g.style.display = hit ? "" : "none";
+        var tr = g.nextElementSibling;
+        while (tr && !tr.classList.contains("lb-group")) {
+          if (tr.classList.contains("lb-member")) tr.style.display = hit ? "" : "none";
+          tr = tr.nextElementSibling;
+        }
+      });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     renderPlots();
     document.querySelectorAll("table.sortable").forEach(initTable);
     initFilters();
+    initLeaderboardGroups();
     loadStats();
     setInterval(loadStats, 60000);
   });
