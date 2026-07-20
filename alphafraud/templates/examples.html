@@ -15,8 +15,9 @@
     <p class="sub">Auto-selected from this release's confidently-wrong catches and written deterministically
     from the database — no hand-curation.</p>
   </div>
-  {% set x = featured %}
+  {% with x = featured, fresh = true %}
   {% include "_expanel.html" %}
+  {% endwith %}
 
   {% if archive %}
   <section class="card arccard">

@@ -174,6 +174,37 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
   .lb-uni { display: none; }
 }
 
+/* --- Fresh catch: animated iconography marking the new, auto-generated panel --- */
+.expanel-fresh { position: relative; border-color: var(--primary);
+  animation: freshGlow 3s ease-in-out infinite; }
+@keyframes freshGlow {
+  0%, 100% { box-shadow: 0 1px 3px rgba(20,40,60,.08), 0 6px 20px rgba(20,40,60,.05), 0 0 0 0 rgba(30,115,190,0); }
+  50%      { box-shadow: 0 1px 3px rgba(20,40,60,.08), 0 6px 20px rgba(20,40,60,.05), 0 0 0 5px rgba(30,115,190,.14); }
+}
+.fresh-badge { position: absolute; top: -12px; right: 20px; z-index: 3;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: linear-gradient(135deg, #fcb900, #ff9a00); color: #3a2600;
+  font-weight: 800; font-size: 12px; letter-spacing: .1em; padding: 5px 12px;
+  border-radius: 999px; box-shadow: 0 4px 12px rgba(0,0,0,.18);
+  animation: freshBob 2.4s ease-in-out infinite; }
+@keyframes freshBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.fresh-spark { display: inline-block; animation: freshSpark 1.6s ease-in-out infinite; }
+@keyframes freshSpark {
+  0%, 100% { transform: scale(1) rotate(0); opacity: .85; }
+  50%      { transform: scale(1.35) rotate(18deg); opacity: 1; }
+}
+.chip.auto { background: rgba(0,160,90,.14); color: #0a7a48; text-transform: uppercase; letter-spacing: .05em; }
+.expanel-fresh .chip.auto { position: relative; overflow: hidden; }
+.expanel-fresh .chip.auto::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,.7) 50%, transparent 80%);
+  transform: translateX(-120%); animation: freshShimmer 3.4s ease-in-out infinite; }
+@keyframes freshShimmer { 0% { transform: translateX(-120%); } 55%, 100% { transform: translateX(130%); } }
+.auto-bot { display: inline-block; animation: freshWobble 2s ease-in-out infinite; transform-origin: 50% 80%; }
+@keyframes freshWobble { 0%, 100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .expanel-fresh, .fresh-badge, .fresh-spark, .expanel-fresh .chip.auto::after, .auto-bot { animation: none; }
+}
+
 /* --- Examples tab: annotated deep-dive panels --- */
 .exsection { margin: 30px 0 4px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
 .exsection-h { margin: 0; font-size: 18px; color: var(--primary); }

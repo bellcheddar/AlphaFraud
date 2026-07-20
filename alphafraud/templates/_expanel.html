@@ -3,13 +3,14 @@
 {% macro r2(v) %}{% if v is none %}—{% elif v is number %}{{ '%.2f'|format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
 {% macro stat(label, val, cls='') %}<div class="exstat {{ cls }}"><div class="exstat-n">{{ val }}</div><div class="exstat-l">{{ label }}</div></div>{% endmacro %}
 {% set e = x.entity %}
-<article class="expanel">
+<article class="expanel{% if fresh %} expanel-fresh{% endif %}">
+  {% if fresh %}<div class="fresh-badge"><span class="fresh-spark" aria-hidden="true">✨</span> NEW</div>{% endif %}
   <header class="exhead">
     <div class="exhead-title">
       <h2>{{ x.name }} <span class="exgene">{{ x.gene }}</span></h2>
       <div class="exchips">
         <span class="chip mode">{{ x.failure_mode }}</span>
-        {% for b in x.badges %}<span class="chip{% if b == 'auto' %} auto{% endif %}">{{ b }}</span>{% endfor %}
+        {% for b in x.badges %}<span class="chip{% if b == 'auto' %} auto{% endif %}">{% if b == 'auto' %}<span class="auto-bot" aria-hidden="true">🤖</span> {% endif %}{{ b }}</span>{% endfor %}
         <a class="chip uni" href="https://www.uniprot.org/uniprotkb/{{ x.uniprot }}" target="_blank" rel="noopener">{{ x.uniprot }} ↗</a>
       </div>
     </div>
