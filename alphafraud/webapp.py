@@ -243,7 +243,7 @@ def create_app() -> Flask:
     @app.route("/archive")
     def archive():
         return render_template("archive.html", banner=banner.BANNER_ART,
-                               weeks=db.list_weeks(), version=__version__)
+                               weeks=db.list_all_weeks(), version=__version__)
 
     @app.route("/leaderboard")
     def leaderboard():

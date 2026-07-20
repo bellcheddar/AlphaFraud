@@ -328,12 +328,27 @@
     apply();
   }
 
+  function initWeekTable() {
+    var table = document.getElementById("archiveTable"),
+        toggle = document.getElementById("wkToggle");
+    if (!table || !toggle) return;
+    var extra = table.querySelectorAll("tr.wk-extra"),
+        label = toggle.textContent, expanded = false;
+    toggle.addEventListener("click", function () {
+      expanded = !expanded;
+      extra.forEach(function (r) { r.hidden = !expanded; });
+      toggle.textContent = expanded ? "Show fewer ▴" : label;
+      if (!expanded) toggle.scrollIntoView({ block: "nearest" });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     renderPlots();
     document.querySelectorAll("table.sortable").forEach(initTable);
     initFilters();
     initLeaderboardGroups();
     initExampleArchive();
+    initWeekTable();
     loadStats();
     setInterval(loadStats, 60000);
   });

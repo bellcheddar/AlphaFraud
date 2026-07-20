@@ -336,6 +336,22 @@ def list_weeks() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def list_all_weeks() -> list[dict]:
+    """Every distinct PDB release week across the whole corpus (derived from each structure's
+    release_date, so the historical 2018→ backfill shows at weekly granularity too), newest first,
+    with structures analysed and confidently-wrong counts."""
+    with connect() as conn:
+        rows = conn.execute(
+            f"""SELECT substr(release_date,1,10) week,
+                       COUNT(*)                        n_analysed,
+                       COALESCE(SUM(confidently_wrong),0) n_cw
+                FROM entities
+                WHERE {ANALYSED} AND release_date IS NOT NULL AND length(release_date) >= 10
+                GROUP BY week ORDER BY week DESC"""
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def dropdown_weeks(limit: int = 8) -> list[dict]:
     """The latest N weekly releases for the 'Jump to' menu. Counts the ACTUAL analysed entities
     (screened+compared) per release, not the runs table's n_compared which over-counts. Ordered
@@ -520,12 +536,15 @@ def run_kind(label: str) -> Optional[str]:
 
 
 def week_exists(label: str) -> bool:
-    """Any completed run with this label (weekly OR backfill) — lets a historical month still
-    load by direct URL even though it isn't listed among the weekly releases."""
+    """True for any completed run with this label (weekly OR backfill month) OR any release week
+    that has analysed structures — so historical weeks load by direct URL and from the archive."""
     with connect() as conn:
+        if conn.execute("SELECT 1 FROM runs WHERE label=? AND status='done' LIMIT 1",
+                        (label,)).fetchone():
+            return True
         return conn.execute(
-            "SELECT 1 FROM runs WHERE label=? AND status='done' LIMIT 1", (label,)
-        ).fetchone() is not None
+            f"SELECT 1 FROM entities WHERE substr(release_date,1,10)=? AND {ANALYSED} LIMIT 1",
+            (label,)).fetchone() is not None
 
 
 # Both tiers count as "analysed": 'screened' (TM-only) and 'compared' (full metrics).
@@ -533,9 +552,16 @@ ANALYSED = "status IN ('screened','compared')"
 
 
 def entities_for_week(label: str) -> list[dict]:
-    q = (f"SELECT * FROM entities WHERE run_id IN (SELECT id FROM runs WHERE label=?) "
-         f"AND {ANALYSED} ORDER BY fraud_score DESC")
     with connect() as conn:
+        # Prefer a real run with this label (weekly watch or a backfill month); otherwise treat the
+        # label as a release week (YYYY-MM-DD) so any historical week is browsable at weekly grain.
+        has_run = conn.execute("SELECT 1 FROM runs WHERE label=? LIMIT 1", (label,)).fetchone()
+        if has_run:
+            q = ("SELECT * FROM entities WHERE run_id IN (SELECT id FROM runs WHERE label=?) "
+                 f"AND {ANALYSED} ORDER BY fraud_score DESC")
+        else:
+            q = (f"SELECT * FROM entities WHERE substr(release_date,1,10)=? AND {ANALYSED} "
+                 "ORDER BY fraud_score DESC")
         return [dict(r) for r in conn.execute(q, (label,)).fetchall()]
 
 

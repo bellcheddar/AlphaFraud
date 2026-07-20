@@ -4,24 +4,26 @@
 
 {% block content %}
   <h1>Weekly releases</h1>
-  <p class="sub">The ongoing weekly watch, newest first. The historical archive (2018 onward) was
-  loaded in bulk and lives in the <a href="{{ url_for('index') }}">cumulative view</a>, not here.</p>
+  <p class="sub">Every weekly PDB release since AlphaFold's 2018 cutoff, newest first — {{ weeks|length }}
+  weeks in all. The 50 most recent are shown; use “Show all” for the full history. Each week links to
+  its structures, with the count AlphaFold got confidently wrong.</p>
   <div class="tablewrap">
-    <table id="archiveTable" class="sortable">
-      <thead><tr><th>Week</th><th>Discovered</th><th>Compared</th><th>Skipped</th><th>Finished</th></tr></thead>
+    <table id="archiveTable" data-visible="50">
+      <thead><tr><th>Week</th><th>Structures analysed</th><th>Confidently wrong</th></tr></thead>
       <tbody>
         {% for w in weeks %}
-        <tr>
-          <td><a href="{{ url_for('week', label=w.label) }}">{{ w.label }}</a></td>
-          <td class="num">{{ w.n_discovered }}</td>
-          <td class="num">{{ w.n_compared }}</td>
-          <td class="num">{{ w.n_skipped }}</td>
-          <td data-sort="{{ w.finished_at }}">{{ (w.finished_at or '')[:16] }}</td>
+        <tr{% if loop.index0 >= 50 %} class="wk-extra" hidden{% endif %}>
+          <td><a href="{{ url_for('week', label=w.week) }}">{{ w.week }}</a></td>
+          <td class="num">{{ w.n_analysed }}</td>
+          <td class="num">{{ w.n_cw }}</td>
         </tr>
         {% endfor %}
-        {% if not weeks %}<tr><td colspan="5">No runs yet.</td></tr>{% endif %}
+        {% if not weeks %}<tr><td colspan="3">No releases yet.</td></tr>{% endif %}
       </tbody>
     </table>
   </div>
-  <div class="dlbar"><button class="dl" onclick="downloadTableCsv('archiveTable','alphafraud_archive.csv')">⬇ Download CSV</button></div>
+  {% if weeks|length > 50 %}
+  <button type="button" id="wkToggle" class="arc-toggle">Show all {{ weeks|length }} weeks ▾</button>
+  {% endif %}
+  <div class="dlbar"><button class="dl" onclick="downloadTableCsv('archiveTable','alphafraud_weeks.csv')">⬇ Download CSV</button></div>
 {% endblock %}
