@@ -44,8 +44,10 @@ _LAYOUT = dict(
 )
 
 
-def _fig(fig: go.Figure) -> str:
+def _fig(fig: go.Figure, top: int = None) -> str:
     fig.update_layout(**_LAYOUT)
+    if top is not None:                       # extra headroom for stacked legends (the scatter)
+        fig.update_layout(margin=dict(l=60, r=24, t=top, b=56))
     fig.update_xaxes(gridcolor=BRAND["grid"], zeroline=False)
     fig.update_yaxes(gridcolor=BRAND["grid"], zeroline=False)
     return fig.to_json()
@@ -261,32 +263,35 @@ def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dic
         # Explicit red/green legend swatches so "deep-dive examples" reads clearly.
         if any(not h.get("good") for h in hl):
             fig.add_trace(go.Scatter(
-                x=[None], y=[None], mode="markers", name="example — confidently wrong (bad)",
+                x=[None], y=[None], mode="markers", name="example — confidently wrong",
                 marker=dict(symbol="circle", size=11, color=BRAND["red"], line=dict(width=1.5, color="white"))))
         if any(h.get("good") for h in hl):
             fig.add_trace(go.Scatter(
-                x=[None], y=[None], mode="markers", name="example — accurate (good)",
+                x=[None], y=[None], mode="markers", name="example — accurate",
                 marker=dict(symbol="circle", size=11, color=GREEN, line=dict(width=1.5, color="white"))))
-        # On the zoomed view, label each red marker with the protein name as a clickable link
-        # that jumps to its panel on the Examples tab.
-        if zoom:
-            for i, h in enumerate(hl):
-                fig.add_annotation(
-                    x=h["x"], y=h["y"], ax=0, ay=(-24 if i % 2 == 0 else 24),
-                    text=f'<a href="{h["href"]}">{h.get("gene") or h["name"]}</a>',
-                    showarrow=True, arrowhead=0, arrowwidth=1, arrowcolor=BRAND["red"],
-                    font=dict(color=BRAND["red"], size=10),
-                    bgcolor="rgba(255,255,255,0.9)", bordercolor=BRAND["red"], borderwidth=1, borderpad=2,
-                )
+        # Label every example marker with its protein name as a clickable link to its Examples
+        # panel (green for the accurate control, red for the failures). Alternate above/below.
+        for i, h in enumerate(hl):
+            col = GREEN if h.get("good") else BRAND["red"]
+            fig.add_annotation(
+                x=h["x"], y=h["y"], ax=0, ay=(-24 if i % 2 == 0 else 24),
+                text=f'<a href="{h["href"]}">{h.get("gene") or h["name"]}</a>',
+                showarrow=True, arrowhead=0, arrowwidth=1, arrowcolor=col,
+                font=dict(color=col, size=10),
+                bgcolor="rgba(255,255,255,0.9)", bordercolor=col, borderwidth=1, borderpad=2,
+            )
     title = ("Confidently wrong — zoomed on the red zone (high confidence, low agreement)"
              if zoom else "AlphaFold confidence vs. agreement with experiment")
     fig.update_layout(
         title=title,
         xaxis_title="mean pLDDT (AlphaFold confidence)",
         yaxis_title="TM-score to experiment",
-        legend=dict(orientation="h", y=1.16, x=0, itemsizing="constant"),
-        legend2=dict(orientation="h", y=1.16, x=0.58, itemsizing="trace",
-                     title=dict(text="marker size:"), font=dict(size=11)),
+        # Two legends stacked and left-aligned: point/example colours on top, the FRAUD marker-size
+        # key below it with its title sitting ABOVE the size dots.
+        height=520,
+        legend=dict(orientation="h", y=1.26, x=0, itemsizing="constant", font=dict(size=11)),
+        legend2=dict(orientation="h", y=1.08, x=0, itemsizing="trace",
+                     title=dict(text="Marker size", side="top"), font=dict(size=11)),
     )
     if zoom:                                # restrict to the confidently-wrong box
         fig.update_xaxes(range=[config.CONFIDENT_PLDDT, 100.5])
@@ -294,7 +299,7 @@ def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dic
     else:
         fig.update_xaxes(range=[0, 102])   # headroom so pLDDT~100 markers sit inside the frame
         fig.update_yaxes(range=[0, 1.03])
-    return _fig(fig)
+    return _fig(fig, top=150)              # room for the two stacked legend rows above the plot
 
 
 def fraud_dumbbell(entities: list[dict], top: int = 50) -> Optional[str]:
