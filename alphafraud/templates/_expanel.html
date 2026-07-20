@@ -41,8 +41,8 @@
     <div class="exside">
       <div class="exstats">
         {% if x.kind == 'match' %}
-        {{ stat('TM-score', r2(e.tm_by_experiment) if e else '—', 'good') }}
-        {{ stat('lDDT', r2(e.lddt) if e else '—', 'good') }}
+        {{ stat('TM-score', ('%.3f'|format(e.tm_by_experiment)) if e and e.tm_by_experiment is not none else '—', 'good') }}
+        {{ stat('lDDT', ('%.3f'|format(e.lddt)) if e and e.lddt is not none else '—', 'good') }}
         {{ stat('mean pLDDT', r2(e.mean_plddt) if e else '—', 'good') }}
         {{ stat('Cα-RMSD (Å)', r2(e.ca_rmsd) if e else '—', 'good') }}
         {{ stat('FRAUD score', r2(e.fraud_score) if e else '—', 'good') }}
