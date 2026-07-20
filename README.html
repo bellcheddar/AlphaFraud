@@ -211,8 +211,12 @@ python3 AlphaFraud.py serve --port 8000
 <td data-label="Shows">Structural deep dive over the worst offenders: fold/family enrichment (Wilson-CI + Fisher), sequence-similarity clustering, failure-mode PCA, theme flags, per-superfamily blind-spot scorecards, conformational-heterogeneity detection, a "new this week" ribbon, and RCSB + DOI links on every structure</td>
 </tr>
 <tr>
+<td data-label="Route"><code>/examples</code></td>
+<td data-label="Shows">Curated storytelling layer: a positive control (an excellent AlphaFold match), an auto-generated "example of the week" plus a full weekly-release archive, and hand-authored deep-dive panels with interactive viewers (see below)</td>
+</tr>
+<tr>
 <td data-label="Route"><code>/archive</code></td>
-<td data-label="Shows">An index of all processed weeks</td>
+<td data-label="Shows">Every PDB release week since the 2018 cutoff, at weekly granularity, each linking to that week's structures and confidently-wrong count</td>
 </tr>
 <tr>
 <td data-label="Route"><code>/api/week/&lt;label&gt;</code>, <code>/api/leaderboard</code>, <code>/api/entry/&lt;id&gt;</code></td>
@@ -220,6 +224,15 @@ python3 AlphaFraud.py serve --port 8000
 </tr>
 </tbody>
 </table></div>
+<h2>🔬 Examples</h2>
+<p>The <strong>Examples</strong> tab turns raw catches into readable stories and deliberately shows both sides of AlphaFold's record, not just the failures:</p>
+<ul>
+<li><strong>A positive control.</strong> The page opens with the one thing the rest of the site does not: an <em>excellent</em> match. Human Artemis (DCLRE1C), a genuinely novel post-cutoff nuclease (only 29% identity to anything AlphaFold trained on), was predicted blind to TM-score 0.996, lDDT 0.985 and 0.45 Å Cα-RMSD at a justified mean pLDDT of 95, and AlphaFraud scores it FRAUD 0.02. It is the proof that the pipeline certifies good predictions, not just hunts for bad ones.</li>
+<li><strong>An auto "example of the week".</strong> After every weekly run the pipeline picks that release's most instructive confidently-wrong catch and writes its panel deterministically from the database (no LLM), badged and dated.</li>
+<li><strong>A complete weekly archive.</strong> Every PDB release week since the 2018 cutoff is listed: weeks with a catch expand to a full panel with its Cα-deviation ribbon, and the quiet weeks (where AlphaFold was never overconfident) are recorded too, collapsed to the most recent by default.</li>
+<li><strong>Curated deep-dives.</strong> Hand-authored panels across the failure spectrum: ordinary single-chain globular folds AlphaFold gets <em>subtly</em> wrong (right fold, wrong conformation or assembly — the PP2A scaffold, STIM1, Aha1, WWP2) and the dramatic whole-fold catastrophes (TMEM106B, alpha-synuclein, transthyretin, factor X). Each panel carries live metrics, an interactive 3Dmol.js viewer (deviation colouring plus the AlphaFold "ghost") and a structure / mechanism / disease write-up.</li>
+<li><strong>Linked from the scatter.</strong> The curated examples are overlaid on the home fraud-quadrant plot as pulsing red (failure) and green (accurate) markers, each labelled with its protein name and clickable straight through to its panel.</li>
+</ul>
 <h2>🧮 Coverage and skipped entities</h2>
 <p>Not every deposited entity can be compared. AlphaFold DB holds a single model per human UniProt sequence (monomers only), so anything that does not map cleanly to one accession, has no model covering its resolved range, or is too small or too large to compare is recorded as <em>skipped</em> rather than forced through.</p>
 <p>The completed full-archive backfill (finished 2026-07-18) processed <strong>96,827</strong> post-cutoff human entities: <strong>82,796 analysed</strong> (85.5%; 67,314 fast-screened plus 15,482 fully compared), <strong>1,941 confidently wrong</strong> (2.3% of analysed, 431 of them sequence-novel), <strong>13,908 skipped</strong> (14.4%), and <strong>123 unrecoverable errors</strong> (0.1%, broken coordinate-less files). The skips break down as:</p>
@@ -331,6 +344,9 @@ sudo systemctl start alphafraud-run.service
 <h2>✅ To Do</h2>
 <p>Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.</p>
 <ul class="emd-tasklist">
+<li><span class="emd-check">&#9989;</span> <strong>Examples tab</strong> — a curated storytelling layer that shows both sides of AlphaFold's record. It opens with a <strong>positive control</strong> (human Artemis, a novel post-cutoff nuclease predicted blind to 0.45 Å Cα-RMSD and scored FRAUD 0.02) proving the pipeline certifies good predictions as well as bad; an auto-generated, LLM-free <strong>"example of the week"</strong> plus a <strong>complete weekly-release archive</strong> (catches and quiet weeks alike); hand-authored deep-dive panels across the failure spectrum, each with live metrics and an interactive 3D viewer; and clickable red/green example markers overlaid on the home fraud-quadrant scatter</li>
+<li><span class="emd-check">&#9989;</span> <strong>Page and figure caching</strong> — the cumulative dashboard's heavy whole-archive figures (scatter / dumbbell / histograms over ~80k rows) are precomputed once and cached in an <code>analysis_snapshots</code> row with a short TTL, and every static asset (vendored Plotly / 3Dmol, ribbons, CSS/JS) is served with long immutable cache headers, so repeat loads are near-instant</li>
+<li><span class="emd-check">&#9989;</span> <strong>Weekly-release archive at full granularity</strong> — the Archive tab now lists every PDB release week since the 2018 cutoff (derived from each structure's release date), each linking to that week's structures and confidently-wrong count, instead of only the recent ongoing-watch runs</li>
 <li><span class="emd-check">&#9989;</span> <strong>Fix slow page loads after the full backfill</strong> — once the archive backfill filled the <code>entities</code> table with ~470 KB <code>heatmaps_json</code> per compared row (≈ 6.5 GB), every list/sort query (home, leaderboard, week pages) dragged all that JSON through memory and took 20–60 s (the leaderboard 504'd at the 60 s gunicorn timeout). Fixed by moving the big per-residue and heatmap payloads into an <code>entity_blobs</code> sidecar table read only by the per-structure entry page, so the hot table stays small and list queries return in well under a second</li>
 <li><span class="emd-check">&#9989;</span> <strong>Structural imagery throughout</strong> — every worst offender is rendered as a deviation-coloured Cα ribbon (experiment coloured by distance from the AlphaFold model, on an absolute-Ångström scale), shown on the leaderboard, entry page and weekly highlights; the entry page adds an interactive 3Dmol.js viewer with a proper secondary-structure cartoon and an optional translucent AlphaFold "ghost" overlay in the shared superposition frame; a "divergence" ribbon banner sits in the header. All server-rendered as vendored, offline SVG/PDB (no CDN)</li>
 <li><span class="emd-check">&#9989;</span> <strong>Percentages on the KPI tiles</strong> — each headline count also shows its share of the batch (e.g. confidently wrong: 1,941 = 2.3%), on the dashboard, week and leaderboard views</li>
