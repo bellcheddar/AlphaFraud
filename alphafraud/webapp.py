@@ -356,8 +356,8 @@ def _example_highlights():
             continue
         label = e["name"] + (f" ({e['gene']})" if e.get("gene") else "")
         out.append({
-            "eid": e["entity_id"], "name": label, "mode": e["failure_mode"],
-            "x": row["mean_plddt"], "y": row["tm_by_experiment"],
+            "eid": e["entity_id"], "name": label, "gene": e.get("gene") or e["name"],
+            "mode": e["failure_mode"], "x": row["mean_plddt"], "y": row["tm_by_experiment"],
             "good": e.get("kind") == "match", "href": "/examples#ex-" + e["entity_id"],
         })
     return out

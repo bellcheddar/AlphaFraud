@@ -36,8 +36,8 @@ _LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="Inter, system-ui, sans-serif", color=BRAND["ink"], size=13),
-    # Generous top margin so the title clears the legend row and subplot titles.
-    margin=dict(l=60, r=24, t=88, b=56),
+    # Generous top margin so the title clears the legend row (with breathing room) and subplot titles.
+    margin=dict(l=60, r=24, t=104, b=56),
     title=dict(y=0.97, yanchor="top", x=0.02, xanchor="left", font=dict(size=15)),
     colorway=[BRAND["primary"], BRAND["amber"], BRAND["green"], BRAND["primary_light"], BRAND["red"]],
     hoverlabel=dict(font_size=12),
@@ -191,7 +191,12 @@ def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dic
     points, omitted = _downsample_points(entities)
     # The examples are pulled OUT of the main cloud and redrawn as their own highlight trace, so a
     # click lands on the highlight point (linking to the Examples tab), not the buried original.
-    hl_eids = {h["eid"] for h in highlights} if (highlights and not zoom) else set()
+    # On the zoomed view keep only the examples inside the confidently-wrong box (the red ones;
+    # the accurate green control sits at TM~1 and is off-frame).
+    hl = list(highlights or [])
+    if zoom:
+        hl = [h for h in hl if h["x"] >= config.CONFIDENT_PLDDT and h["y"] < config.WRONG_TM]
+    hl_eids = {h["eid"] for h in hl}
     fig = go.Figure()
     # Shade the fraud quadrant: confident (pLDDT > threshold) yet wrong (TM < threshold).
     fig.add_shape(
@@ -239,26 +244,48 @@ def fraud_scatter(entities: list[dict], zoom: bool = False, highlights: list[dic
     # Redraw the curated deep-dive examples as their own circle markers (same style as the cloud,
     # but red for failures / green for the accurate control), drawn last so they sit on top and
     # own the hover/click. JS pulses their size (see startExamplePulse).
-    if hl_eids:
+    if hl:
+        GREEN = "#0a8a4f"
         fig.add_trace(go.Scatter(
-            x=[h["x"] for h in highlights], y=[h["y"] for h in highlights],
-            mode="markers", name="deep-dive examples", meta={"example": True}, cliponaxis=False,
+            x=[h["x"] for h in hl], y=[h["y"] for h in hl],
+            mode="markers", name="deep-dive examples", meta={"example": True},
+            showlegend=False, cliponaxis=False,
             marker=dict(
                 symbol="circle", size=15,
-                color=[("#0a8a4f" if h.get("good") else BRAND["red"]) for h in highlights],
+                color=[(GREEN if h.get("good") else BRAND["red"]) for h in hl],
                 line=dict(width=2, color="white")),
-            customdata=[[h["eid"], h["name"], h["href"], h["mode"]] for h in highlights],
+            customdata=[[h["eid"], h["name"], h["href"], h["mode"]] for h in hl],
             hovertemplate=("<b>%{customdata[1]}</b><br>%{customdata[3]}<br>"
                            "▶ click to open the deep-dive<extra></extra>"),
         ))
+        # Explicit red/green legend swatches so "deep-dive examples" reads clearly.
+        if any(not h.get("good") for h in hl):
+            fig.add_trace(go.Scatter(
+                x=[None], y=[None], mode="markers", name="example — confidently wrong (bad)",
+                marker=dict(symbol="circle", size=11, color=BRAND["red"], line=dict(width=1.5, color="white"))))
+        if any(h.get("good") for h in hl):
+            fig.add_trace(go.Scatter(
+                x=[None], y=[None], mode="markers", name="example — accurate (good)",
+                marker=dict(symbol="circle", size=11, color=GREEN, line=dict(width=1.5, color="white"))))
+        # On the zoomed view, label each red marker with the protein name as a clickable link
+        # that jumps to its panel on the Examples tab.
+        if zoom:
+            for i, h in enumerate(hl):
+                fig.add_annotation(
+                    x=h["x"], y=h["y"], ax=0, ay=(-24 if i % 2 == 0 else 24),
+                    text=f'<a href="{h["href"]}">{h.get("gene") or h["name"]}</a>',
+                    showarrow=True, arrowhead=0, arrowwidth=1, arrowcolor=BRAND["red"],
+                    font=dict(color=BRAND["red"], size=10),
+                    bgcolor="rgba(255,255,255,0.9)", bordercolor=BRAND["red"], borderwidth=1, borderpad=2,
+                )
     title = ("Confidently wrong — zoomed on the red zone (high confidence, low agreement)"
              if zoom else "AlphaFold confidence vs. agreement with experiment")
     fig.update_layout(
         title=title,
         xaxis_title="mean pLDDT (AlphaFold confidence)",
         yaxis_title="TM-score to experiment",
-        legend=dict(orientation="h", y=1.09, x=0, itemsizing="constant"),
-        legend2=dict(orientation="h", y=1.09, x=0.58, itemsizing="trace",
+        legend=dict(orientation="h", y=1.16, x=0, itemsizing="constant"),
+        legend2=dict(orientation="h", y=1.16, x=0.58, itemsizing="trace",
                      title=dict(text="marker size:"), font=dict(size=11)),
     )
     if zoom:                                # restrict to the confidently-wrong box
