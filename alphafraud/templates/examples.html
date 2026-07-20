@@ -26,9 +26,9 @@
       full analysis for heatmaps and per-residue detail.</p>
       <input type="search" id="arcSearch" class="arc-search" placeholder="Filter by protein, UniProt, week or failure mode…" aria-label="Filter archive">
     </div>
-    <div class="arclist" id="arcList">
+    <div class="arclist" id="arcList" data-visible="6">
       {% for a in archive %}
-      <details class="arcrow" data-key="{{ (a.week ~ ' ' ~ a.data.name ~ ' ' ~ a.uniprot ~ ' ' ~ a.failure_mode)|lower }}">
+      <details class="arcrow{% if loop.index0 >= 6 %} arc-extra{% endif %}" data-key="{{ (a.week ~ ' ' ~ a.data.name ~ ' ' ~ a.uniprot ~ ' ' ~ a.failure_mode)|lower }}">
         <summary>
           <span class="arc-week">{{ a.week }}</span>
           <span class="arc-name">{{ a.data.name }}{% if a.data.gene %} <span class="exgene">{{ a.data.gene }}</span>{% endif %}</span>
@@ -48,6 +48,9 @@
       {% endfor %}
       <p class="arc-empty" id="arcEmpty" hidden>No catches match that filter.</p>
     </div>
+    {% if archive|length > 6 %}
+    <button type="button" id="arcToggle" class="arc-toggle">Show all {{ archive|length }} catches ▾</button>
+    {% endif %}
   </section>
   {% endif %}
   {% endif %}

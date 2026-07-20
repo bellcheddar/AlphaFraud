@@ -293,20 +293,39 @@
   }
 
   function initExampleArchive() {
+    var list = document.getElementById("arcList");
+    if (!list) return;
     var search = document.getElementById("arcSearch"),
-        list = document.getElementById("arcList");
-    if (!search || !list) return;
-    var rows = list.querySelectorAll(".arcrow"),
-        empty = document.getElementById("arcEmpty");
-    search.addEventListener("input", function () {
-      var q = search.value.trim().toLowerCase(), shown = 0;
-      rows.forEach(function (r) {
-        var hit = !q || (r.getAttribute("data-key") || "").indexOf(q) !== -1;
-        r.style.display = hit ? "" : "none";
-        if (hit) shown++;
+        empty = document.getElementById("arcEmpty"),
+        toggle = document.getElementById("arcToggle"),
+        rows = Array.prototype.slice.call(list.querySelectorAll(".arcrow")),
+        N = parseInt(list.getAttribute("data-visible"), 10) || 6,
+        expanded = false;
+
+    function apply() {
+      var q = search ? search.value.trim().toLowerCase() : "",
+          searching = !!q, shown = 0;
+      rows.forEach(function (r, i) {
+        var match = !q || (r.getAttribute("data-key") || "").indexOf(q) !== -1;
+        // While searching, matches override the collapse; otherwise show the first N (or all).
+        var vis = searching ? match : (expanded || i < N);
+        r.style.display = vis ? "block" : "none";
+        if (vis) shown++;
       });
-      if (empty) empty.hidden = shown !== 0;
+      if (empty) empty.hidden = !(searching && shown === 0);
+      if (toggle) {
+        toggle.style.display = searching ? "none" : "";   // during search, all matches already show
+        toggle.textContent = expanded ? "Show fewer ▴" : ("Show all " + rows.length + " catches ▾");
+      }
+    }
+
+    if (toggle) toggle.addEventListener("click", function () {
+      expanded = !expanded;
+      apply();
+      if (!expanded) toggle.scrollIntoView({ block: "nearest" });
     });
+    if (search) search.addEventListener("input", apply);
+    apply();
   }
 
   document.addEventListener("DOMContentLoaded", function () {
