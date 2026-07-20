@@ -283,6 +283,11 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 .arc-m.bad { color: var(--red); font-weight: 600; }
 .arcrow .exsec-toggle::after { content: "▾"; }
 .arcrow[open] .exsec-toggle::after { content: "▴"; }
+/* Quiet weeks: AlphaFold never overconfident — muted, with a green 'clean' chip. */
+.chip.clean { background: rgba(0,160,90,.14); color: #0a7a48; text-transform: none; white-space: nowrap; }
+.arcrow.arc-quiet > summary .arc-week,
+.arcrow.arc-quiet > summary .arc-name { color: var(--muted); font-weight: 600; }
+.arcrow.arc-quiet > summary .arc-name { font-weight: 500; }
 .arc-body { padding: 2px 18px 16px; display: flex; gap: 18px; align-items: flex-start; }
 .arc-prose { flex: 1 1 auto; min-width: 0; }
 .arc-body p { font-size: 13.5px; line-height: 1.6; margin: 0 0 8px; color: var(--ink); }

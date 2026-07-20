@@ -22,30 +22,41 @@
   {% if archive %}
   <section class="card arccard">
     <div class="arc-head">
-      <h2 class="exsection-h">🗄️ Weekly archive — {{ archive|length }} previous catches</h2>
-      <p class="sub">Every prior week's automatically-selected catch. Click a row to read its panel; open the
-      full analysis for heatmaps and per-residue detail.</p>
+      <h2 class="exsection-h">🗄️ Weekly archive — {{ counts.weeks }} release weeks</h2>
+      <p class="sub">Every weekly PDB release since AlphaFold's cutoff. {{ counts.catches }} produced a
+      confidently-wrong catch (expand to read its panel); the rest were <em>quiet weeks</em> where
+      AlphaFold was never overconfident — no fraud to report.</p>
       <input type="search" id="arcSearch" class="arc-search" placeholder="Filter by protein, UniProt, week or failure mode…" aria-label="Filter archive">
     </div>
     <div class="arclist" id="arcList" data-visible="6">
       {% for a in archive %}
-      <details class="arcrow{% if loop.index0 >= 6 %} arc-extra{% endif %}" data-key="{{ (a.week ~ ' ' ~ a.data.name ~ ' ' ~ a.uniprot ~ ' ' ~ a.failure_mode)|lower }}">
+      <details class="arcrow{% if not a.has_catch %} arc-quiet{% endif %}{% if loop.index0 >= 6 %} arc-extra{% endif %}" data-key="{{ (a.week ~ ' ' ~ a.data.name ~ ' ' ~ (a.uniprot or '') ~ ' ' ~ (a.failure_mode or 'quiet clean no confident miss'))|lower }}">
         <summary>
           <span class="arc-week">{{ a.week }}</span>
           <span class="arc-name">{{ a.data.name }}{% if a.data.gene %} <span class="exgene">{{ a.data.gene }}</span>{% endif %}</span>
+          {% if a.has_catch %}
           <span class="chip mode arc-mode">{{ a.failure_mode }}</span>
+          {% else %}
+          <span class="chip clean arc-mode">✓ no confident miss</span>
+          {% endif %}
           <span class="arc-m">TM {{ '%.2f'|format(a.tm) if a.tm is not none else '—' }}</span>
           <span class="arc-m arc-hide-xs">pLDDT {{ '%.0f'|format(a.plddt) if a.plddt is not none else '—' }}</span>
-          <span class="arc-m bad">FRAUD {{ '%.2f'|format(a.fraud_score) if a.fraud_score is not none else '—' }}</span>
+          <span class="arc-m{% if a.has_catch %} bad{% endif %}">FRAUD {{ '%.2f'|format(a.fraud_score) if a.fraud_score is not none else '—' }}</span>
           <span class="exsec-toggle" aria-hidden="true"></span>
         </summary>
         <div class="arc-body">
           <div class="arc-prose">
+            {% if a.has_catch %}
             <p class="exheadline">{{ a.data.headline }}</p>
             {% for p in a.data.structure %}<p>{{ p }}</p>{% endfor %}
             {% for p in a.data.why_wrong %}<p>{{ p }}</p>{% endfor %}
             <p class="arc-link"><a href="{{ url_for('entry', entity_id=a.entity_id) }}">Open full analysis for {{ a.data.entry }}_{{ a.data.chain }} →</a></p>
+            {% else %}
+            <p>{{ a.data.note }}</p>
+            <p class="arc-link"><a href="{{ url_for('entry', entity_id=a.entity_id) }}">Open the week's closest miss ({{ a.data.entry }}) →</a></p>
+            {% endif %}
           </div>
+          {% if a.has_catch %}
           {% set aru = ribbon_url(a.entity_id) %}
           {% if aru %}
           <div class="arc-thumb">
@@ -53,13 +64,14 @@
             <span class="arc-thumb-cap">{{ a.data.entry }}_{{ a.data.chain }} · Cα deviation</span>
           </div>
           {% endif %}
+          {% endif %}
         </div>
       </details>
       {% endfor %}
-      <p class="arc-empty" id="arcEmpty" hidden>No catches match that filter.</p>
+      <p class="arc-empty" id="arcEmpty" hidden>No weeks match that filter.</p>
     </div>
     {% if archive|length > 6 %}
-    <button type="button" id="arcToggle" class="arc-toggle">Show all {{ archive|length }} catches ▾</button>
+    <button type="button" id="arcToggle" class="arc-toggle">Show all {{ archive|length }} weeks ▾</button>
     {% endif %}
   </section>
   {% endif %}

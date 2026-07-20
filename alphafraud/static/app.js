@@ -315,7 +315,7 @@
       if (empty) empty.hidden = !(searching && shown === 0);
       if (toggle) {
         toggle.style.display = searching ? "none" : "";   // during search, all matches already show
-        toggle.textContent = expanded ? "Show fewer ▴" : ("Show all " + rows.length + " catches ▾");
+        toggle.textContent = expanded ? "Show fewer ▴" : ("Show all " + rows.length + " weeks ▾");
       }
     }
 

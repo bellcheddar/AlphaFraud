@@ -142,11 +142,11 @@ def cmd_weekly_examples(_args) -> int:
     from alphafraud import db
 
     db.init_schema()
-    n = db.rebuild_weekly_examples()
-    banner.ok(f"Rebuilt auto 'example of the week' for {n} weeks.")
+    c = db.rebuild_weekly_examples()
+    banner.ok(f"Rebuilt {c['weeks']} release weeks ({c['catches']} confidently-wrong catches).")
     feat = db.latest_weekly_example()
     if feat:
-        banner.info(f"Featured (latest): {feat['week']}  {feat['entity_id']}  {feat['uniprot']}")
+        banner.info(f"Featured (latest catch): {feat['week']}  {feat['entity_id']}  {feat['uniprot']}")
     return 0
 
 

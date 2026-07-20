@@ -120,10 +120,11 @@ CREATE TABLE IF NOT EXISTS analysis_snapshots (
     updated_at  TEXT
 );
 
--- One auto-generated 'example of the week' per PDB release date (see examples_auto.py).
--- Rebuilt after every run; the newest row is the featured 'Fresh catch', the rest the archive.
+-- One row per PDB release week (see examples_auto.py). Weeks with a confidently-wrong catch
+-- (has_catch=1) carry a full templated example; 'quiet' weeks (has_catch=0, AlphaFold never
+-- overconfident) carry just the week's closest miss. Rebuilt after every run.
 CREATE TABLE IF NOT EXISTS weekly_examples (
-    week          TEXT PRIMARY KEY,     -- release_date this catch was released (the weekly cycle)
+    week          TEXT PRIMARY KEY,     -- release date this week covers (the weekly cycle)
     entity_id     TEXT,
     uniprot       TEXT,
     failure_mode  TEXT,
@@ -131,7 +132,9 @@ CREATE TABLE IF NOT EXISTS weekly_examples (
     tm            REAL,
     plddt         REAL,
     is_novel      INTEGER,
-    data_json     TEXT,                 -- full templated example dict (headline, sections, facts…)
+    has_catch     INTEGER DEFAULT 1,    -- 1 = confidently-wrong catch; 0 = quiet week (closest miss)
+    n_analysed    INTEGER,              -- structures analysed that release week
+    data_json     TEXT,                 -- full templated example (catch) or a short note (quiet)
     created_at    TEXT
 );
 
@@ -394,7 +397,8 @@ def family_summary(uniprot: str) -> dict:
 _WEEKLY_EXAMPLES_DDL = """
 CREATE TABLE IF NOT EXISTS weekly_examples (
     week TEXT PRIMARY KEY, entity_id TEXT, uniprot TEXT, failure_mode TEXT,
-    fraud_score REAL, tm REAL, plddt REAL, is_novel INTEGER, data_json TEXT, created_at TEXT
+    fraud_score REAL, tm REAL, plddt REAL, is_novel INTEGER,
+    has_catch INTEGER DEFAULT 1, n_analysed INTEGER, data_json TEXT, created_at TEXT
 );
 """
 
@@ -409,38 +413,64 @@ _AUTO_SRC_COLS = (
 )
 
 
-def rebuild_weekly_examples() -> int:
-    """Regenerate the auto 'example of the week' for every release date that has a confidently-
-    wrong catch. Picks the best non-curated catch per week (novel first, then FRAUD), builds its
-    templated panel deterministically, and replaces the table. Returns the number of weeks."""
+def rebuild_weekly_examples() -> dict:
+    """Regenerate one row per PDB release week. Weeks with a confidently-wrong catch get the best
+    non-curated catch (novel first, then FRAUD) built into a full templated panel; every other
+    analysed week is recorded as a 'quiet' week with that week's closest miss. Replaces the table.
+    Returns {'weeks': N, 'catches': M}."""
     from . import examples_auto as ea
     with connect() as conn:
+        conn.execute("DROP TABLE IF EXISTS weekly_examples")
         conn.execute(_WEEKLY_EXAMPLES_DDL)
-        rows = conn.execute(
+        # (A) best non-curated confidently-wrong catch per release week.
+        cw_rows = conn.execute(
             f"SELECT {_AUTO_SRC_COLS} FROM entities e "
             "LEFT JOIN entity_annotations a ON a.entity_id = e.entity_id "
-            f"WHERE e.confidently_wrong=1 AND e.uniprot IS NOT NULL AND e.release_date IS NOT NULL "
+            "WHERE e.confidently_wrong=1 AND e.uniprot IS NOT NULL AND e.release_date IS NOT NULL "
             "AND length(e.release_date) >= 10 "
             "ORDER BY e.release_date DESC, e.is_novel DESC, e.fraud_score DESC"
         ).fetchall()
-        # One winner per release week: first row per date (already ranked), skipping curated families.
-        picked: dict[str, sqlite3.Row] = {}
-        for r in rows:
+        catch: dict[str, sqlite3.Row] = {}
+        for r in cw_rows:
             if r["uniprot"] in ea.CURATED_UNIPROTS:
                 continue
-            wk = r["release_date"][:10]
-            if wk not in picked:
-                picked[wk] = r
-        conn.execute("DELETE FROM weekly_examples")
-        now = _now()
-        for wk, r in picked.items():
-            data = ea.build(r)
-            conn.execute(
-                "INSERT INTO weekly_examples (week, entity_id, uniprot, failure_mode, fraud_score, "
-                "tm, plddt, is_novel, data_json, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (wk, r["entity_id"], r["uniprot"], data["failure_mode"], r["fraud_score"],
-                 r["tm_by_experiment"], r["mean_plddt"], r["is_novel"], json.dumps(data), now))
-        return len(picked)
+            catch.setdefault(r["release_date"][:10], r)
+        # (B) every release week: analysed count + that week's worst (highest-FRAUD) structure.
+        week_rows = conn.execute(
+            f"""SELECT wk, n_analysed, entity_id, uniprot, description, tm, plddt, fraud FROM (
+                  SELECT substr(release_date,1,10) wk, entity_id, uniprot, description,
+                         tm_by_experiment tm, mean_plddt plddt, fraud_score fraud,
+                         COUNT(*) OVER (PARTITION BY substr(release_date,1,10)) n_analysed,
+                         ROW_NUMBER() OVER (PARTITION BY substr(release_date,1,10)
+                                            ORDER BY fraud_score DESC) rn
+                  FROM entities
+                  WHERE {ANALYSED} AND release_date IS NOT NULL AND length(release_date) >= 10
+                ) WHERE rn = 1"""
+        ).fetchall()
+        now, n_catch = _now(), 0
+        ins = ("INSERT INTO weekly_examples (week, entity_id, uniprot, failure_mode, fraud_score, "
+               "tm, plddt, is_novel, has_catch, n_analysed, data_json, created_at) "
+               "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+        for w in week_rows:
+            wk = w["wk"]
+            if wk in catch:
+                r = catch[wk]
+                data = ea.build(r)
+                conn.execute(ins, (wk, r["entity_id"], r["uniprot"], data["failure_mode"],
+                                   r["fraud_score"], r["tm_by_experiment"], r["mean_plddt"],
+                                   r["is_novel"], 1, w["n_analysed"], json.dumps(data), now))
+                n_catch += 1
+            else:
+                nm = w["description"] or w["uniprot"] or "a structure"
+                note = (f"{w['n_analysed']} structure{'s' if w['n_analysed'] != 1 else ''} analysed this "
+                        f"release. AlphaFold's largest disagreement was {nm}"
+                        + (f" (TM {w['tm']:.2f})" if w["tm"] is not None else "")
+                        + " — but nothing was confidently wrong, so there is no overconfident failure "
+                        "to report this week.")
+                data = {"name": nm, "entry": w["entity_id"], "note": note}
+                conn.execute(ins, (wk, w["entity_id"], w["uniprot"], None, w["fraud"], w["tm"],
+                                   w["plddt"], None, 0, w["n_analysed"], json.dumps(data), now))
+        return {"weeks": len(week_rows), "catches": n_catch}
 
 
 def _weekly_example_row(r: sqlite3.Row) -> dict:
@@ -450,19 +480,33 @@ def _weekly_example_row(r: sqlite3.Row) -> dict:
 
 
 def latest_weekly_example() -> Optional[dict]:
-    """The most recent week's auto example (the featured 'Fresh catch'), or None."""
+    """The most recent week WITH a confidently-wrong catch (the featured 'Fresh catch'), or None."""
     with connect() as conn:
         conn.execute(_WEEKLY_EXAMPLES_DDL)
-        r = conn.execute("SELECT * FROM weekly_examples ORDER BY week DESC LIMIT 1").fetchone()
+        r = conn.execute(
+            "SELECT * FROM weekly_examples WHERE has_catch=1 ORDER BY week DESC LIMIT 1").fetchone()
         return _weekly_example_row(r) if r else None
 
 
-def archive_weekly_examples() -> list[dict]:
-    """All auto examples EXCEPT the featured latest, newest first — the browsable archive."""
+def archive_weekly_examples(exclude_week: Optional[str] = None) -> list[dict]:
+    """Every release week except the featured one, newest first — catches and quiet weeks alike."""
     with connect() as conn:
         conn.execute(_WEEKLY_EXAMPLES_DDL)
-        rows = conn.execute("SELECT * FROM weekly_examples ORDER BY week DESC").fetchall()
-        return [_weekly_example_row(r) for r in rows[1:]]
+        if exclude_week:
+            rows = conn.execute("SELECT * FROM weekly_examples WHERE week != ? ORDER BY week DESC",
+                                (exclude_week,)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM weekly_examples ORDER BY week DESC").fetchall()
+        return [_weekly_example_row(r) for r in rows]
+
+
+def weekly_examples_counts() -> dict:
+    """{'weeks': total release weeks, 'catches': weeks with a confidently-wrong catch}."""
+    with connect() as conn:
+        conn.execute(_WEEKLY_EXAMPLES_DDL)
+        r = conn.execute(
+            "SELECT COUNT(*) weeks, COALESCE(SUM(has_catch),0) catches FROM weekly_examples").fetchone()
+        return {"weeks": r["weeks"], "catches": r["catches"]}
 
 
 def run_kind(label: str) -> Optional[str]:

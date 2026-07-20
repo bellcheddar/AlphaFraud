@@ -209,8 +209,8 @@ def run(since: date, until: date, limit: Optional[int] = None, dry_run: bool = F
         except Exception as exc:
             banner.warn(f"analysis refresh failed: {exc}")
         try:                                   # regenerate the auto 'example of the week' + archive
-            n = db.rebuild_weekly_examples()
-            banner.ok(f"Weekly examples rebuilt: {n} weeks.")
+            c = db.rebuild_weekly_examples()
+            banner.ok(f"Weekly examples rebuilt: {c['weeks']} weeks ({c['catches']} catches).")
         except Exception as exc:
             banner.warn(f"weekly-examples rebuild failed: {exc}")
     return {"discovered": len(ids), "compared": compared, "skipped": skipped + errored}

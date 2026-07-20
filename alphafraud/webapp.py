@@ -264,16 +264,17 @@ def create_app() -> Flask:
     def examples():
         from . import examples as ex
         items = [_enrich_example(e) for e in ex.EXAMPLES]
-        # Auto 'example of the week': featured newest + browsable archive of all prior weeks.
+        # Auto 'example of the week': featured newest catch + archive of every other release week.
         feat = db.latest_weekly_example()
-        featured = None
+        featured, fweek = None, None
         if feat:
             featured = _enrich_example(feat["data"], citation=feat["data"].get("citation"))
-            featured["week"] = feat["week"]
-        archive = db.archive_weekly_examples()
+            featured["week"] = fweek = feat["week"]
+        archive = db.archive_weekly_examples(exclude_week=fweek)
+        counts = db.weekly_examples_counts()
         return render_template("examples.html", banner=banner.BANNER_ART,
                                examples=items, featured=featured, archive=archive,
-                               version=__version__)
+                               counts=counts, version=__version__)
 
     @app.route("/analysis")
     def analysis():
