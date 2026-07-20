@@ -208,8 +208,10 @@ def _themes(rows: list[dict]) -> dict:
 
 
 def _correlates(rows: list[dict]) -> dict:
-    """CW-rate by method, resolution bin, length bin, novelty bin."""
-    def rate_by(bucket_fn):
+    """CW-rate by method, resolution bin, length bin, novelty bin. Buckets are ordered (the binned
+    axes in increasing numerical order) and empty groups (no confidently-wrong structures, so a
+    zero-height bar) are dropped."""
+    def rate_by(bucket_fn, order=None):
         bg, cw = Counter(), Counter()
         for r in rows:
             b = bucket_fn(r)
@@ -218,7 +220,14 @@ def _correlates(rows: list[dict]) -> dict:
             bg[b] += 1
             if r["confidently_wrong"]:
                 cw[b] += 1
-        return [{"bucket": b, "n": bg[b], "cw_rate": round(100 * cw[b] / bg[b], 1)} for b in bg]
+        # Keep only groups with at least one confidently-wrong structure (drop empty/zero bars).
+        items = [{"bucket": b, "n": bg[b], "cw_rate": round(100 * cw[b] / bg[b], 1)}
+                 for b in bg if cw[b] > 0]
+        if order:                                    # binned axes: fixed increasing order
+            items.sort(key=lambda d: order.index(d["bucket"]) if d["bucket"] in order else 999)
+        else:                                        # categorical (method): worst rate first
+            items.sort(key=lambda d: d["cw_rate"], reverse=True)
+        return items
 
     def res_bin(r):
         v = r.get("resolution")
@@ -249,12 +258,11 @@ def _correlates(rows: list[dict]) -> dict:
                 return lbl
         return "<10%"
 
-    method_order = None
     return {
         "method": rate_by(lambda r: (r.get("method") or None)),
-        "resolution": rate_by(res_bin),
-        "length": rate_by(len_bin),
-        "novelty": rate_by(nov_bin),
+        "resolution": rate_by(res_bin, ["<1.5", "1.5-2", "2-2.5", "2.5-3", "3-4", ">4"]),
+        "length": rate_by(len_bin, ["<100", "100-200", "200-400", "400-800", ">800"]),
+        "novelty": rate_by(nov_bin, ["<10%", "10-40%", "40-70%", "novel >70%"]),
     }
 
 
