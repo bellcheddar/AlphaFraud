@@ -217,6 +217,7 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 .chip { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: rgba(120,140,160,.14);
   color: var(--muted); font-weight: 600; text-transform: lowercase; }
 .chip.mode { background: rgba(214,39,40,.12); color: var(--red); text-transform: none; }
+.chip.match { background: rgba(0,160,90,.16); color: #0a7a48; text-transform: none; }
 .chip.uni { background: rgba(30,115,190,.12); color: var(--primary); text-decoration: none; }
 .exheadline { font-size: 15px; line-height: 1.5; margin: 14px 0 16px; color: var(--ink); font-weight: 500;
   border-left: 3px solid var(--primary); padding-left: 12px; }
@@ -240,6 +241,9 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
 .exstat { background: rgba(120,140,160,.06); border: 1px solid var(--border); border-radius: 9px; padding: 10px 8px; text-align: center; }
 .exstat-n { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
 .exstat.bad .exstat-n { color: var(--red); }
+.exstat.good .exstat-n { color: #0a8a4f; }
+/* Positive-control panel: green accents instead of the failure red. */
+.expanel-match .exheadline { border-left-color: #0a8a4f; }
 .exstat-l { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
 /* Key facts now sit directly under the KPI tiles, in the same right-hand column. */
 .exfacts { background: rgba(120,140,160,.05); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }

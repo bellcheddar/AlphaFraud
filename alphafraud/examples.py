@@ -6,6 +6,95 @@ renders as an identically-formatted annotated panel with an interactive 3D viewe
 Keep the prose here; the numbers come from the DB at render time so they never go stale.
 """
 
+# The positive control — rendered on its own at the very top of the Examples page. A case where
+# AlphaFold's blind prediction was almost perfect, to show the tool can be accurate AND that the
+# AlphaFraud pipeline certifies good predictions (near-zero fraud), not just hunts for failures.
+CONTROL = {
+    "kind": "match",
+    "section": "When AlphaFold gets it right — the control",
+    "section_note": (
+        "AlphaFraud exists to catch confident failures — so here is the opposite, on purpose. This is a "
+        "genuine positive control: a protein AlphaFold had never seen, predicted almost perfectly. It "
+        "proves two things at once — that AlphaFold can be brilliantly accurate, and that AlphaFraud's "
+        "metrics certify a good prediction as good (near-zero fraud) rather than only finding bad ones."),
+    "uniprot": "Q96SD1",
+    "gene": "DCLRE1C",
+    "name": "Protein Artemis",
+    "entity_id": "6TT5_1",
+    "entry": "6TT5",
+    "chain": "AAA",
+    "failure_mode": "Excellent match — AlphaFold nailed it",
+    "badges": ["novel", "well-calibrated", "1.5 Å X-ray"],
+    "headline": (
+        "AlphaFold's blind prediction of a novel, disease-critical nuclease matched the 1.5 Å crystal "
+        "structure to 0.45 Å RMSD — the positive control that shows the tool is genuinely accurate, and "
+        "that AlphaFraud certifies good predictions, not just bad ones."),
+    "structure": [
+        "Artemis (gene DCLRE1C, UniProt Q96SD1) is a structure-specific endonuclease whose catalytic core "
+        "belongs to the metallo-β-lactamase (MBL) fold, fused to a β-CASP domain. This MBL/β-CASP "
+        "combination defines a nuclease superfamily shared with SNM1A, SNM1B/Apollo and CPSF73, in which "
+        "the two domains pack together to build a single composite active site rather than acting as "
+        "independent modules. The MBL domain contributes a shallow αβ/βα sandwich that cradles catalytic "
+        "metal ions (Zn²⁺), while the β-CASP insertion supplies additional coordinating residues and "
+        "closes over the metal centre to form a deep, substrate-binding cleft suited to nicking hairpin "
+        "and branched DNA.",
+        "PDB 6TT5 captures this catalytic domain (roughly the first 361 residues) at 1.5 Å resolution — a "
+        "well-ordered, compact single-domain fold with no oligomeric assembly, no domain-swapping and no "
+        "conformational ambiguity in the crystal. Full-length Artemis extends well beyond this core with a "
+        "long C-terminal region that is intrinsically disordered and regulatory, phosphorylated by "
+        "DNA-PKcs and ATM. That tail is not part of the crystallised, folded domain modelled here — and it "
+        "is exactly the kind of flexible extension AlphaFold typically flags with low pLDDT rather than "
+        "mis-predicting with false confidence.",
+    ],
+    "why_wrong": [
+        "Every headline metric on this entry points the same way. Global superposition of AlphaFold's "
+        "blind model against the 6TT5 experimental structure gives a TM-score of 0.996 and GDT_TS of 99.2 "
+        "(GDT_HA 96.0), with a Cα-RMSD of just 0.45 Å across the full catalytic domain. Locally the "
+        "agreement is equally tight: lDDT 0.985 and secondary-structure agreement Q3 92.5%, meaning "
+        "essentially every strand, helix and loop is placed and oriented correctly — not just the domain's "
+        "rough envelope. This was achieved on a sequence with only 29% identity to the closest structure "
+        "in AlphaFold's pre-cutoff training set (6TT5 was deposited in 2019, after AlphaFold2's 2018-04-30 "
+        "cutoff), so the model was not recalling a near-identical template — it was genuinely generalising "
+        "from evolutionary and physical constraints.",
+        "Confidence and correctness are also well matched here, which is the part AlphaFraud is built to "
+        "check. Mean pLDDT was 95.2, and that confidence was earned: the pLDDT↔lDDT correlation is +0.56, "
+        "the PAE-overconfident fraction is 0.00, and the confidently-wrong-residue fraction is 0.00 — "
+        "nowhere did the model report high confidence in a region it actually got wrong. Structurally this "
+        "is the regime AlphaFold is built for: a single, compact, evolutionarily well-conserved globular "
+        "enzyme domain with a deep multiple-sequence alignment, one dominant native conformation, and none "
+        "of the hinge motion, domain-swapping, assembly or amyloid ambiguity that trips it up elsewhere. "
+        "AlphaFraud's composite score reflects that cleanly: FRAUD = 0.020, against a backdrop where the "
+        "site's worst offenders score 0.8–0.95. The pipeline is not tuned to find fraud everywhere; here "
+        "it correctly recognises that there is none.",
+    ],
+    "biology": [
+        "Artemis sits at the centre of non-homologous end joining (NHEJ), the dominant pathway for "
+        "repairing DNA double-strand breaks in mammalian cells. Recruited to DNA ends by DNA-PKcs and "
+        "activated by DNA-PKcs-mediated phosphorylation, its endonuclease activity opens the covalently "
+        "sealed hairpin intermediates generated during V(D)J recombination — the process that assembles "
+        "diverse antigen-receptor genes in developing T and B lymphocytes. Beyond hairpin opening it also "
+        "trims and resects DNA ends at double-strand breaks and during immunoglobulin class-switch "
+        "recombination, making it essential both for adaptive-immune diversity and for genome stability "
+        "after damage.",
+        "Loss-of-function mutations in DCLRE1C cause radiosensitive severe combined immunodeficiency "
+        "(RS-SCID), including the founder Athabascan SCID phenotype, and Omenn syndrome; hypomorphic "
+        "alleles are linked to milder combined immunodeficiency, elevated lymphoma risk and clinical "
+        "radiosensitivity. Because Artemis is required to repair a defined subset of radiation-induced "
+        "breaks, and because tumour cells often rely on NHEJ to survive genotoxic therapy, it is actively "
+        "pursued as a radiosensitiser and anti-cancer drug target; the structure reported alongside 6TT5 "
+        "was explicitly generated to support structure-based strategies for its inhibition.",
+    ],
+    "key_facts": [
+        "Fold: metallo-β-lactamase (MBL) domain fused to a β-CASP domain — a single composite Zn-dependent nuclease active site (MBL/β-CASP superfamily, with SNM1A/Apollo, CPSF73)",
+        "Match to experiment: TM-score 0.996, GDT_TS 99.2, GDT_HA 96.0, Cα-RMSD 0.45 Å, lDDT 0.985, SS-Q3 92.5%",
+        "Genuinely novel target: only 29% identity to the closest pre-cutoff PDB chain; 6TT5 deposited (2019) after AlphaFold2's training cutoff",
+        "Calibration: mean pLDDT 95.2, pLDDT↔lDDT correlation +0.56, PAE-overconfident 0.00, confidently-wrong fraction 0.00",
+        "AlphaFraud verdict: FRAUD score 0.020 (near-zero, not flagged) vs a worst-offender range of 0.8–0.95 — it certifies accuracy, not just failure",
+        "Biology: NHEJ endonuclease; opens V(D)J hairpins with DNA-PKcs; loss of function causes RS-SCID/Omenn; pursued as a radiosensitiser drug target",
+    ],
+}
+
+
 # Two curated sections: ordinary globular folds AlphaFold gets subtly wrong (the surprising
 # cases — right fold, wrong conformation/assembly), then the dramatic whole-fold catastrophes.
 EXAMPLES = [

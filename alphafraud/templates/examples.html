@@ -4,10 +4,21 @@
 
 {% block content %}
   <h1>Examples — AlphaFold's blind spots, up close</h1>
-  <p class="sub">Two ways to browse AlphaFold's failures. Every week we automatically catch the single most
-  striking confidently-wrong structure from that week's PDB release and build its panel straight from the
-  AlphaFraud metrics. Beneath the weekly archive sit our hand-curated deep-dives — worst-offenders explored
-  in depth.</p>
+  <p class="sub">AlphaFraud hunts for confident failures, but it is an even-handed analyzer — so we open
+  with a <strong>positive control</strong>: a protein AlphaFold had never seen, yet predicted almost
+  perfectly (the metrics certify it with a near-zero fraud score). Below it, every week we automatically
+  catch the most striking confidently-wrong structure from that week's PDB release, and beneath the weekly
+  archive sit our hand-curated deep-dives into the worst offenders.</p>
+
+  {% if control %}
+  <div class="exsection">
+    <h2 class="exsection-h">{{ control.section }}</h2>
+    {% if control.section_note %}<p class="sub">{{ control.section_note }}</p>{% endif %}
+  </div>
+  {% with x = control %}
+  {% include "_expanel.html" %}
+  {% endwith %}
+  {% endif %}
 
   {% if featured %}
   <div class="exsection">

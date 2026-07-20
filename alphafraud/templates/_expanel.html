@@ -3,13 +3,13 @@
 {% macro r2(v) %}{% if v is none %}—{% elif v is number %}{{ '%.2f'|format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
 {% macro stat(label, val, cls='') %}<div class="exstat {{ cls }}"><div class="exstat-n">{{ val }}</div><div class="exstat-l">{{ label }}</div></div>{% endmacro %}
 {% set e = x.entity %}
-<article class="expanel{% if fresh %} expanel-fresh{% endif %}">
+<article class="expanel{% if fresh %} expanel-fresh{% endif %}{% if x.kind == 'match' %} expanel-match{% endif %}">
   {% if fresh %}<div class="fresh-badge"><span class="fresh-spark" aria-hidden="true">✨</span> NEW</div>{% endif %}
   <header class="exhead">
     <div class="exhead-title">
       <h2>{{ x.name }} <span class="exgene">{{ x.gene }}</span></h2>
       <div class="exchips">
-        <span class="chip mode">{{ x.failure_mode }}</span>
+        <span class="chip {% if x.kind == 'match' %}match{% else %}mode{% endif %}">{{ x.failure_mode }}</span>
         {% for b in x.badges %}<span class="chip{% if b == 'auto' %} auto{% endif %}">{% if b == 'auto' %}<span class="auto-bot" aria-hidden="true">🤖</span> {% endif %}{{ b }}</span>{% endfor %}
         <a class="chip uni" href="https://www.uniprot.org/uniprotkb/{{ x.uniprot }}" target="_blank" rel="noopener">{{ x.uniprot }} ↗</a>
       </div>
@@ -40,12 +40,21 @@
 
     <div class="exside">
       <div class="exstats">
+        {% if x.kind == 'match' %}
+        {{ stat('TM-score', r2(e.tm_by_experiment) if e else '—', 'good') }}
+        {{ stat('lDDT', r2(e.lddt) if e else '—', 'good') }}
+        {{ stat('mean pLDDT', r2(e.mean_plddt) if e else '—', 'good') }}
+        {{ stat('Cα-RMSD (Å)', r2(e.ca_rmsd) if e else '—', 'good') }}
+        {{ stat('FRAUD score', r2(e.fraud_score) if e else '—', 'good') }}
+        {{ stat('novelty', (nov(e.novelty_identity)|round|int ~ '%') if e and e.novelty_identity is not none else '—') }}
+        {% else %}
         {{ stat('worst TM-score', r2(e.tm_by_experiment) if e else '—', 'bad') }}
         {{ stat('mean pLDDT', r2(e.mean_plddt) if e else '—') }}
         {{ stat('FRAUD score', r2(e.fraud_score) if e else '—', 'bad') }}
         {{ stat('structures', '×' ~ (x.fam.n or 1)) }}
         {{ stat('conf. wrong', (x.fam.n_wrong or 0) ~ '/' ~ (x.fam.n or 0)) }}
         {{ stat('novelty', (nov(e.novelty_identity)|round|int ~ '%') if e and e.novelty_identity is not none else '—') }}
+        {% endif %}
       </div>
       <aside class="exfacts">
         <h4>Key facts</h4>
@@ -63,8 +72,8 @@
         <summary><span class="exsec-h">🧬 Structure &amp; architecture</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
         <div class="exsec-body">{% for p in x.structure %}<p>{{ p }}</p>{% endfor %}</div>
       </details>
-      <details class="exsec">
-        <summary><span class="exsec-h">❌ Why AlphaFold gets it wrong</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
+      <details class="exsec"{% if x.kind == 'match' %} open{% endif %}>
+        <summary><span class="exsec-h">{% if x.kind == 'match' %}✅ Why AlphaFold gets it right{% else %}❌ Why AlphaFold gets it wrong{% endif %}</span><span class="exsec-toggle" aria-hidden="true"></span></summary>
         <div class="exsec-body">{% for p in x.why_wrong %}<p>{{ p }}</p>{% endfor %}</div>
       </details>
       {% if x.biology %}

@@ -263,6 +263,7 @@ def create_app() -> Flask:
     @app.route("/examples")
     def examples():
         from . import examples as ex
+        control = _enrich_example(ex.CONTROL)
         items = [_enrich_example(e) for e in ex.EXAMPLES]
         # Auto 'example of the week': featured newest catch + archive of every other release week.
         feat = db.latest_weekly_example()
@@ -273,7 +274,7 @@ def create_app() -> Flask:
         archive = db.archive_weekly_examples(exclude_week=fweek)
         counts = db.weekly_examples_counts()
         return render_template("examples.html", banner=banner.BANNER_ART,
-                               examples=items, featured=featured, archive=archive,
+                               examples=items, control=control, featured=featured, archive=archive,
                                counts=counts, version=__version__)
 
     @app.route("/analysis")
