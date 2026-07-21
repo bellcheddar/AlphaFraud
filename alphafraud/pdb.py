@@ -58,8 +58,10 @@ class EntityMeta:
 # --------------------------------------------------------------------------------------
 # Discovery (Search API)
 # --------------------------------------------------------------------------------------
-def _search_query(since: date, until: date) -> dict:
-    floor = max(since, config.AF_TRAINING_CUTOFF)
+def _search_query(since: date, until: date, enforce_cutoff: bool = True) -> dict:
+    # The weekly watch floors at the AlphaFold cutoff; the Calculate index sweep (enforce_cutoff=
+    # False) needs the pre-cutoff human structures too.
+    floor = max(since, config.AF_TRAINING_CUTOFF) if enforce_cutoff else since
     return {
         "query": {
             "type": "group",
@@ -106,10 +108,13 @@ def _search_query(since: date, until: date) -> dict:
     }
 
 
-def search_new_human_entities(since: date, until: date, limit: Optional[int] = None) -> list[str]:
-    """Return polymer_entity ids (e.g. '7XYZ_1') for human protein entities deposited in
-    (max(since, cutoff) .. until]. Paginates the Search API in blocks of 100."""
-    payload = _search_query(since, until)
+def search_new_human_entities(since: date, until: date, limit: Optional[int] = None,
+                              enforce_cutoff: bool = True) -> list[str]:
+    """Return polymer_entity ids (e.g. '7XYZ_1') for human protein entities deposited in the window.
+    With enforce_cutoff (default) the lower bound is floored at the AlphaFold cutoff (the weekly
+    watch); with enforce_cutoff=False the raw `since` is used (the Calculate index's pre-cutoff
+    sweep). Paginates the Search API in blocks of 100."""
+    payload = _search_query(since, until, enforce_cutoff=enforce_cutoff)
     rows = payload["request_options"]["paginate"]["rows"]
     start = 0
     ids: list[str] = []
@@ -129,6 +134,32 @@ def search_new_human_entities(since: date, until: date, limit: Optional[int] = N
             break
         start += rows
     return ids
+
+
+def human_entities_of_entry(entry_id: str) -> list[str]:
+    """The human protein polymer_entity ids of one PDB entry (any deposit date). Empty if the entry
+    doesn't exist, isn't human, or has no protein entity — used by the Calculate tab to resolve a
+    bare 4-char id and to give a precise 'not a human structure' reason."""
+    payload = {
+        "query": {"type": "group", "logical_operator": "and", "nodes": [
+            {"type": "terminal", "service": "text", "parameters": {
+                "attribute": "rcsb_entry_container_identifiers.entry_id",
+                "operator": "exact_match", "value": entry_id.upper()}},
+            {"type": "terminal", "service": "text", "parameters": {
+                "attribute": "rcsb_entity_source_organism.taxonomy_lineage.id",
+                "operator": "exact_match", "value": str(config.HUMAN_TAXONOMY_ID)}},
+            {"type": "terminal", "service": "text", "parameters": {
+                "attribute": "entity_poly.rcsb_entity_polymer_type",
+                "operator": "exact_match", "value": "Protein"}},
+        ]},
+        "return_type": "polymer_entity",
+        "request_options": {"paginate": {"start": 0, "rows": 50}, "results_content_type": ["experimental"]},
+    }
+    resp = post_json(config.RCSB_SEARCH_URL, payload)
+    if resp.status_code == 204:
+        return []
+    resp.raise_for_status()
+    return [item["identifier"] for item in resp.json().get("result_set", [])]
 
 
 # --------------------------------------------------------------------------------------

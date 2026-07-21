@@ -83,9 +83,11 @@ def _resolve_fragment(meta: pdb.EntityMeta):
 
 
 def process_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: bool = False,
-                   refetch: bool = False) -> str:
+                   refetch: bool = False, status: str = "compared") -> str:
     """Tier-2 (full) processing of one entity. Returns 'compared' | 'skipped' | 'error'.
-    `refetch` forces a fresh mmCIF download (used by the error-retry pass)."""
+    `refetch` forces a fresh mmCIF download (used by the error-retry pass). `status` is the stored
+    status on success ('compared' for the pipeline; 'calculated' for the on-demand Calculate tab,
+    which keeps those rows out of every 'analysed' aggregate)."""
     if not meta.has_single_uniprot:
         _skip(entity_id, meta, run_id, "no single UniProt mapping (antibody/chimera/construct?)")
         return "skipped"
@@ -141,7 +143,7 @@ def process_entity(entity_id: str, meta: pdb.EntityMeta, run_id: int, cleanup: b
         "per_residue": comparison.per_residue,
         "domains": comparison.domains,
         "heatmaps": comparison.heatmaps,
-        "status": "compared",
+        "status": status,
         "run_id": run_id,
     })
     return "compared"
@@ -213,6 +215,12 @@ def run(since: date, until: date, limit: Optional[int] = None, dry_run: bool = F
             banner.ok(f"Weekly examples rebuilt: {c['weeks']} weeks ({c['catches']} catches).")
         except Exception as exc:
             banner.warn(f"weekly-examples rebuild failed: {exc}")
+    try:                                       # keep the Calculate autocomplete index current
+        from . import calc_index
+        n = calc_index.refresh_weekly(metas)
+        banner.ok(f"Calculate index refreshed: +{n} qualifying entities.")
+    except Exception as exc:
+        banner.warn(f"calculate-index refresh failed: {exc}")
     return {"discovered": len(ids), "compared": compared, "skipped": skipped + errored}
 
 

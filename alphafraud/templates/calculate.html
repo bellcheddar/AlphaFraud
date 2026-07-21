@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% set active = 'calculate' %}
+{% block title %}Calculate &middot; AlphaFraud{% endblock %}
+
+{% block content %}
+  <h1>Calculate — score any human structure</h1>
+  <p class="sub">Type a human PDB ID and AlphaFraud fetches its AlphaFold model, superposes the two, and
+  builds the same panel as the auto examples — KPIs, the Cα-deviation ribbon, the interactive 3D viewer,
+  and a deterministic write-up (no AI-generated text). The box only autocompletes to entries that
+  <strong>exist, are human, and have an AlphaFold model</strong> ({{ '{:,}'.format(indexed) }} indexed).</p>
+
+  <div class="calc-box card">
+    <div class="calc-input-wrap">
+      <input type="text" id="calcInput" class="calc-input" autocomplete="off" spellcheck="false"
+             placeholder="e.g. 6TT5 or 7U14_1 — press Tab to complete" aria-label="PDB ID"
+             aria-autocomplete="list" aria-controls="calcSuggest">
+      <button type="button" id="calcGo" class="btn-primary">Calculate</button>
+      <ul id="calcSuggest" class="calc-suggest" role="listbox" hidden></ul>
+    </div>
+    <p class="calc-msg" id="calcMsg" hidden></p>
+  </div>
+
+  <div id="calcResult"></div>
+{% endblock %}

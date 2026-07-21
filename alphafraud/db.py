@@ -138,6 +138,17 @@ CREATE TABLE IF NOT EXISTS weekly_examples (
     created_at    TEXT
 );
 
+-- Calculate tab: strict autocomplete index of qualifying human entities + AlphaFold-availability
+-- cache (populated by calc_index.py, rebuilt weekly by the run).
+CREATE TABLE IF NOT EXISTS calculate_index (
+    entity_id TEXT PRIMARY KEY, entry_id TEXT, uniprot TEXT, gene TEXT, title TEXT,
+    deposit_date TEXT, post_cutoff INTEGER, indexed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_calcidx_entry ON calculate_index(entry_id);
+CREATE TABLE IF NOT EXISTS af_uniprot_cache (
+    uniprot TEXT PRIMARY KEY, has_model INTEGER, checked_at TEXT
+);
+
 -- Lightweight visitor counter for the header stats panel (IPs are hashed, never stored raw).
 CREATE TABLE IF NOT EXISTS visits (
     ip_hash     TEXT PRIMARY KEY,
@@ -523,6 +534,161 @@ def weekly_examples_counts() -> dict:
         r = conn.execute(
             "SELECT COUNT(*) weeks, COALESCE(SUM(has_catch),0) catches FROM weekly_examples").fetchone()
         return {"weeks": r["weeks"], "catches": r["catches"]}
+
+
+# --------------------------------------------------------------------------------------
+# Calculate tab: strict autocomplete index + on-demand compute helpers
+# --------------------------------------------------------------------------------------
+_CALC_DDL = """
+CREATE TABLE IF NOT EXISTS calculate_index (
+    entity_id TEXT PRIMARY KEY, entry_id TEXT, uniprot TEXT, gene TEXT, title TEXT,
+    deposit_date TEXT, post_cutoff INTEGER, indexed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_calcidx_entry ON calculate_index(entry_id);
+CREATE TABLE IF NOT EXISTS af_uniprot_cache (
+    uniprot TEXT PRIMARY KEY, has_model INTEGER, checked_at TEXT
+);
+"""
+
+
+def _ensure_calc(conn) -> None:
+    conn.executescript(_CALC_DDL)
+
+
+def auto_source_row(entity_id: str):
+    """The joined entity+annotation+metrics row that examples_auto.build() consumes (same columns
+    the weekly-example rebuild uses), for any entity_id — reused by the Calculate panel."""
+    with connect() as conn:
+        return conn.execute(
+            f"SELECT {_AUTO_SRC_COLS} FROM entities e "
+            "LEFT JOIN entity_annotations a ON a.entity_id = e.entity_id WHERE e.entity_id=?",
+            (entity_id,)).fetchone()
+
+
+def index_upsert(rows: list[dict]) -> int:
+    """Upsert qualifying entities into the autocomplete index. Each row: entity_id, entry_id,
+    uniprot, gene, title, deposit_date, post_cutoff."""
+    if not rows:
+        return 0
+    now = _now()
+    with connect() as conn:
+        _ensure_calc(conn)
+        conn.executemany(
+            "INSERT INTO calculate_index (entity_id, entry_id, uniprot, gene, title, deposit_date, "
+            "post_cutoff, indexed_at) VALUES (?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(entity_id) DO UPDATE SET entry_id=excluded.entry_id, uniprot=excluded.uniprot, "
+            "gene=excluded.gene, title=excluded.title, deposit_date=excluded.deposit_date, "
+            "post_cutoff=excluded.post_cutoff, indexed_at=excluded.indexed_at",
+            [(r["entity_id"], r["entry_id"], r.get("uniprot"), r.get("gene"), r.get("title"),
+              r.get("deposit_date"), r.get("post_cutoff"), now) for r in rows])
+    return len(rows)
+
+
+def seed_index_from_entities() -> int:
+    """Seed the index from corpus entities that already have a UniProt + AlphaFold model (proven
+    qualifying by the pipeline). post_cutoff is derived from the deposit date."""
+    cutoff = config.AF_TRAINING_CUTOFF.isoformat()
+    with connect() as conn:
+        _ensure_calc(conn)
+        rows = conn.execute(
+            "SELECT entity_id, entry_id, uniprot, uniprot_name gene, description title, deposit_date, "
+            "CASE WHEN substr(deposit_date,1,10) >= ? THEN 1 ELSE 0 END post_cutoff "
+            "FROM entities WHERE uniprot IS NOT NULL AND af_entry_id IS NOT NULL "
+            "AND status IN ('screened','compared')", (cutoff,)).fetchall()
+    return index_upsert([dict(r) for r in rows])
+
+
+def index_count() -> int:
+    with connect() as conn:
+        _ensure_calc(conn)
+        return conn.execute("SELECT COUNT(*) FROM calculate_index").fetchone()[0]
+
+
+def index_suggest(prefix: str, limit: int = 8) -> list[dict]:
+    """Autocomplete: qualifying entries whose PDB id starts with `prefix` (preferred) or whose
+    gene/title contains it. Deduplicated to one row per PDB entry (the lowest entity number)."""
+    p = (prefix or "").strip().lower()
+    if not p:
+        return []
+    with connect() as conn:
+        _ensure_calc(conn)
+        rows = conn.execute(
+            "SELECT entity_id, entry_id, uniprot, gene, title, post_cutoff, "
+            "       (lower(entry_id) LIKE ?) AS id_hit "
+            "FROM calculate_index "
+            "WHERE lower(entry_id) LIKE ? OR lower(gene) LIKE ? OR lower(title) LIKE ? "
+            "ORDER BY id_hit DESC, entry_id, entity_id LIMIT 200",
+            (p + "%", p + "%", "%" + p + "%", "%" + p + "%")).fetchall()
+    seen, out = set(), []
+    for r in rows:                                   # one suggestion per PDB entry
+        if r["entry_id"] in seen:
+            continue
+        seen.add(r["entry_id"])
+        out.append(dict(r))
+        if len(out) >= limit:
+            break
+    return out
+
+
+def index_entities_for_entry(entry_id: str) -> list[dict]:
+    """All qualifying entities of a PDB entry (to resolve a bare 4-char id / offer a chooser)."""
+    with connect() as conn:
+        _ensure_calc(conn)
+        rows = conn.execute(
+            "SELECT * FROM calculate_index WHERE lower(entry_id)=? ORDER BY entity_id",
+            (entry_id.lower(),)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def af_cache_get(uniprot: str) -> Optional[bool]:
+    with connect() as conn:
+        _ensure_calc(conn)
+        r = conn.execute("SELECT has_model FROM af_uniprot_cache WHERE uniprot=?", (uniprot,)).fetchone()
+        return None if r is None else bool(r["has_model"])
+
+
+def af_cache_set(uniprot: str, has_model: bool) -> None:
+    with connect() as conn:
+        _ensure_calc(conn)
+        conn.execute(
+            "INSERT INTO af_uniprot_cache (uniprot, has_model, checked_at) VALUES (?,?,?) "
+            "ON CONFLICT(uniprot) DO UPDATE SET has_model=excluded.has_model, checked_at=excluded.checked_at",
+            (uniprot, 1 if has_model else 0, _now()))
+
+
+def calculate_run_id() -> int:
+    """The singleton run that owns on-demand 'Calculate' entities (kind='calculate', so they are
+    excluded from every 'weekly'/'backfill' aggregate)."""
+    with connect() as conn:
+        r = conn.execute("SELECT id FROM runs WHERE kind='calculate' ORDER BY id LIMIT 1").fetchone()
+        if r:
+            return r["id"]
+    return start_run("calculate", "", "", kind="calculate")
+
+
+def calc_status(entity_id: str) -> Optional[dict]:
+    """Light status lookup for the poll endpoint: {status, skip_reason} or None."""
+    with connect() as conn:
+        r = conn.execute("SELECT status, skip_reason FROM entities WHERE entity_id=?",
+                         (entity_id,)).fetchone()
+        return dict(r) if r else None
+
+
+def computing_count() -> int:
+    with connect() as conn:
+        return conn.execute("SELECT COUNT(*) FROM entities WHERE status='computing'").fetchone()[0]
+
+
+def mark_computing(entity_id: str, entry_id: str, uniprot: Optional[str], run_id: int) -> None:
+    """Placeholder row so the poll can see 'computing' immediately; never clobbers a real result."""
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO entities (entity_id, entry_id, uniprot, status, run_id, processed_at) "
+            "VALUES (?,?,?,'computing',?,?) "
+            "ON CONFLICT(entity_id) DO UPDATE SET status='computing', run_id=excluded.run_id, "
+            "processed_at=excluded.processed_at "
+            "WHERE entities.status NOT IN ('compared','screened','calculated')",
+            (entity_id, entry_id, uniprot, run_id, _now()))
 
 
 def run_kind(label: str) -> Optional[str]:

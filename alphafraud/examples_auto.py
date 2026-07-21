@@ -54,65 +54,103 @@ def _classify(r, m):
 
 
 def build(r) -> dict:
-    """Generate the templated example dict for a joined entity row `r` (dict-like)."""
+    """Generate the templated example dict for a joined entity row `r` (dict-like). Confidently-wrong
+    catches get the failure framing; genuinely faithful predictions (TM ≥ 0.7, lDDT ≥ 0.6) get the
+    positive 'match' framing (green, 'why AlphaFold gets it right') — so the same builder serves both
+    the weekly catch and any human structure the Calculate tab is given."""
     m = json.loads(r["metrics_json"] or "{}")
     ssq3 = m.get("ss_agreement_q3")               # percent 0–100
     pearson = m.get("plddt_lddt_pearson")
     cwf = m.get("confidently_wrong_frac")         # fraction 0–1
     nov = r["novelty_identity"]
-    mode, mech = _classify(r, m)
+    tm, lddt = r["tm_by_experiment"], (r["lddt"] or 0)
     fold = r["cath_name"] or r["scop2_sf"] or None
     name = r["description"] or r["uniprot"]
     gene = (r["uniprot_name"] or "").replace("_HUMAN", "")
     novtxt = (f"{round(100 - (nov or 0))}% novel to AlphaFold's training cutoff"
               if r["is_novel"] else "within AlphaFold's training distribution")
-
-    headline = (
-        f"AlphaFold modelled {r['entry_id']}_{r['chain']} at mean pLDDT {_f1(r['mean_plddt'])}, "
-        f"but the deposited structure scores TM-score {_f2(r['tm_by_experiment'])} against that prediction"
-        + (f" — {round(cwf * 100)}% of residues confidently wrong" if cwf is not None else "")
-        + f". A {mode.lower()}.")
-
-    structure = [
-        (f"{name} is "
-         + (f"a {r['seq_length']}-residue chain" if r["seq_length"] else "a protein chain")
-         + (f" annotated as {fold}" if fold else "")
-         + (f" ({r['cath_class']})" if r["cath_class"] else "")
-         + (f"; the deposition resolves {r['n_chains']} chains" if (r["n_chains"] or 1) > 1 else "")
-         + ". This is the fold AlphaFold predicts, and it does so with high confidence."),
-        ("In the viewer, residues are coloured by their Cα deviation from the AlphaFold model — "
-         "red marks where the deposited coordinates moved furthest from the prediction; toggle the "
-         "AlphaFold “ghost” to overlay what it predicted."),
-    ]
+    rmsd_txt = f"{r['ca_rmsd']:.2f} Å" if r["ca_rmsd"] is not None else "—"
+    ss_txt = f", secondary-structure agreement Q3 {round(ssq3)}%" if ssq3 is not None else ""
     conf_word = ("near-maximal confidence" if (r["mean_plddt"] or 0) >= 90
                  else "high confidence" if (r["mean_plddt"] or 0) >= 75 else "moderate confidence")
-    why_wrong = [
-        (f"AlphaFold's mean pLDDT of {_f1(r['mean_plddt'])} signals {conf_word}, yet the accuracy "
-         f"metrics disagree: TM-score {_f2(r['tm_by_experiment'])}, Cα-RMSD "
-         + (f"{r['ca_rmsd']:.1f} Å" if r["ca_rmsd"] is not None else "—")
-         + f", lDDT {_f2(r['lddt'])}"
-         + (f", secondary-structure agreement Q3 {round(ssq3)}%" if ssq3 is not None else "")
-         + "."),
-        ("Confidence is "
-         + ("mis-calibrated here" if (pearson is not None and pearson < 0.3) else "only weakly informative")
-         + (f" — the pLDDT↔lDDT correlation is {pearson:+.2f}" if pearson is not None else "")
-         + f". Mechanistically, {mech}. The sequence is {novtxt}."),
-    ]
-    key_facts = [
-        f"UniProt {r['uniprot']}" + (f"; {r['seq_length']} aa" if r["seq_length"] else "")
-        + (f"; {r['n_chains']} chains" if (r["n_chains"] or 1) > 1 else ""),
-        (f"Fold: {fold}" + (f" ({r['cath_class']})" if r["cath_class"] else "")) if fold else "Fold: not annotated",
-        f"AF failure: pLDDT {_f1(r['mean_plddt'])} vs TM {_f2(r['tm_by_experiment'])}, lDDT {_f2(r['lddt'])}"
-        + (f", {round(cwf * 100)}% residues confidently wrong" if cwf is not None else ""),
-        f"Failure mode: {mode}",
-        (f"Novelty: {round(100 - (nov or 0))}%" if r["is_novel"] else "Within training distribution"),
-    ]
-    badges = [b for b in [
-        "novel" if r["is_novel"] else None,
-        "amyloid" if r["is_amyloid"] else None,
-        "assembly" if r["is_assembly"] else None,
-        "auto",
-    ] if b]
+    fold_fact = (f"Fold: {fold}" + (f" ({r['cath_class']})" if r["cath_class"] else "")) if fold else "Fold: not annotated"
+    struct_fold = (f"{name} is "
+                   + (f"a {r['seq_length']}-residue chain" if r["seq_length"] else "a protein chain")
+                   + (f" annotated as {fold}" if fold else "")
+                   + (f" ({r['cath_class']})" if r["cath_class"] else "")
+                   + (f"; the deposition resolves {r['n_chains']} chains" if (r["n_chains"] or 1) > 1 else ""))
+    novelty_fact = f"Novelty: {round(100 - (nov or 0))}%" if r["is_novel"] else "Within training distribution"
+
+    is_good = (tm is not None and tm >= 0.7 and lddt >= 0.6 and not r["confidently_wrong"])
+
+    if is_good:
+        quality = ("Excellent match — AlphaFold nailed it" if tm >= 0.9
+                   else "Close match — AlphaFold agrees with experiment")
+        headline = (
+            f"AlphaFold's blind prediction of {r['entry_id']}_{r['chain']} matches the experimental "
+            f"structure closely: TM-score {_f2(tm)}, lDDT {_f2(lddt)}, Cα-RMSD {rmsd_txt} at mean "
+            f"pLDDT {_f1(r['mean_plddt'])}.")
+        structure = [struct_fold + ". This is the fold AlphaFold predicts, and here the experiment agrees.",
+                     ("In the viewer, residues are coloured by their Cα deviation from the AlphaFold "
+                      "model — mostly blue means the deposited coordinates sit close to the prediction; "
+                      "toggle the AlphaFold “ghost” to overlay what it predicted.")]
+        why = [
+            (f"AlphaFold's mean pLDDT of {_f1(r['mean_plddt'])} ({conf_word}) is borne out by "
+             f"experiment: TM-score {_f2(tm)}, Cα-RMSD {rmsd_txt}, lDDT {_f2(lddt)}{ss_txt} — the fold, "
+             "and largely the detail, are correct."),
+            ("Confidence here is "
+             + ("well calibrated" if (pearson is not None and pearson >= 0.3) else "borne out overall")
+             + (f" (pLDDT↔lDDT correlation {pearson:+.2f})" if pearson is not None else "")
+             + f". This is the regime AlphaFold handles best — a compact, evolutionarily well-constrained "
+             f"fold with one dominant conformation. The sequence is {novtxt}."),
+        ]
+        key_facts = [
+            f"UniProt {r['uniprot']}" + (f"; {r['seq_length']} aa" if r["seq_length"] else "")
+            + (f"; {r['n_chains']} chains" if (r["n_chains"] or 1) > 1 else ""),
+            fold_fact,
+            f"Match: pLDDT {_f1(r['mean_plddt'])} vs TM {_f2(tm)}, lDDT {_f2(lddt)}, Cα-RMSD {rmsd_txt}",
+            f"AlphaFraud verdict: faithful prediction (FRAUD {_f2(r['fraud_score'])}, not confidently wrong)",
+            novelty_fact,
+        ]
+        badges = [b for b in ["accurate", "novel" if r["is_novel"] else None, "auto"] if b]
+        result_extra = {"kind": "match"}
+        mode = quality
+    else:
+        mode, mech = _classify(r, m)
+        headline = (
+            f"AlphaFold modelled {r['entry_id']}_{r['chain']} at mean pLDDT {_f1(r['mean_plddt'])}, "
+            f"but the deposited structure scores TM-score {_f2(tm)} against that prediction"
+            + (f" — {round(cwf * 100)}% of residues confidently wrong" if cwf is not None else "")
+            + f". A {mode.lower()}.")
+        structure = [struct_fold + ". This is the fold AlphaFold predicts, and it does so with high confidence.",
+                     ("In the viewer, residues are coloured by their Cα deviation from the AlphaFold "
+                      "model — red marks where the deposited coordinates moved furthest from the "
+                      "prediction; toggle the AlphaFold “ghost” to overlay what it predicted.")]
+        why = [
+            (f"AlphaFold's mean pLDDT of {_f1(r['mean_plddt'])} signals {conf_word}, yet the accuracy "
+             f"metrics disagree: TM-score {_f2(tm)}, Cα-RMSD {rmsd_txt}, lDDT {_f2(lddt)}{ss_txt}."),
+            ("Confidence is "
+             + ("mis-calibrated here" if (pearson is not None and pearson < 0.3) else "only weakly informative")
+             + (f" — the pLDDT↔lDDT correlation is {pearson:+.2f}" if pearson is not None else "")
+             + f". Mechanistically, {mech}. The sequence is {novtxt}."),
+        ]
+        key_facts = [
+            f"UniProt {r['uniprot']}" + (f"; {r['seq_length']} aa" if r["seq_length"] else "")
+            + (f"; {r['n_chains']} chains" if (r["n_chains"] or 1) > 1 else ""),
+            fold_fact,
+            f"AF failure: pLDDT {_f1(r['mean_plddt'])} vs TM {_f2(tm)}, lDDT {_f2(lddt)}"
+            + (f", {round(cwf * 100)}% residues confidently wrong" if cwf is not None else ""),
+            f"Failure mode: {mode}",
+            novelty_fact,
+        ]
+        badges = [b for b in [
+            "novel" if r["is_novel"] else None,
+            "amyloid" if r["is_amyloid"] else None,
+            "assembly" if r["is_assembly"] else None,
+            "auto",
+        ] if b]
+        result_extra = {}
+
     citation = ({"doi": r["citation_doi"], "title": r["citation_title"], "year": r["citation_year"]}
                 if r["citation_doi"] else None)
 
@@ -120,6 +158,6 @@ def build(r) -> dict:
         "uniprot": r["uniprot"], "gene": gene, "name": name,
         "entity_id": r["entity_id"], "entry": r["entry_id"], "chain": r["chain"],
         "failure_mode": mode, "badges": badges, "headline": headline,
-        "structure": structure, "why_wrong": why_wrong, "key_facts": key_facts,
-        "citation": citation, "source": "auto",
+        "structure": structure, "why_wrong": why, "key_facts": key_facts,
+        "citation": citation, "source": "auto", **result_extra,
     }

@@ -550,7 +550,113 @@
       }
     });
   }
+  // Expose so dynamically-injected panels (the Calculate tab) can wire up their viewers.
+  window.initExampleViewers = function (scope) {
+    (scope || document).querySelectorAll(".exviewer").forEach(initViewer);
+  };
   document.addEventListener("DOMContentLoaded", function () { document.querySelectorAll(".exviewer").forEach(initViewer); });
+})();
+
+/* ---- Calculate tab: autocomplete + on-demand compute ---- */
+(function () {
+  var input = document.getElementById("calcInput");
+  if (!input) return;
+  var go = document.getElementById("calcGo"),
+      list = document.getElementById("calcSuggest"),
+      msg = document.getElementById("calcMsg"),
+      result = document.getElementById("calcResult"),
+      items = [], active = -1, timer = null, poll = null;
+
+  function show(text, kind) {
+    msg.textContent = text;
+    msg.className = "calc-msg" + (kind ? " " + kind : "");
+    msg.hidden = !text;
+  }
+  function hideList() { list.hidden = true; list.innerHTML = ""; items = []; active = -1; }
+
+  function render() {
+    list.innerHTML = "";
+    items.forEach(function (it, i) {
+      var li = document.createElement("li");
+      li.className = "calc-sug" + (i === active ? " on" : "");
+      li.setAttribute("role", "option");
+      li.innerHTML = '<b>' + it.entry_id + '</b> <span class="calc-sug-t">' +
+        ((it.gene || "").replace("_HUMAN", "") + (it.title ? " · " + it.title : "")) + '</span>' +
+        (it.post_cutoff ? '' : ' <span class="calc-sug-pre">pre-cutoff</span>');
+      li.addEventListener("mousedown", function (e) { e.preventDefault(); choose(it); });
+      list.appendChild(li);
+    });
+    list.hidden = items.length === 0;
+  }
+  function choose(it) { input.value = it.entry_id; hideList(); run(); }
+
+  function fetchSuggest() {
+    var q = input.value.trim();
+    if (q.length < 1) { hideList(); return; }
+    fetch("/api/calculate/suggest?q=" + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (rows) { items = rows || []; active = items.length ? 0 : -1; render(); })
+      .catch(function () { hideList(); });
+  }
+
+  input.addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(fetchSuggest, 140); });
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowDown" && items.length) { e.preventDefault(); active = (active + 1) % items.length; render(); }
+    else if (e.key === "ArrowUp" && items.length) { e.preventDefault(); active = (active - 1 + items.length) % items.length; render(); }
+    else if (e.key === "Tab" && items.length && active >= 0) { e.preventDefault(); input.value = items[active].entry_id; hideList(); }
+    else if (e.key === "Enter") { e.preventDefault(); if (!list.hidden && active >= 0) choose(items[active]); else run(); }
+    else if (e.key === "Escape") { hideList(); }
+  });
+  document.addEventListener("click", function (e) { if (!list.contains(e.target) && e.target !== input) hideList(); });
+  go.addEventListener("click", run);
+
+  function run() {
+    var pdb = input.value.trim();
+    if (!pdb) return;
+    hideList();
+    if (poll) { clearInterval(poll); poll = null; }
+    result.innerHTML = "";
+    show("Checking " + pdb.toUpperCase() + " …", "info");
+    fetch("/calculate/run", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pdb: pdb })
+    }).then(function (r) { return r.json(); }).then(handle)
+      .catch(function () { show("Something went wrong contacting the server.", "err"); });
+  }
+
+  function handle(res) {
+    if (res.status === "error") { show(res.reason || "This entry does not meet the criteria.", "err"); return; }
+    if (res.status === "busy") { show(res.reason, "warn"); return; }
+    if (res.status === "ready") { loadPanel(res.entity_id); return; }
+    if (res.status === "computing") {
+      show("Computing " + res.entity_id + " — fetching the AlphaFold model, superposing and scoring. This can take up to a minute…", "info");
+      startPoll(res.entity_id);
+    }
+  }
+  function startPoll(eid) {
+    var tries = 0;
+    poll = setInterval(function () {
+      tries++;
+      fetch("/api/calculate/status/" + encodeURIComponent(eid))
+        .then(function (r) { return r.json(); })
+        .then(function (s) {
+          if (s.status === "ready") { clearInterval(poll); poll = null; loadPanel(eid); }
+          else if (s.status === "error") { clearInterval(poll); poll = null; show(s.reason || "Could not process this structure.", "err"); }
+          else if (tries > 60) { clearInterval(poll); poll = null; show("Still working — this structure is taking unusually long. Try again shortly.", "warn"); }
+        });
+    }, 2000);
+  }
+  function loadPanel(eid) {
+    show("", null);
+    fetch("/calculate/panel/" + encodeURIComponent(eid))
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        result.innerHTML = html;
+        if (window.initExampleViewers) window.initExampleViewers(result);
+        result.scrollIntoView({ behavior: "smooth", block: "start" });
+      })
+      .catch(function () { show("Computed, but the panel failed to load. Refresh and try again.", "err"); });
+  }
 })();
 
 /* ---- Ribbon hover-preview on the fraud-quadrant scatter ---- */

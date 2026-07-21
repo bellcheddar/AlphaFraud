@@ -277,6 +277,79 @@ def create_app() -> Flask:
                                examples=items, control=control, featured=featured, archive=archive,
                                counts=counts, version=__version__)
 
+    # ---- Calculate tab: on-demand panel for a user-entered human PDB id (no LLM) ----
+    CALC_CONCURRENCY = 2   # max simultaneous on-demand computations on this small box
+
+    def _calc_panel_item(entity_id):
+        from . import examples_auto
+        row = db.auto_source_row(entity_id)
+        if not row:
+            return None
+        data = examples_auto.build(row)
+        item = _enrich_example(data, citation=data.get("citation"))
+        e = item.get("entity") or {}
+        dep = (e.get("deposit_date") or "")[:10]
+        if dep and dep < config.AF_TRAINING_CUTOFF.isoformat():
+            item["note"] = ("Deposited before AlphaFold's 2018-04-30 training cutoff — AlphaFold may "
+                            "have seen this structure in training, so this is not a blind prediction.")
+        return item
+
+    @app.route("/calculate")
+    def calculate_page():
+        return render_template("calculate.html", banner=banner.BANNER_ART,
+                               indexed=db.index_count(), version=__version__)
+
+    @app.route("/api/calculate/suggest")
+    def calculate_suggest():
+        return jsonify(db.index_suggest(request.args.get("q", ""), limit=8))
+
+    @app.route("/calculate/run", methods=["POST"])
+    def calculate_run():
+        from . import calculate
+        raw = ((request.json or {}).get("pdb", "") if request.is_json
+               else request.form.get("pdb", "")).strip()
+        v = calculate.validate(raw)
+        if v.get("error"):
+            return jsonify({"status": "error", "reason": v["error"]})
+        eid = v["entity_id"]
+        st = db.calc_status(eid)
+        if st and st["status"] in ("compared", "screened", "calculated"):
+            return jsonify({"status": "ready", "entity_id": eid})
+        if st and st["status"] == "computing":
+            return jsonify({"status": "computing", "entity_id": eid})
+        if db.computing_count() >= CALC_CONCURRENCY:
+            return jsonify({"status": "busy",
+                            "reason": "The server is computing other structures right now — please try again in a moment."})
+        # Trigger the heavy compute in an isolated subprocess (avoids biotite/tmtools thread issues).
+        db.mark_computing(eid, eid.split("_")[0], None, db.calculate_run_id())
+        import subprocess
+        import sys
+        from pathlib import Path
+        script = Path(__file__).resolve().parent.parent / "AlphaFraud.py"
+        subprocess.Popen([sys.executable, str(script), "calculate", eid],
+                         cwd=str(script.parent),
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+        return jsonify({"status": "computing", "entity_id": eid})
+
+    @app.route("/api/calculate/status/<entity_id>")
+    def calculate_status(entity_id):
+        st = db.calc_status(entity_id)
+        if not st:
+            return jsonify({"status": "unknown"})
+        if st["status"] in ("compared", "screened", "calculated"):
+            return jsonify({"status": "ready", "entity_id": entity_id})
+        if st["status"] in ("skipped", "error"):
+            return jsonify({"status": "error", "reason": st.get("skip_reason") or "could not process this structure"})
+        return jsonify({"status": "computing", "entity_id": entity_id})
+
+    @app.route("/calculate/panel/<entity_id>")
+    def calculate_panel(entity_id):
+        item = _calc_panel_item(entity_id)
+        if not item:
+            abort(404)
+        return render_template("_expanel.html", x=item)
+
     @app.route("/analysis")
     def analysis():
         snap = db.load_snapshot("cumulative")

@@ -138,6 +138,30 @@ def cmd_analyze(args) -> int:
     return 0
 
 
+def cmd_calc_index(args) -> int:
+    from alphafraud import calc_index, db
+
+    db.init_schema()
+    if args.seed:
+        n = calc_index.seed_from_entities()
+        banner.ok(f"Seeded {n} entities from the corpus; index total {db.index_count()}.")
+    else:
+        res = calc_index.rebuild(pre_cutoff=not args.no_sweep, limit=args.limit)
+        banner.ok(f"Calculate index: seeded={res['seeded']} swept={res['swept']} total={res['total']}.")
+    return 0
+
+
+def cmd_calculate(args) -> int:
+    from alphafraud import calculate
+
+    res = calculate.compute(args.entity_id)
+    if res["status"] == "ready":
+        banner.ok(f"{args.entity_id}: ready")
+        return 0
+    banner.err(f"{args.entity_id}: {res.get('reason')}")
+    return 1
+
+
 def cmd_weekly_examples(_args) -> int:
     from alphafraud import db
 
@@ -213,6 +237,16 @@ def main(argv=None) -> int:
     sub.add_parser("weekly-examples",
                    help="regenerate the auto 'example of the week' + archive (deterministic, no LLM)"
                    ).set_defaults(func=cmd_weekly_examples)
+
+    p_ci = sub.add_parser("calc-index", help="build/refresh the Calculate autocomplete index")
+    p_ci.add_argument("--seed", action="store_true", help="only seed from the corpus (fast); skip the sweep")
+    p_ci.add_argument("--no-sweep", action="store_true", help="seed + skip the pre-cutoff sweep")
+    p_ci.add_argument("--limit", type=int, help="cap the pre-cutoff sweep (for testing)")
+    p_ci.set_defaults(func=cmd_calc_index)
+
+    p_calc = sub.add_parser("calculate", help="compute one entity on demand (Calculate tab / subprocess)")
+    p_calc.add_argument("entity_id", help="e.g. 6TT5_1")
+    p_calc.set_defaults(func=cmd_calculate)
 
     p_serve = sub.add_parser("serve", help="local dev web server")
     p_serve.add_argument("--port", type=int, default=8000)
