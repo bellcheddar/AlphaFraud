@@ -433,7 +433,7 @@ CREATE TABLE IF NOT EXISTS weekly_examples (
 _AUTO_SRC_COLS = (
     "e.entity_id, e.entry_id, e.chain, e.uniprot, e.uniprot_name, e.description, "
     "e.release_date, e.tm_by_experiment, e.mean_plddt, e.fraud_score, e.lddt, e.ca_rmsd, "
-    "e.is_novel, e.novelty_identity, e.metrics_json, "
+    "e.confidently_wrong, e.is_novel, e.novelty_identity, e.metrics_json, "
     "a.seq_length, a.n_chains, a.cath_name, a.cath_class, a.scop2_sf, "
     "a.citation_doi, a.citation_title, a.citation_year, "
     "a.is_amyloid, a.is_assembly, a.is_idr, a.is_coiledcoil"
