@@ -33,6 +33,7 @@ AlphaFraud watches the RCSB PDB for newly deposited human protein structures, ma
 | Two-tier archive backfill | A fast TM-score screen across every structure, running the full metric suite only on the disagreements; makes the whole ~96k-entity archive tractable |
 | Structural imagery | Every worst offender is drawn as a deviation-coloured Cα ribbon (the experimental structure, coloured residue-by-residue by its distance from the AlphaFold model, on an absolute-Ångström scale) on the leaderboard, entry page and weekly highlights; an interactive 3Dmol.js viewer with an optional translucent AlphaFold "ghost" overlay; hover-preview thumbnails on the scatter; and a "divergence" ribbon banner in the header |
 | On-demand Calculate tab | Type any human PDB ID and the full pipeline runs on demand (fetch AlphaFold model, superpose, score, render) to return the auto-example panel, with strict autocomplete (exists + human + has an AlphaFold model) and no LLM |
+| Home & live Statistics | A Home navigation page outlining every tab, and an exhaustive Statistics page grouping all KPIs, coverage, runs, server (CPU/memory/uptime), storage/database and API stats into themed panels |
 | Cumulative dashboard | Default landing page aggregating every processed week: the "fraud quadrant" scatter, metric histograms, a weekly trend, and a browsable per-week / per-structure archive |
 | Branded, mobile-responsive report | Flask app with the signature scatter, heatmaps, per-domain tables and an all-time leaderboard; every plot has a CSV export and a plain-language explanatory panel that defines each metric twice over (a lay sentence and the underlying equation), and every table exports to CSV |
 | One-command deploy | Provisioning, deploy and one-shot release scripts for a DigitalOcean droplet (gunicorn, nginx, certbot TLS) |
@@ -174,7 +175,8 @@ The site is live at **[alphafraud.mdeller.com](https://alphafraud.mdeller.com/)*
 
 | Route | Shows |
 |---|---|
-| [`/`](https://alphafraud.mdeller.com/) | Cumulative dashboard across every processed week: KPIs, the pLDDT-vs-TM fraud-quadrant scatter, metric histograms, the weekly trend, and a top-ranked table. A pulldown jumps to any single week |
+| [`/`](https://alphafraud.mdeller.com/) | Home — a concise navigation page: the project's purpose, headline KPIs, and a colour-coded card per tab with a "what you'll learn" line |
+| [`/all`](https://alphafraud.mdeller.com/all) | Cumulative "All structures" dashboard across every processed week: KPIs, the pLDDT-vs-TM fraud-quadrant scatter, metric histograms, the weekly trend, and a top-ranked table. A pulldown jumps to any single week |
 | `/week/<label>` | One release week, same layout scoped to that batch |
 | `/entry/<id>` | Per-structure detail: per-residue error tracks, calibration scatter, distance-matrix and PAE-vs-observed heatmaps, per-domain breakdown, and every metric |
 | [`/leaderboard`](https://alphafraud.mdeller.com/leaderboard) | The all-time worst AlphaFold failures across every processed week |
@@ -182,6 +184,7 @@ The site is live at **[alphafraud.mdeller.com](https://alphafraud.mdeller.com/)*
 | [`/examples`](https://alphafraud.mdeller.com/examples) | Curated storytelling layer: a positive control (an excellent AlphaFold match), an auto-generated "example of the week" plus a full weekly-release archive, and hand-authored deep-dive panels with interactive viewers (see below) |
 | [`/calculate`](https://alphafraud.mdeller.com/calculate) | Type any human PDB ID and get the same panel computed on demand: strict autocomplete (exists + human + has an AlphaFold model), full pipeline in an isolated subprocess, no LLM (see below) |
 | [`/archive`](https://alphafraud.mdeller.com/archive) | Every PDB release week since the 2018 cutoff, at weekly granularity, each linking to that week's structures and confidently-wrong count |
+| [`/stats`](https://alphafraud.mdeller.com/stats) | An exhaustive live Statistics page: themed panels for catch/quality, coverage & schedule, runs & compute, server (CPU/memory/uptime), storage & database, data sources & APIs, and traffic |
 | `/api/week/<label>`, `/api/leaderboard`, `/api/entry/<id>` | JSON for external tools |
 
 ## 🔬 Examples
@@ -394,6 +397,8 @@ Python, biotite and tmtools for structure handling and superposition, numpy and 
 
 Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.
 
+- [x] **Statistics page** — an exhaustive live `/stats` page grouping everything the app tracks into themed, equal-height panels (consistent with the rest of the site): catch & quality KPIs, coverage & schedule (date ranges, release weeks, last/next update), runs & compute, server metrics (CPU, load, memory, uptime), storage & database (file sizes, per-table row counts, disk), data sources & APIs (linked), and traffic — with a "Full statistics →" link from the header panel
+- [x] **Home landing page** — a concise navigation page at `/` outlining the project and each tab as a colour-coded card with a "what you'll learn" line and headline KPIs; the cumulative dashboard moved to `/all` ("All structures"). Nav tabs now carry their panel accent colour to tie the site together
 - [x] **Calculate tab** — type any human PDB ID and AlphaFraud runs the full pipeline on demand (resolve the entity, fetch its AlphaFold model, superpose, score, render the ribbon) and returns the same panel as the auto examples, with **no LLM**. A strict autocomplete index (exists + human + has an AlphaFold model), seeded from the corpus and auto-refreshed each week, guarantees only qualifying entries; rejections are explained (not human / antibody-fusion / no AlphaFold model); good predictions render the green "gets it right" panel and confidently-wrong ones the failure panel; the heavy compute runs in an isolated subprocess and on-demand results stay out of every aggregate
 - [x] **Examples tab** — a curated storytelling layer that shows both sides of AlphaFold's record. It opens with a **positive control** (human Artemis, a novel post-cutoff nuclease predicted blind to 0.45 Å Cα-RMSD and scored FRAUD 0.02) proving the pipeline certifies good predictions as well as bad; an auto-generated, LLM-free **"example of the week"** plus a **complete weekly-release archive** (catches and quiet weeks alike); hand-authored deep-dive panels across the failure spectrum, each with live metrics and an interactive 3D viewer; and clickable red/green example markers overlaid on the home fraud-quadrant scatter
 - [x] **Page and figure caching** — the cumulative dashboard's heavy whole-archive figures (scatter / dumbbell / histograms over ~80k rows) are precomputed once and cached in an `analysis_snapshots` row with a short TTL, and every static asset (vendored Plotly / 3Dmol, ribbons, CSS/JS) is served with long immutable cache headers, so repeat loads are near-instant
