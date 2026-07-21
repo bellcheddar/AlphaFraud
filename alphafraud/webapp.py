@@ -277,6 +277,54 @@ def create_app() -> Flask:
                                examples=items, control=control, featured=featured, archive=archive,
                                counts=counts, version=__version__)
 
+    @app.route("/home")
+    def home():
+        st = db.overall_stats()
+        n = st.get("n") or 0
+        cw = st.get("cw") or 0
+        ncw = st.get("novel_wrong") or 0
+        weeks = db.weekly_examples_counts().get("weeks") or 0
+
+        def rate(a, b):
+            return f"{100 * a / b:.1f}%" if b else "—"
+
+        kpis = [
+            {"n": f"{n:,}", "l": "structures analysed", "cls": ""},
+            {"n": f"{cw:,}", "l": "confidently wrong", "cls": "alert"},
+            {"n": rate(cw, n), "l": "confidently-wrong rate", "cls": "alert"},
+            {"n": f"{ncw:,}", "l": "novel + confidently wrong", "cls": "alert"},
+            {"n": rate(ncw, n), "l": "novel + wrong rate", "cls": "alert"},
+            {"n": f"{weeks:,}", "l": "release weeks", "cls": ""},
+        ]
+        tabs = [
+            {"name": "All structures", "href": url_for("index"), "icon": "🧬", "c": "#1e73be",
+             "sum": "The cumulative dashboard — every analysed human structure on the pLDDT-vs-agreement "
+                    "“fraud quadrant”, with metric histograms and a weekly trend.",
+             "learn": "Spot the confidently-wrong cluster: high AlphaFold confidence, low real agreement."},
+            {"name": "Worst offenders", "href": url_for("leaderboard"), "icon": "🏆", "c": "#d62728",
+             "sum": "The all-time leaderboard of AlphaFold’s biggest misses, grouped by protein with a ×N "
+                    "repeat count and a deviation-coloured ribbon each.",
+             "learn": "Which proteins AlphaFold fails on again and again — amyloids top the list."},
+            {"name": "Examples", "href": url_for("examples"), "icon": "🔬", "c": "#0a8a4f",
+             "sum": "Hand-authored deep-dives plus an auto “example of the week”, opening with a positive "
+                    "control where AlphaFold nailed a novel structure.",
+             "learn": "Why AlphaFold gets some folds right and mangles others — explored in interactive 3D."},
+            {"name": "Calculate", "href": url_for("calculate_page"), "icon": "🧪", "c": "#9b51e0",
+             "sum": "Type any human PDB ID and score it on demand — the full pipeline runs live and returns "
+                    "the same panel, with no AI-written text.",
+             "learn": "Exactly how AlphaFold did on a structure you care about."},
+            {"name": "Analysis", "href": url_for("analysis"), "icon": "📈", "c": "#fcb900",
+             "sum": "Where the failures cluster: CATH/SCOP fold-family enrichment, sequence clustering and "
+                    "per-superfamily blind-spot scorecards.",
+             "learn": "Which fold classes AlphaFold systematically struggles with."},
+            {"name": "Archive", "href": url_for("archive"), "icon": "🗄️", "c": "#5b6b7a",
+             "sum": "Every PDB release week since the 2018 cutoff, browsable at weekly granularity and "
+                    "linked to each week’s structures.",
+             "learn": "Track the confidently-wrong rate week by week."},
+        ]
+        return render_template("home.html", banner=banner.BANNER_ART, kpis=kpis, tabs=tabs,
+                               version=__version__)
+
     # ---- Calculate tab: on-demand panel for a user-entered human PDB id (no LLM) ----
     CALC_CONCURRENCY = 2   # max simultaneous on-demand computations on this small box
 

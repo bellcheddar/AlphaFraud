@@ -25,12 +25,13 @@
       <img class="bannerdiv" src="{{ asset('banner_divergence.svg') }}" alt="" aria-hidden="true"
            title="AlphaFold prediction (ghost) vs experiment — agreeing, then diverging">
       <nav class="main">
-        <a href="{{ url_for('index') }}" {% if active=='latest' %}class="active"{% endif %}>All structures</a>
-        <a href="{{ url_for('leaderboard') }}" {% if active=='leaderboard' %}class="active"{% endif %}>Worst offenders</a>
-        <a href="{{ url_for('examples') }}" {% if active=='examples' %}class="active"{% endif %}>Examples</a>
-        <a href="{{ url_for('calculate_page') }}" {% if active=='calculate' %}class="active"{% endif %}>Calculate</a>
-        <a href="{{ url_for('analysis') }}" {% if active=='analysis' %}class="active"{% endif %}>Analysis</a>
-        <a href="{{ url_for('archive') }}" {% if active=='archive' %}class="active"{% endif %}>Archive</a>
+        <a href="{{ url_for('home') }}" {% if active=='home' %}class="active"{% endif %}>Home</a>
+        <a style="--tc:#1e73be" href="{{ url_for('index') }}" {% if active=='latest' %}class="active"{% endif %}>All structures</a>
+        <a style="--tc:#d62728" href="{{ url_for('leaderboard') }}" {% if active=='leaderboard' %}class="active"{% endif %}>Worst offenders</a>
+        <a style="--tc:#0a8a4f" href="{{ url_for('examples') }}" {% if active=='examples' %}class="active"{% endif %}>Examples</a>
+        <a style="--tc:#9b51e0" href="{{ url_for('calculate_page') }}" {% if active=='calculate' %}class="active"{% endif %}>Calculate</a>
+        <a style="--tc:#fcb900" href="{{ url_for('analysis') }}" {% if active=='analysis' %}class="active"{% endif %}>Analysis</a>
+        <a style="--tc:#5b6b7a" href="{{ url_for('archive') }}" {% if active=='archive' %}class="active"{% endif %}>Archive</a>
       </nav>
     </div>
   </header>

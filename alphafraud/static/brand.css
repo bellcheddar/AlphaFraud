@@ -87,6 +87,12 @@ nav.main a {
 }
 nav.main a:hover { background: rgba(255,255,255,.12); text-decoration: none; }
 nav.main a.active { background: var(--bg); color: var(--primary); }
+/* Tie each tab to its panel colour with a bottom accent. On the blue header the raw colour can
+   vanish (blue on blue), so the non-active accent is mixed toward white for contrast; the active
+   tab (on the light page background) uses the full, saturated colour. */
+nav.main a[style*="--tc"] { box-shadow: inset 0 -3px 0 0 color-mix(in srgb, var(--tc) 55%, white); }
+nav.main a[style*="--tc"]:hover { box-shadow: inset 0 -3px 0 0 color-mix(in srgb, var(--tc) 72%, white); }
+nav.main a.active[style*="--tc"] { color: var(--tc); box-shadow: inset 0 -3px 0 0 var(--tc); }
 
 main { padding: 26px 0 60px; }
 h1, h2, h3 { line-height: 1.25; }
@@ -173,6 +179,26 @@ tr.wrong:hover { background: rgba(214,39,40,.10); }
   .lbgroups th, .lbgroups td { padding: 7px 5px; font-size: 13px; }
   .lb-uni { display: none; }
 }
+
+/* --- Home tab: purpose + KPIs + tab card grid (variant A) --- */
+.home-hero { margin: 6px 0 22px; }
+.home-hero h1 { font-size: 26px; }
+.home-hero .lede { font-size: 15.5px; line-height: 1.6; color: var(--ink); max-width: 840px; margin: 8px 0 18px; }
+.home-h2 { font-size: 16px; color: var(--primary); margin: 24px 0 12px; }
+.home-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.tcard { position: relative; overflow: hidden; padding: 20px; display: flex; flex-direction: column;
+  text-decoration: none; transition: box-shadow .15s, transform .15s; }
+.tcard::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--tc); }
+.tcard:hover { box-shadow: 0 6px 22px rgba(20,40,60,.12); transform: translateY(-2px); }
+.tcard .ico { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
+  font-size: 24px; background: color-mix(in srgb, var(--tc) 14%, transparent); margin-bottom: 12px; }
+.tcard h3 { font-size: 18px; margin: 0 0 6px; color: var(--ink); }
+.tcard .s { font-size: 14px; line-height: 1.55; color: var(--muted); margin: 0 0 12px; flex: 1; }
+.tcard .learn { font-size: 13px; line-height: 1.5; color: var(--ink); background: rgba(120,140,160,.06);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin: 0 0 14px; }
+.tcard .learn b { color: var(--tc); }
+.tcard .go { color: var(--tc); font-weight: 600; font-size: 14px; margin-top: auto; }
+.tcard:hover .go { text-decoration: underline; }
 
 /* --- Calculate tab --- */
 .calc-box { padding: 18px; margin: 4px 0 18px; }

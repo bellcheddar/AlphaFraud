@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% set active = 'home' %}
+{% block title %}Home &middot; AlphaFraud{% endblock %}
+
+{% block content %}
+  <div class="home-hero">
+    <h1>Welcome to AlphaFraud</h1>
+    <p class="lede">AlphaFraud watches the PDB for freshly-deposited human structures and pits each against
+    its <em>blind</em> AlphaFold prediction — a continuous, public test of whether protein folding is
+    really “solved”. Every week it surfaces the structures AlphaFold got most <b>confidently wrong</b>:
+    sure of itself, and still missing.</p>
+    <div class="kpis">
+      {% for k in kpis %}<div class="kpi {{ k.cls }}"><div class="n">{{ k.n }}</div><div class="l">{{ k.l }}</div></div>{% endfor %}
+    </div>
+  </div>
+
+  <h2 class="home-h2">Explore the site</h2>
+  <div class="home-grid">
+    {% for t in tabs %}
+    <a class="card tcard" style="--tc:{{ t.c }}" href="{{ t.href }}">
+      <div class="ico">{{ t.icon }}</div>
+      <h3>{{ t.name }}</h3>
+      <p class="s">{{ t.sum }}</p>
+      <div class="learn"><b>💡 You'll learn:</b> {{ t.learn }}</div>
+      <span class="go">Open {{ t.name }} →</span>
+    </a>
+    {% endfor %}
+  </div>
+{% endblock %}
