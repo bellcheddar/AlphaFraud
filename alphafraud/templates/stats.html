@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set active = 'stats' %}
+{% block title %}Statistics &middot; AlphaFraud{% endblock %}
+
+{% block content %}
+  <h1>Statistics</h1>
+  <p class="sub">Everything AlphaFraud is tracking — the science, the pipeline, the server and the data
+  sources — computed live on each load.</p>
+
+  <div class="kpis">
+    {% for k in kpis %}<div class="kpi {{ k.cls }}"><div class="n">{{ k.n }}</div><div class="l">{{ k.l }}</div></div>{% endfor %}
+  </div>
+
+  <div class="stats-panels">
+    {% for p in panels %}
+    <section class="card statcard">
+      <h3 class="stat-h">{{ p.icon }} {{ p.title }}</h3>
+      <div class="statgrid">
+        {% for label, value, link in p.rows %}
+        <div class="statlabel">{{ label }}</div>
+        <div class="statval">{% if link %}<a href="{{ link }}"{% if 'http' in link %} target="_blank" rel="noopener"{% endif %}>{{ value }}</a>{% else %}{{ value }}{% endif %}</div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+{% endblock %}

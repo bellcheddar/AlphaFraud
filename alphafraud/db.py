@@ -1044,6 +1044,50 @@ def overall_stats() -> dict:
         return dict(row) if row else {}
 
 
+def stats_bundle() -> dict:
+    """Everything the Statistics page reports that comes from the database, in one connection."""
+    with connect() as conn:
+        e = dict(conn.execute(
+            f"""SELECT COUNT(*) analysed, SUM(status='compared') compared, SUM(status='screened') screened,
+                       SUM(confidently_wrong) cw, SUM(is_novel) novel,
+                       SUM(CASE WHEN is_novel=1 AND confidently_wrong=1 THEN 1 ELSE 0 END) novel_cw,
+                       AVG(tm_by_experiment) avg_tm, AVG(lddt) avg_lddt, AVG(mean_plddt) avg_plddt,
+                       COUNT(DISTINCT uniprot) proteins,
+                       MIN(deposit_date) dep_min, MAX(deposit_date) dep_max,
+                       MIN(release_date) rel_min, MAX(release_date) rel_max
+                FROM entities WHERE {ANALYSED}""").fetchone())
+        by_status = dict(conn.execute("SELECT status, COUNT(*) FROM entities GROUP BY status").fetchall())
+        runs = dict(conn.execute("SELECT kind, COUNT(*) FROM runs GROUP BY kind").fetchall())
+        latest_weekly = conn.execute(
+            "SELECT label, finished_at FROM runs WHERE kind='weekly' AND status='done' "
+            "ORDER BY label DESC LIMIT 1").fetchone()
+        last_run = conn.execute(
+            "SELECT label, kind, finished_at FROM runs WHERE status='done' "
+            "ORDER BY finished_at DESC LIMIT 1").fetchone()
+        skips = conn.execute(
+            "SELECT skip_reason, COUNT(*) n FROM entities WHERE status='skipped' AND skip_reason IS NOT NULL "
+            "GROUP BY skip_reason ORDER BY n DESC LIMIT 6").fetchall()
+        counts = {}
+        for t in ("entities", "entity_blobs", "entity_annotations", "analysis_snapshots",
+                  "calculate_index", "af_uniprot_cache", "weekly_examples", "runs", "visits"):
+            try:
+                counts[t] = conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+            except Exception:
+                counts[t] = None
+        n_weeks = conn.execute(
+            f"SELECT COUNT(DISTINCT substr(release_date,1,10)) FROM entities "
+            f"WHERE {ANALYSED} AND release_date IS NOT NULL AND length(release_date) >= 10").fetchone()[0]
+    return {
+        "e": e, "by_status": by_status, "runs": runs,
+        "latest_weekly": dict(latest_weekly) if latest_weekly else None,
+        "last_run": dict(last_run) if last_run else None,
+        "skips": [dict(s) for s in skips], "table_counts": counts,
+        "calculated": by_status.get("calculated", 0), "errors": by_status.get("error", 0),
+        "computing": by_status.get("computing", 0), "skipped": by_status.get("skipped", 0),
+        "release_weeks": n_weeks,
+    }
+
+
 def median_tm() -> Optional[float]:
     """Median TM over the analysed set, to match the home-page KPI. Kept separate from
     overall_stats so the frequently-polled /api/stats doesn't pay for the sort. SQLite has no

@@ -19,6 +19,7 @@
         <div class="statrow"><span>Novel + Confidently Wrong</span><b id="stNW">…</b></div>
         <div class="statrow"><span>DB size</span><b id="stDb">…</b></div>
         <div class="statrow"><span>Visitors</span><b id="stVis">…</b></div>
+        <a class="statmore" href="{{ url_for('statistics') }}">Full statistics →</a>
       </div>
       <div class="tagline">New PDB Depositions vs. Their Blind AlphaFold Predictions &mdash; A Running Test of &ldquo;Is Folding Solved?&rdquo;</div>
       <div class="tagline">Built by <a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a>, contact: <a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a></div>
@@ -32,6 +33,7 @@
         <a style="--tc:#9b51e0" href="{{ url_for('calculate_page') }}" {% if active=='calculate' %}class="active"{% endif %}>Calculate</a>
         <a style="--tc:#fcb900" href="{{ url_for('analysis') }}" {% if active=='analysis' %}class="active"{% endif %}>Analysis</a>
         <a style="--tc:#5b6b7a" href="{{ url_for('archive') }}" {% if active=='archive' %}class="active"{% endif %}>Archive</a>
+        <a style="--tc:#17a2b8" href="{{ url_for('statistics') }}" {% if active=='stats' %}class="active"{% endif %}>Statistics</a>
       </nav>
     </div>
   </header>

@@ -399,6 +399,107 @@ def create_app() -> Flask:
             abort(404)
         return render_template("_expanel.html", x=item)
 
+    @app.route("/stats")
+    def statistics():
+        s = db.stats_bundle()
+        e = s["e"]
+        sysm = _system_metrics()
+        vs = db.visitor_stats()
+        n = e.get("analysed") or 0
+        total = db.total_entity_count()
+
+        def rate(a):
+            return f"{100 * (a or 0) / n:.1f}%" if n else "—"
+
+        today = date.today()
+        next_up = (today + timedelta(days=(2 - today.weekday()) % 7 or 7)).strftime("%a %d %b %Y")
+        rn = s["runs"]
+
+        kpis = [
+            {"n": _fmt_int(n), "l": "structures analysed", "cls": ""},
+            {"n": _fmt_int(e.get("cw")), "l": "confidently wrong", "cls": "alert"},
+            {"n": rate(e.get("cw")), "l": "confidently-wrong rate", "cls": "alert"},
+            {"n": _fmt_int(e.get("novel_cw")), "l": "novel + confidently wrong", "cls": "alert"},
+            {"n": f"{e.get('avg_tm') or 0:.3f}", "l": "mean TM-score", "cls": ""},
+            {"n": f"{e.get('avg_lddt') or 0:.3f}", "l": "mean lDDT", "cls": ""},
+        ]
+        panels = [
+            {"icon": "🔬", "title": "Catch & quality", "rows": [
+                ("Structures analysed", _fmt_int(n), url_for("index")),
+                ("Fully compared (tier-2)", _fmt_int(e.get("compared")), None),
+                ("Screened only (tier-1)", _fmt_int(e.get("screened")), None),
+                ("Confidently wrong", f"{_fmt_int(e.get('cw'))} · {rate(e.get('cw'))}", url_for("leaderboard")),
+                ("Novel sequences", f"{_fmt_int(e.get('novel'))} · {rate(e.get('novel'))}", None),
+                ("Novel + confidently wrong", f"{_fmt_int(e.get('novel_cw'))} · {rate(e.get('novel_cw'))}", None),
+                ("Distinct proteins (UniProt)", _fmt_int(e.get("proteins")), None),
+                ("Mean TM-score", f"{e.get('avg_tm') or 0:.3f}", None),
+                ("Mean lDDT", f"{e.get('avg_lddt') or 0:.3f}", None),
+                ("Mean pLDDT", f"{e.get('avg_plddt') or 0:.1f}", None),
+                ("Skipped entities", _fmt_int(s["skipped"]), None),
+                ("Errors", _fmt_int(s["errors"]), None),
+            ]},
+            {"icon": "📅", "title": "Coverage & schedule", "rows": [
+                ("Deposit-date range", f"{(e.get('dep_min') or '—')[:10]} → {(e.get('dep_max') or '—')[:10]}", None),
+                ("Release-date range", f"{(e.get('rel_min') or '—')[:10]} → {(e.get('rel_max') or '—')[:10]}", None),
+                ("Release weeks tracked", _fmt_int(s["release_weeks"]), url_for("archive")),
+                ("Backfill months", _fmt_int(rn.get("backfill")), None),
+                ("Weekly watch runs", _fmt_int(rn.get("weekly")), None),
+                ("AlphaFold training cutoff", config.AF_TRAINING_CUTOFF.isoformat(), None),
+                ("Last update", (f"{_fmt_ts(s['last_run']['finished_at'])}  ({s['last_run']['label']})"
+                                 if s["last_run"] else "—"), None),
+                ("Next PDB release (Wed)", next_up, None),
+            ]},
+            {"icon": "⚙️", "title": "Runs & compute", "rows": [
+                ("Total runs", _fmt_int(sum(rn.values()) if rn else 0), None),
+                ("Weekly / backfill / calculate", f"{rn.get('weekly', 0)} / {rn.get('backfill', 0)} / {rn.get('calculate', 0)}", None),
+                ("Latest weekly run", (f"{s['latest_weekly']['label']} · {_fmt_ts(s['latest_weekly']['finished_at'])}"
+                                       if s["latest_weekly"] else "—"), None),
+                ("Ribbons rendered", _fmt_int(sysm.get("ribbon_count")), None),
+                ("On-demand calculations", _fmt_int(s["calculated"]), url_for("calculate_page")),
+                ("Currently computing", _fmt_int(s["computing"]), None),
+            ]},
+            {"icon": "🖥️", "title": "Server", "rows": [
+                ("App version", f"v{sysm.get('app')}", None),
+                ("Python", sysm.get("python", "—"), None),
+                ("CPU cores", _fmt_int(sysm.get("cpu")), None),
+                ("Load average (1/5/15)", " / ".join(f"{x:.2f}" for x in sysm["load"]) if sysm.get("load") else "—", None),
+                ("System memory (used / total)", f"{_fmt_bytes(sysm.get('mem_used'))} / {_fmt_bytes(sysm.get('mem_total'))}" if sysm.get("mem_total") else "—", None),
+                ("This worker (RSS)", _fmt_bytes(sysm.get("rss")), None),
+                ("Server uptime", _fmt_dur(sysm.get("uptime")), None),
+            ]},
+            {"icon": "💾", "title": "Storage & database", "rows": [
+                ("Database file (+ WAL)", _fmt_bytes(db.db_size_bytes()), None),
+                ("Ribbon SVGs", f"{_fmt_int(sysm.get('ribbon_count'))} files · {_fmt_bytes(sysm.get('ribbon_bytes'))}", None),
+                ("Structure cache", _fmt_bytes(sysm.get("struct_bytes")), None),
+                ("Data directory total", _fmt_bytes(sysm.get("data_bytes")), None),
+                ("Disk used / total", f"{_fmt_bytes(sysm.get('disk_used'))} / {_fmt_bytes(sysm.get('disk_total'))}" if sysm.get("disk_total") else "—", None),
+                ("Disk free", _fmt_bytes(sysm.get("disk_free")), None),
+                ("entities rows", _fmt_int(s["table_counts"].get("entities")), None),
+                ("entity_blobs rows", _fmt_int(s["table_counts"].get("entity_blobs")), None),
+                ("entity_annotations rows", _fmt_int(s["table_counts"].get("entity_annotations")), None),
+                ("weekly_examples rows", _fmt_int(s["table_counts"].get("weekly_examples")), None),
+                ("runs / visits rows", f"{_fmt_int(s['table_counts'].get('runs'))} / {_fmt_int(s['table_counts'].get('visits'))}", None),
+            ]},
+            {"icon": "🔌", "title": "Data sources & APIs", "rows": [
+                ("RCSB Search API", "search.rcsb.org", "https://search.rcsb.org"),
+                ("RCSB Data GraphQL", "data.rcsb.org", "https://data.rcsb.org/graphql/index.html"),
+                ("RCSB file download", "files.rcsb.org", "https://www.rcsb.org"),
+                ("AlphaFold DB API", "alphafold.ebi.ac.uk", "https://alphafold.ebi.ac.uk"),
+                ("Calculate index (qualifying entries)", _fmt_int(s["table_counts"].get("calculate_index")), url_for("calculate_page")),
+                ("AlphaFold availability checks cached", _fmt_int(s["table_counts"].get("af_uniprot_cache")), None),
+                ("Source code", "bellcheddar/AlphaFraud", "https://github.com/bellcheddar/AlphaFraud"),
+            ]},
+            {"icon": "👥", "title": "Traffic & coverage", "rows": [
+                ("Unique visitors", _fmt_int(vs.get("unique")), None),
+                ("Page views", _fmt_int(vs.get("hits")), None),
+                ("Visitors today", _fmt_int(vs.get("today")), None),
+                ("Total entities processed", _fmt_int(total), None),
+                ("Archive coverage", f"{100 * n / total:.1f}%" if total else "—", None),
+            ]},
+        ]
+        return render_template("stats.html", banner=banner.BANNER_ART, kpis=kpis, panels=panels,
+                               version=__version__)
+
     @app.route("/analysis")
     def analysis():
         snap = db.load_snapshot("cumulative")
@@ -465,6 +566,100 @@ def _snapshot_fresh(updated_at: Optional[str], ttl: int) -> bool:
         return 0 <= age < ttl
     except Exception:
         return False
+
+
+# --------------------------------------------------------------------------------------
+# Statistics page helpers
+# --------------------------------------------------------------------------------------
+def _fmt_int(v) -> str:
+    return "—" if v is None else (f"{v:,}" if isinstance(v, (int, float)) else str(v))
+
+
+def _fmt_bytes(v) -> str:
+    if not v:
+        return "—"
+    v = float(v)
+    for u in ("B", "KB", "MB", "GB", "TB"):
+        if v < 1024:
+            return f"{int(v)} {u}" if u == "B" else f"{v:.1f} {u}"
+        v /= 1024
+    return f"{v:.1f} PB"
+
+
+def _fmt_dur(secs) -> str:
+    if not secs:
+        return "—"
+    s = int(secs)
+    d, s = divmod(s, 86400)
+    h, s = divmod(s, 3600)
+    m, _ = divmod(s, 60)
+    return f"{d}d {h}h" if d else (f"{h}h {m}m" if h else f"{m}m")
+
+
+def _fmt_ts(ts) -> str:
+    return ts.replace("T", " ")[:16] if ts else "—"
+
+
+def _system_metrics() -> dict:
+    """Live host/process metrics (Linux droplet); each probe is guarded so it degrades gracefully
+    off-server (returns what it can)."""
+    import platform
+    import shutil
+    import subprocess
+    m = {"python": platform.python_version(), "app": __version__}
+    try:
+        m["cpu"] = os.cpu_count()
+    except Exception:
+        pass
+    try:
+        m["load"] = os.getloadavg()
+    except Exception:
+        pass
+    try:
+        mem = {}
+        with open("/proc/meminfo") as fh:
+            for line in fh:
+                parts = line.split(":")
+                if len(parts) == 2:
+                    mem[parts[0]] = int(parts[1].split()[0]) * 1024
+        m["mem_total"], m["mem_avail"] = mem.get("MemTotal"), mem.get("MemAvailable")
+        if m["mem_total"] and m["mem_avail"]:
+            m["mem_used"] = m["mem_total"] - m["mem_avail"]
+    except Exception:
+        pass
+    try:
+        with open("/proc/self/status") as fh:
+            for line in fh:
+                if line.startswith("VmRSS:"):
+                    m["rss"] = int(line.split()[1]) * 1024
+                    break
+    except Exception:
+        pass
+    try:
+        with open("/proc/uptime") as fh:
+            m["uptime"] = float(fh.read().split()[0])
+    except Exception:
+        pass
+    try:
+        du = shutil.disk_usage(str(config.DATA_DIR))
+        m["disk_total"], m["disk_used"], m["disk_free"] = du.total, du.used, du.free
+    except Exception:
+        pass
+
+    def _du(path):
+        try:
+            r = subprocess.run(["du", "-sb", str(path)], capture_output=True, text=True, timeout=25)
+            return int(r.stdout.split()[0]) if r.returncode == 0 else None
+        except Exception:
+            return None
+    m["ribbon_bytes"] = _du(config.RIBBON_DIR)
+    m["struct_bytes"] = _du(config.STRUCT_CACHE)
+    m["data_bytes"] = _du(config.DATA_DIR)
+    try:
+        m["ribbon_count"] = sum(1 for _ in config.RIBBON_DIR.glob("*.svg"))
+    except Exception:
+        pass
+    return m
 
 
 def _example_highlights():
