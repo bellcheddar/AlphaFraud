@@ -32,9 +32,68 @@ AlphaFraud watches the RCSB PDB for newly deposited human protein structures, ma
 | Confidence audit | pLDDT vs actual lDDT calibration, and a PAE-honesty check comparing AlphaFold's self-reported error to the observed error |
 | Two-tier archive backfill | A fast TM-score screen across every structure, running the full metric suite only on the disagreements; makes the whole ~96k-entity archive tractable |
 | Structural imagery | Every worst offender is drawn as a deviation-coloured Cα ribbon (the experimental structure, coloured residue-by-residue by its distance from the AlphaFold model, on an absolute-Ångström scale) on the leaderboard, entry page and weekly highlights; an interactive 3Dmol.js viewer with an optional translucent AlphaFold "ghost" overlay; hover-preview thumbnails on the scatter; and a "divergence" ribbon banner in the header |
+| On-demand Calculate tab | Type any human PDB ID and the full pipeline runs on demand (fetch AlphaFold model, superpose, score, render) to return the auto-example panel, with strict autocomplete (exists + human + has an AlphaFold model) and no LLM |
 | Cumulative dashboard | Default landing page aggregating every processed week: the "fraud quadrant" scatter, metric histograms, a weekly trend, and a browsable per-week / per-structure archive |
 | Branded, mobile-responsive report | Flask app with the signature scatter, heatmaps, per-domain tables and an all-time leaderboard; every plot has a CSV export and a plain-language explanatory panel that defines each metric twice over (a lay sentence and the underlying equation), and every table exports to CSV |
 | One-command deploy | Provisioning, deploy and one-shot release scripts for a DigitalOcean droplet (gunicorn, nginx, certbot TLS) |
+
+## 🏗️ Architecture and workflow
+
+One controller (`AlphaFraud.py`, subcommands) drives a small Python package; a Flask app serves the results. Two runtimes share one SQLite file: a **systemd timer** runs the weekly pipeline (writes the database and the ribbon/coords assets), and an always-on **gunicorn** process serves the site by reading that same database live.
+
+| Module | Responsibility |
+|---|---|
+| `pdb.py` | RCSB Search (new human protein entities) + Data GraphQL (UniProt mapping, dates, method) |
+| `afdb.py` | AlphaFold DB fetch: the blind model + PAE, choosing the fragment covering the entity's span |
+| `novelty.py` | max % identity to any pre-cutoff chain (so genuinely unseen sequences are flagged) |
+| `compare.py` | the full metric suite on the aligned span (TM, lDDT, GDT, RMSD, per-residue deviation, PAE honesty) |
+| `ribbon.py` | Cα-deviation SVG + 3D-viewer coords + the AlphaFold "ghost" (vendored, offline) |
+| `annotate.py` / `analysis.py` | CATH / SCOP / citation enrichment and the `/analysis` snapshot (enrichment, clustering, PCA) |
+| `examples_auto.py` | the deterministic, no-LLM panel builder (match **or** failure framing) |
+| `calc_index.py` / `calculate.py` | the Calculate tab's strict autocomplete index + on-demand single-entity compute |
+| `db.py` / `report.py` / `webapp.py` | SQLite persistence, Plotly figure JSON, and the Flask routes |
+
+**The weekly pipeline** (`AlphaFraud.py run`, one entity at a time):
+
+```text
+for entity in RCSB.search(human, protein, deposited_after = 2018-04-30):
+    if entity in db: continue
+    meta = RCSB.graphql(entity)                       # UniProt, dates, method, chains
+    if not meta.single_uniprot: skip("antibody / fusion / chimera"); continue
+    af = AlphaFoldDB.model(meta.uniprot)              # the blind prediction (fragment covering the span)
+    if af is None:               skip("no AlphaFold model"); continue
+    exp, model = download(entity), download(af)
+    m        = compare(exp, model)                    # TM, lDDT, GDT, RMSD, per-residue dev, PAE honesty
+    novelty  = max_identity_to_pre_cutoff(meta.sequence)
+    fraud    = mean_i( pLDDT_i/100 * clamp(dev_i, 0, 15Å) / 15 )   # confidence-weighted error
+    confidently_wrong = (mean_pLDDT > 70) and (TM < 0.5)          # sure, and still wrong
+    ribbon.render(exp, model)                         # deviation SVG + coords + AF ghost
+    db.store(entity, m, novelty, fraud, confidently_wrong)
+
+analysis.rebuild()            # /analysis enrichment snapshot
+rebuild_weekly_examples()     # auto 'example of the week' + weekly archive
+calc_index.refresh(metas)     # keep the Calculate autocomplete index current
+```
+
+**The always-on web app** (gunicorn) reads the same SQLite and renders cached Plotly JSON:
+
+```text
+GET /            -> cumulative "fraud quadrant" dashboard (figures cached, short TTL)
+GET /entry/<id>  -> per-structure heatmaps, calibration, per-domain metrics
+GET /examples    -> positive control + auto example-of-the-week + curated deep-dives
+GET /calculate   -> type a human PDB id  ->  (reuse if known | compute on demand)  ->  panel
+```
+
+**The Calculate tab** reuses the very same `process_entity()` as the pipeline, run in an isolated subprocess so a heavy computation never blocks a web worker, and stored apart so it never pollutes the science:
+
+```text
+POST /calculate/run { pdb }:
+    entity = resolve_human_entity(pdb)                # strict index, else a live RCSB check
+    if not qualifies:  return reason                 # not human / no single UniProt / no AF model
+    if entity already computed:  return "ready"      # cached -> instant
+    mark(entity, "computing"); spawn AlphaFraud.py calculate <entity>   # same pipeline, subprocess
+    return "computing"                               # the browser polls, then injects the panel
+```
 
 ## 🎯 Metric suite
 
@@ -121,6 +180,7 @@ The site is live at **[alphafraud.mdeller.com](https://alphafraud.mdeller.com/)*
 | [`/leaderboard`](https://alphafraud.mdeller.com/leaderboard) | The all-time worst AlphaFold failures across every processed week |
 | [`/analysis`](https://alphafraud.mdeller.com/analysis) | Structural deep dive over the worst offenders: fold/family enrichment (Wilson-CI + Fisher), sequence-similarity clustering, failure-mode PCA, theme flags, per-superfamily blind-spot scorecards, conformational-heterogeneity detection, a "new this week" ribbon, and RCSB + DOI links on every structure |
 | [`/examples`](https://alphafraud.mdeller.com/examples) | Curated storytelling layer: a positive control (an excellent AlphaFold match), an auto-generated "example of the week" plus a full weekly-release archive, and hand-authored deep-dive panels with interactive viewers (see below) |
+| [`/calculate`](https://alphafraud.mdeller.com/calculate) | Type any human PDB ID and get the same panel computed on demand: strict autocomplete (exists + human + has an AlphaFold model), full pipeline in an isolated subprocess, no LLM (see below) |
 | [`/archive`](https://alphafraud.mdeller.com/archive) | Every PDB release week since the 2018 cutoff, at weekly granularity, each linking to that week's structures and confidently-wrong count |
 | `/api/week/<label>`, `/api/leaderboard`, `/api/entry/<id>` | JSON for external tools |
 
@@ -262,6 +322,16 @@ Each panel is summarised below — click any title to open its live, interactive
 | **Biology & disease** | Central coagulation zymogen; activated factor Xa is the target of rivaroxaban, apixaban and edoxaban |
 | **Key fact** | The non-amyloid contrast — the error is missing biological context (fragment / complex / PTM), not misfolding |
 
+## 🧪 Calculate
+
+The **[Calculate](https://alphafraud.mdeller.com/calculate)** tab runs the whole pipeline on demand for any human PDB ID you type and returns the same panel format as the auto examples — KPIs, the Cα-deviation ribbon, the interactive 3D viewer and a deterministic write-up — with **no AI-generated text**.
+
+- **Strict autocomplete.** The input only completes to entries that (1) exist, (2) are human, and (3) have an AlphaFold model. That comes from a precomputed index — seeded for free from the corpus (the ~83k entities already carrying a confirmed AlphaFold model), back-filled with a one-off pre-cutoff human sweep, and refreshed automatically by every weekly run. Press Tab to complete.
+- **Any human structure, blind or not.** Post-cutoff entries are genuine blind tests; pre-cutoff entries compute too, with a note that AlphaFold may have seen them in training (so it is not a blind prediction).
+- **Clear reasons on rejection.** If an entry doesn't qualify you are told exactly why: not a human protein structure, no single UniProt mapping (antibody / fusion / chimera / synthetic), or no AlphaFold model for the sequence.
+- **Right or wrong, honestly.** A good prediction renders the green "AlphaFold gets it right" panel (like the positive control); a confidently-wrong one renders the failure panel — the same deterministic builder (`examples_auto.build`) decides which from the metrics.
+- **Isolated and cached.** On-demand results are stored under a separate run and status, so they never enter the leaderboard, stats, analysis or archive; the heavy compute runs in an isolated subprocess; and a repeat request for the same structure is instant.
+
 ## 🧮 Coverage and skipped entities
 
 Not every deposited entity can be compared. AlphaFold DB holds a single model per human UniProt sequence (monomers only), so anything that does not map cleanly to one accession, has no model covering its resolved range, or is too small or too large to compare is recorded as *skipped* rather than forced through.
@@ -324,6 +394,7 @@ Python, biotite and tmtools for structure handling and superposition, numpy and 
 
 Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.
 
+- [x] **Calculate tab** — type any human PDB ID and AlphaFraud runs the full pipeline on demand (resolve the entity, fetch its AlphaFold model, superpose, score, render the ribbon) and returns the same panel as the auto examples, with **no LLM**. A strict autocomplete index (exists + human + has an AlphaFold model), seeded from the corpus and auto-refreshed each week, guarantees only qualifying entries; rejections are explained (not human / antibody-fusion / no AlphaFold model); good predictions render the green "gets it right" panel and confidently-wrong ones the failure panel; the heavy compute runs in an isolated subprocess and on-demand results stay out of every aggregate
 - [x] **Examples tab** — a curated storytelling layer that shows both sides of AlphaFold's record. It opens with a **positive control** (human Artemis, a novel post-cutoff nuclease predicted blind to 0.45 Å Cα-RMSD and scored FRAUD 0.02) proving the pipeline certifies good predictions as well as bad; an auto-generated, LLM-free **"example of the week"** plus a **complete weekly-release archive** (catches and quiet weeks alike); hand-authored deep-dive panels across the failure spectrum, each with live metrics and an interactive 3D viewer; and clickable red/green example markers overlaid on the home fraud-quadrant scatter
 - [x] **Page and figure caching** — the cumulative dashboard's heavy whole-archive figures (scatter / dumbbell / histograms over ~80k rows) are precomputed once and cached in an `analysis_snapshots` row with a short TTL, and every static asset (vendored Plotly / 3Dmol, ribbons, CSS/JS) is served with long immutable cache headers, so repeat loads are near-instant
 - [x] **Weekly-release archive at full granularity** — the Archive tab now lists every PDB release week since the 2018 cutoff (derived from each structure's release date), each linking to that week's structures and confidently-wrong count, instead of only the recent ongoing-watch runs
