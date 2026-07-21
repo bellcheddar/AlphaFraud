@@ -230,8 +230,8 @@ def create_app() -> Flask:
             resp.headers["Cache-Control"] = "public, max-age=120"
         return resp
 
-    @app.route("/")
-    def index():
+    @app.route("/all")
+    def index():   # the cumulative "All structures" dashboard (endpoint kept as 'index')
         if not db.latest_run_label():
             return render_template("empty.html", banner=banner.BANNER_ART, version=__version__)
         return _render_all()
@@ -277,6 +277,7 @@ def create_app() -> Flask:
                                examples=items, control=control, featured=featured, archive=archive,
                                counts=counts, version=__version__)
 
+    @app.route("/")
     @app.route("/home")
     def home():
         st = db.overall_stats()
