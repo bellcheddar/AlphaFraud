@@ -77,6 +77,25 @@ else
     echo "    certbot failed (DNS not pointed yet?). Re-run: certbot --nginx -d ${SERVER_NAME}"
 fi
 
+# Certbot's `listen 443 ssl;` lines don't enable HTTP/2 on nginx 1.24 — add it ourselves,
+# idempotently, so this also fixes already-provisioned sites on a re-run.
+if grep -q "listen.*443 ssl" /etc/nginx/sites-available/alphafraud && \
+   ! grep -q "listen.*443 ssl http2" /etc/nginx/sites-available/alphafraud; then
+  echo "==> Enabling HTTP/2"
+  python3 - <<'PYEOF'
+import re
+p = "/etc/nginx/sites-available/alphafraud"
+text = open(p).read()
+text = re.sub(
+    r'listen ((?:\[::\]:)?443) ssl( ipv6only=on)?;',
+    lambda m: f'listen {m.group(1)} ssl http2{m.group(2) or ""};',
+    text,
+)
+open(p, "w").write(text)
+PYEOF
+  nginx -t && systemctl reload nginx
+fi
+
 echo "==> Done. Status:"
 systemctl --no-pager --lines=3 status alphafraud-web || true
 echo "    Site:   https://${SERVER_NAME}/"
