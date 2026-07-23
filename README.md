@@ -375,7 +375,7 @@ After that, `deploy/deploy.sh` pushes code updates and restarts the web service,
 
 | File | Role |
 |---|---|
-| `deploy/provision.sh` | One-time root setup: system packages, service user, venv, systemd units, nginx site, certbot |
+| `deploy/provision.sh` | One-time root setup: system packages, service user, venv, systemd units, nginx site, certbot. Also patches HTTP/2 onto certbot's TLS listener afterward (nginx doesn't enable it by default) — idempotent, so it self-heals on a re-run |
 | `deploy/deploy.sh` | Push code from your Mac (rsync over SSH) and restart the web service |
 | `deploy/release.sh` | One-shot: commit, push to GitHub, then deploy to the droplet |
 | `deploy/alphafraud-web.service` | gunicorn web app (always on) |
