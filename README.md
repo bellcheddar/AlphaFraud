@@ -6,7 +6,7 @@
 
 <table>
 <tr>
-<td>🌐 <b>Website</b></td><td><a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a></td>
+<td>🌐 <b>Website</b></td><td><a href="https://alphafraud.mdeller.com" target="_blank" rel="noopener noreferrer">alphafraud.mdeller.com</a></td>
 <td>✉️ <b>Contact</b></td><td><a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a></td>
 <td>🐙 <b>GitHub</b></td><td><a href="https://github.com/bellcheddar/AlphaFraud" target="_blank" rel="noopener noreferrer">bellcheddar/AlphaFraud</a></td>
 </tr>
@@ -353,9 +353,9 @@ The 85% is exactly what the design intends: because AlphaFold DB is monomer-and-
 
 Skipped entities are terminal by design: `retry-errors` only re-runs `status='error'`, and the resumable weekly and backfill runs skip anything already recorded. Four of the five buckets are permanent structural properties, so re-running would simply re-skip them. The two worth revisiting are the **381 oversized structures** (a memory limit of the small droplet, not a true incomparability, recoverable by raising `MAX_STRUCT_BYTES` or upsizing the box) and the multi-domain subset of the **1,186 missing-model** bucket (recoverable with better fragment selection for AlphaFold models above 2,700 residues).
 
-## 🛠️ Deployment
+## 🛠️ Web deployment
 
-The report is served by a Flask app (gunicorn behind nginx with a Let's Encrypt certificate) and the weekly pipeline runs from a systemd timer on the same droplet.
+**Live at [alphafraud.mdeller.com](https://alphafraud.mdeller.com).** The report is served by a Flask app (gunicorn behind nginx with a Let's Encrypt certificate) and the weekly pipeline runs from a systemd timer on the same droplet.
 
 ```bash
 # 1. From your Mac: copy .env.example to .env and fill in DROPLET_SSH / DROPLET_PATH / SERVER_NAME
