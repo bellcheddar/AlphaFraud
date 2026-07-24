@@ -68,13 +68,35 @@ sed -e "s|__SERVER_NAME__|${SERVER_NAME}|g" -e "s|__BIND_ADDR__|${BIND_ADDR}|g" 
 ln -sf /etc/nginx/sites-available/alphafraud /etc/nginx/sites-enabled/alphafraud
 nginx -t && systemctl reload nginx
 
-echo "==> Requesting TLS certificate (certbot)"
-if certbot certificates 2>/dev/null | grep -q "$SERVER_NAME"; then
-  echo "    Certificate for ${SERVER_NAME} already present; skipping."
-else
-  certbot --nginx -d "$SERVER_NAME" --non-interactive --agree-tos \
-    -m "${CERTBOT_EMAIL:-marc@marcdeller.com}" --redirect || \
-    echo "    certbot failed (DNS not pointed yet?). Re-run: certbot --nginx -d ${SERVER_NAME}"
+echo "==> Requesting/deploying TLS certificate (certbot)"
+# Always run certbot --nginx, never skip based on "certificate already exists" -- the
+# nginx site file above is unconditionally re-templated from source on every run
+# (plain HTTP only, no SSL block), so a stale skip-if-cert-exists check here would
+# leave a freshly re-templated vhost with no SSL directives at all, breaking HTTPS
+# for this app (nginx then falls back to serving *some other* vhost's cert on port
+# 443 for this hostname -- a real production incident hit by exactly this bug on a
+# sibling app's re-provision, boltzmaker.mdeller.com serving AlphaFraud's own cert).
+# certbot's own --nginx plugin already reuses a still-valid certificate instead of
+# re-requesting one (avoiding Let's Encrypt rate limits), so this is safe and
+# correctly idempotent to run unconditionally. Retried: certbot's own systemd
+# renewal timer (droplet-wide, covers every vhost) can grab certbot's lock at the
+# same moment this runs -- hit empirically ("Another instance of Certbot is already
+# running") during the same incident.
+certbot_ok=0
+for attempt in 1 2 3; do
+  if certbot --nginx -d "$SERVER_NAME" --non-interactive --agree-tos \
+       -m "${CERTBOT_EMAIL:-marc@marcdeller.com}" --redirect; then
+    certbot_ok=1
+    break
+  fi
+  echo "    certbot attempt ${attempt}/3 failed, retrying in 10s..."
+  sleep 10
+done
+if [[ "$certbot_ok" -ne 1 ]]; then
+  echo "    certbot failed after 3 attempts (DNS not pointed yet? renewal-timer lock"
+  echo "    contention?). ${SERVER_NAME} has NO SSL config right now -- re-run:"
+  echo "    certbot --nginx -d ${SERVER_NAME}"
+  exit 1
 fi
 
 # Certbot's `listen 443 ssl;` lines don't enable HTTP/2 on nginx 1.24 — add it ourselves,
