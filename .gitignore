@@ -22,3 +22,9 @@ alphafraud.db-shm
 
 # macOS
 .DS_Store
+
+# Claude Code session transcripts. Local working artefacts, ~1 MB each, and this
+# repository is public. One was committed by a `git add -A` that swept up an
+# untracked file it should not have.
+alphafraud-*.txt
+*-session.txt
