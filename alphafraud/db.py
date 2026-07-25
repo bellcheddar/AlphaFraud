@@ -74,6 +74,19 @@ CREATE INDEX IF NOT EXISTS idx_entities_run     ON entities(run_id);
 CREATE INDEX IF NOT EXISTS idx_entities_fraud   ON entities(fraud_score);
 CREATE INDEX IF NOT EXISTS idx_entities_deposit ON entities(deposit_date);
 
+-- Covering index for overall_stats(), the aggregate behind every KPI on the home
+-- page and /api/stats. Nothing indexed `status`, so the query planner had only
+-- SCAN entities: ~97k rows over 63 MB of pages, and because the table is 28
+-- columns wide a scan drags in 23 columns the aggregate never reads. That cost
+-- 62 ms on every single page load and made the site the slowest thing on the
+-- droplet by an order of magnitude (68 ms against 1-2 ms for its neighbours).
+--
+-- Listing the aggregated columns after `status` makes it *covering*: SQLite
+-- answers the whole query from a ~3 MB index and never touches the table. The
+-- column order matters -- status first, because that is what the WHERE filters.
+CREATE INDEX IF NOT EXISTS idx_entities_stats   ON entities(
+    status, confidently_wrong, is_novel, tm_by_experiment, lddt);
+
 -- Sidecar for the large per-entity payloads (per-residue arrays ~6 KB, heatmaps ~470 KB each).
 -- Kept out of `entities` so scans/sorts over the hot table don't drag ~470 KB/row of JSON
 -- through memory. Read only on the per-structure entry page (a single indexed lookup).
@@ -1032,7 +1045,42 @@ def total_entity_count() -> int:
         return conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
 
 
-def overall_stats() -> dict:
+# The aggregate underlying it only moves when a weekly run or a backfill lands,
+# so serving it from a snapshot for a few minutes costs nothing in accuracy.
+OVERALL_STATS_TTL = 600
+
+
+def _snapshot_age(updated_at: Optional[str]) -> Optional[float]:
+    """Seconds since a snapshot was written, or None if that cannot be told."""
+    if not updated_at:
+        return None
+    try:
+        from datetime import datetime, timezone
+        age = (datetime.now(timezone.utc) - datetime.fromisoformat(updated_at)).total_seconds()
+        return age if age >= 0 else None
+    except Exception:
+        return None
+
+
+def overall_stats(max_age: int = OVERALL_STATS_TTL) -> dict:
+    """The KPI aggregate for the home page and /api/stats.
+
+    Cached in analysis_snapshots, the same mechanism the analysis payload uses,
+    because this is called on every page load and by the polled stats endpoint.
+    The covering index above already takes the query from 62 ms to single
+    figures; the cache takes the common case to a single indexed row read.
+
+    Pass max_age=0 to force a recompute (what the weekly run does when it
+    finishes, so the first visitor afterwards sees fresh numbers rather than
+    waiting out the TTL).
+    """
+    if max_age > 0:
+        cached = load_snapshot("overall_stats")
+        age = _snapshot_age((cached or {}).get("_updated_at"))
+        if cached and age is not None and age < max_age:
+            cached.pop("_updated_at", None)
+            return cached
+
     with connect() as conn:
         row = conn.execute(
             f"""SELECT COUNT(*) n, SUM(confidently_wrong) cw, SUM(is_novel) novel,
@@ -1041,7 +1089,16 @@ def overall_stats() -> dict:
                        SUM(status='compared') fully
                 FROM entities WHERE {ANALYSED}"""
         ).fetchone()
-        return dict(row) if row else {}
+    stats = dict(row) if row else {}
+
+    # Never let a failed cache write cost a page render: the numbers are already
+    # computed by this point, and the database may legitimately be locked by a
+    # run in progress.
+    try:
+        save_snapshot("overall_stats", stats)
+    except Exception:
+        pass
+    return stats
 
 
 def stats_bundle() -> dict:

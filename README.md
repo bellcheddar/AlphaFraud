@@ -395,6 +395,7 @@ Python, biotite and tmtools for structure handling and superposition, numpy and 
 
 ## ✅ To Do
 
+- [x] **Home page and `/api/stats` no longer scan the whole `entities` table.** `overall_stats()` filtered on `status`, which nothing indexed, so the planner had only `SCAN entities`: ~97k rows over 63 MB of pages, dragging in 23 of the table's 28 columns that the aggregate never reads. That was 62 ms on every page load and made AlphaFraud the slowest app on the droplet by an order of magnitude (68 ms against 1-2 ms for its neighbours). A covering index on `(status, confidently_wrong, is_novel, tm_by_experiment, lddt)` lets SQLite answer the whole query from a 2.8 MB index without touching the table, taking it to 4.9 ms, and the result is now cached in `analysis_snapshots` alongside the analysis payload, refreshed by the weekly run. Warm requests are ~6 ms; the launcher's health check went from 193 ms to 52 ms.
 Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.
 
 - [x] **Statistics page** — an exhaustive live `/stats` page grouping everything the app tracks into themed, equal-height panels (consistent with the rest of the site): catch & quality KPIs, coverage & schedule (date ranges, release weeks, last/next update), runs & compute, server metrics (CPU, load, memory, uptime), storage & database (file sizes, per-table row counts, disk), data sources & APIs (linked), and traffic — with a "Full statistics →" link from the header panel

@@ -496,6 +496,15 @@ def rebuild_snapshot() -> dict:
         "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
     db.save_snapshot("cumulative", snap)
+
+    # Refresh the KPI aggregate here too, while a run has just changed the
+    # numbers. Without this the first visitor after a run pays the recompute
+    # and sees stale figures until the TTL lapses; the analyse step is already
+    # the slow, scheduled place for exactly this kind of work.
+    try:
+        db.overall_stats(max_age=0)
+    except Exception:
+        pass
     return snap
 
 
