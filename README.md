@@ -2,7 +2,7 @@
 
 > **Catch AlphaFold where the fold is wrong: weekly, automatically, on freshly deposited human structures.**
 
-[![live](https://img.shields.io/badge/live-alphafraud.mdeller.com-00d084)](https://alphafraud.mdeller.com) ![python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white) ![flask](https://img.shields.io/badge/web-Flask%20%2B%20gunicorn-000000?logo=flask&logoColor=white) ![data](https://img.shields.io/badge/data-RCSB%20PDB%20%2B%20AlphaFold%20DB-1e73be) ![status](https://img.shields.io/badge/status-in%20development-fcb900) ![author](https://img.shields.io/badge/author-Marc%20C.%20Deller%2C%20D.Phil.-1C244B)
+[![live](https://img.shields.io/badge/live-alphafraud.mdeller.com-00d084)](https://alphafraud.mdeller.com) ![python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white) ![flask](https://img.shields.io/badge/web-Flask%20%2B%20gunicorn-000000?logo=flask&logoColor=white) ![data](https://img.shields.io/badge/data-RCSB%20PDB%20%2B%20AlphaFold%20DB-1e73be) ![status](https://img.shields.io/badge/status-in%20development-fcb900) [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.21808182-1C244B?logo=doi&logoColor=white)](https://doi.org/10.5281/zenodo.21808182) ![code](https://img.shields.io/badge/code-MIT-9b51e0) ![author](https://img.shields.io/badge/author-Marc%20C.%20Deller%2C%20D.Phil.-1C244B)
 
 <table>
 <tr>
@@ -395,8 +395,10 @@ Python, biotite and tmtools for structure handling and superposition, numpy and 
 
 ## ✅ To Do
 
-- [x] **Home page and `/api/stats` no longer scan the whole `entities` table.** `overall_stats()` filtered on `status`, which nothing indexed, so the planner had only `SCAN entities`: ~97k rows over 63 MB of pages, dragging in 23 of the table's 28 columns that the aggregate never reads. That was 62 ms on every page load and made AlphaFraud the slowest app on the droplet by an order of magnitude (68 ms against 1-2 ms for its neighbours). A covering index on `(status, confidently_wrong, is_novel, tm_by_experiment, lddt)` lets SQLite answer the whole query from a 2.8 MB index without touching the table, taking it to 4.9 ms, and the result is now cached in `analysis_snapshots` alongside the analysis payload, refreshed by the weekly run. Warm requests are ~6 ms; the launcher's health check went from 193 ms to 52 ms.
 Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.
+
+- [x] **Published as a citable software release.** Zenodo, MIT, concept DOI [10.5281/zenodo.21808182](https://doi.org/10.5281/zenodo.21808182), which always resolves to the latest version. Source only: `data/` is 5.2 GB of API-cached structures and generated ribbons, all regenerable, and the results database is not deposited. The description's figures were read from the live database rather than from this README, which had drifted by a week's worth of runs
+- [x] **Home page and `/api/stats` no longer scan the whole `entities` table.** `overall_stats()` filtered on `status`, which nothing indexed, so the planner had only `SCAN entities`: ~97k rows over 63 MB of pages, dragging in 23 of the table's 28 columns that the aggregate never reads. That was 62 ms on every page load and made AlphaFraud the slowest app on the droplet by an order of magnitude (68 ms against 1-2 ms for its neighbours). A covering index on `(status, confidently_wrong, is_novel, tm_by_experiment, lddt)` lets SQLite answer the whole query from a 2.8 MB index without touching the table, taking it to 4.9 ms, and the result is now cached in `analysis_snapshots` alongside the analysis payload, refreshed by the weekly run. Warm requests are ~6 ms; the launcher's health check went from 193 ms to 52 ms.
 
 - [x] **Statistics page** — an exhaustive live `/stats` page grouping everything the app tracks into themed, equal-height panels (consistent with the rest of the site): catch & quality KPIs, coverage & schedule (date ranges, release weeks, last/next update), runs & compute, server metrics (CPU, load, memory, uptime), storage & database (file sizes, per-table row counts, disk), data sources & APIs (linked), and traffic — with a "Full statistics →" link from the header panel
 - [x] **Home landing page** — a concise navigation page at `/` outlining the project and each tab as a colour-coded card with a "what you'll learn" line and headline KPIs; the cumulative dashboard moved to `/all` ("All structures"). Nav tabs now carry their panel accent colour to tie the site together
@@ -421,9 +423,37 @@ Roadmap for AlphaFraud, newest ideas at the top. Suggestions welcome.
 - [ ] **Robust large-assembly parsing** — handle the CIF-only and oversized structures that currently log a parse error and are skipped
 - [ ] **Tests and CI** — a regression set pinned on known catches (transthyretin, SOD1, β2-microglobulin) plus continuous integration
 
+## 📦 Citation
+
+AlphaFraud is deposited on Zenodo as a citable software release under the MIT Licence: the
+pipeline, the metric suite, the ribbon renderer and the Flask application as released. The
+cached structures and generated imagery are not included — they are regenerable from the
+public APIs — and neither is the results database.
+
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.21808182-1C244B?logo=doi&logoColor=white)](https://doi.org/10.5281/zenodo.21808182)
+
+| | |
+|---|---|
+| Concept DOI (always latest) | [10.5281/zenodo.21808182](https://doi.org/10.5281/zenodo.21808182) |
+| This version (v0.1.0) | [10.5281/zenodo.21808183](https://doi.org/10.5281/zenodo.21808183) |
+
+Every figure in the deposit's description was **read from the live instance's database**
+on 2026-08-05 rather than copied from this README, which was carrying counts from an
+earlier week (96,827 entities and 82,796 analysed, against an actual 96,928 and 82,895).
+On a sibling project six figures reached a Zenodo description by being copied from prose,
+and a DOI would have made them permanent.
+
+**Cite as:** Deller, M. C. (2026). *AlphaFraud: a weekly, automated audit of AlphaFold
+accuracy on freshly deposited human structures*. Version 0.1.0. Zenodo.
+https://doi.org/10.5281/zenodo.21808182
+
 ## 📝 Licence
 
 Released under the MIT Licence (see [LICENSE](LICENSE)).
+
+Attributing AlphaFraud does not discharge the obligation to the sources it derives from:
+the [Protein Data Bank](https://www.rcsb.org) (CC0) and the
+[AlphaFold Protein Structure Database](https://alphafold.ebi.ac.uk) (CC BY 4.0).
 
 ---
 

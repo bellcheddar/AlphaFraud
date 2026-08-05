@@ -1,0 +1,58 @@
+{
+  "title": "AlphaFraud: a weekly, automated audit of AlphaFold accuracy on freshly deposited human structures",
+  "version": "0.1.0",
+  "upload_type": "software",
+  "language": "eng",
+  "license": "mit",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Deller, Marc C.",
+      "affiliation": "Independent",
+      "orcid": "0000-0001-8070-6502"
+    }
+  ],
+  "description": "<p>Catch AlphaFold where the fold is wrong: weekly, automatically, on freshly deposited human structures.</p><p>AlphaFold2 was trained only on PDB chains released before 2018-04-30, so any human structure deposited after that date is one the model predicted without ever seeing its coordinates. AlphaFraud turns that continuously growing set into a standing experiment. Each week it watches the RCSB PDB for newly deposited human protein entities, matches each to its blind prediction in the AlphaFold Structure Database, superposes them, and quantifies where the prediction disagrees with the experiment.</p><h4>What the software does</h4><ul><li><strong>Watches and resumes.</strong> A systemd timer fires after the PDB's Wednesday 00:00 UTC release and continues from the last processed run</li><li><strong>Filters to the blind set.</strong> RCSB Search for taxonomy 9606 protein entities deposited after the 2018-04-30 training cutoff</li><li><strong>Matches blind models.</strong> Resolves each entity to a UniProt accession and an AlphaFold DB model, handling fragments, mutants and missing loops by sequence alignment</li><li><strong>Scores novelty.</strong> Maximum percent identity to any pre-cutoff PDB chain, so genuinely unseen sequences are distinguished from easy homologs</li><li><strong>Measures disagreement.</strong> Global, local, backbone, per-domain and confidence-calibration metrics: TM-score, lDDT, GDT_TS, C-alpha RMSD, per-residue deviation, and a PAE-honesty check comparing AlphaFold's self-reported error against the observed error</li><li><strong>Ranks the confidently wrong.</strong> High pLDDT with low agreement: the cases where the model was sure and still missed</li><li><strong>Renders the structures.</strong> Deviation-coloured C-alpha ribbons on an absolute-angstrom scale, plus an interactive 3Dmol.js viewer with an optional translucent AlphaFold ghost overlay, all served offline with no CDN</li><li><strong>Serves a report.</strong> A Flask application with a cumulative dashboard, per-week archive, leaderboard, structural analysis tab, live statistics, and an on-demand Calculate tab that runs the full pipeline for any human PDB ID without an LLM</li></ul><h4>Scale of the reference deployment</h4><p>Figures below were read from the live instance's database on 2026-08-05, not copied from prose:</p><ul><li><strong>96,928</strong> human post-cutoff protein entities catalogued</li><li><strong>82,895</strong> analysed; the remainder skipped with the reason recorded, most commonly the absence of a single UniProt mapping (antibodies, chimeras and constructs)</li><li><strong>15,581</strong> carried through the full metric suite after a fast TM-score screen, a two-tier design that makes the whole archive tractable</li><li><strong>124</strong> pipeline runs between 2026-07-14 and 2026-08-05</li></ul><p>A live instance runs at <a href=\"https://alphafraud.mdeller.com\">alphafraud.mdeller.com</a> and updates weekly. Its recurring worst offenders are amyloid-forming proteins, transthyretin, beta-2-microglobulin and islet amyloid polypeptide among them, which AlphaFold predicts as confidently folded but which resolve experimentally in a completely different aggregated form.</p><h4>Scope of this deposit</h4><p>This is a software deposit: the source as released, without the cached structures and generated imagery, which are regenerable from the public APIs. The results database is not included.</p><h4>Limitations</h4><p>AlphaFold DB models are monomer-only, so interfaces are untested and multi-chain accuracy is not assessed. Chains without a single UniProt accession are skipped rather than compared per domain. Disagreement is not the same as prediction error: a structure may legitimately adopt a different conformation from the one predicted, and the confidence-calibration metrics are the guard against reading every disagreement as a failure.</p><p>Code: MIT. Attribution does not discharge the obligation to the sources this derives from: the Protein Data Bank (CC0) and the AlphaFold Protein Structure Database (CC-BY-4.0).</p>",
+  "keywords": [
+    "structural biology",
+    "AlphaFold",
+    "protein structure prediction",
+    "Protein Data Bank",
+    "model validation",
+    "benchmarking",
+    "confidence calibration",
+    "software"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/bellcheddar/AlphaFraud",
+      "relation": "isSupplementTo",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://alphafraud.mdeller.com",
+      "relation": "isIdenticalTo",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.1038/s41586-021-03819-2",
+      "relation": "references",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1093/nar/gkab1061",
+      "relation": "isDerivedFrom",
+      "resource_type": "dataset",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1093/nar/gkae1011",
+      "relation": "isDerivedFrom",
+      "resource_type": "dataset",
+      "scheme": "doi"
+    }
+  ]
+}
