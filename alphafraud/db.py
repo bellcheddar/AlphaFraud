@@ -1018,12 +1018,31 @@ def record_visit(ip_hash: str) -> None:
     _retry_write(_do)
 
 
-def visitor_stats() -> dict:
+def visitor_stats(min_hits: int = 1) -> dict:
+    """Visitor counts for the header panel, counting only visitors who stayed.
+
+    `min_hits` is a dwell-time test: the page polls /api/stats once a minute, so
+    requiring a few calls means the visitor had the page open for a few minutes
+    rather than merely causing it to render once. See _MIN_HITS in webapp.py for
+    the measurements behind the threshold.
+
+    It is weaker here than the equivalent test in mdeller.com's mdeller-stats.py,
+    and deliberately so rather than by oversight: `hits` is cumulative per address
+    for all time, so a crawler returning across many days eventually clears any
+    threshold, where the log-based counter can ask the question one day at a time.
+    Per-day dwell would need a row per address-day instead of the single row this
+    schema keeps. The _CLOUD_NETS prefix filter is what actually does the work; this
+    is the cheap second line, and it also quietly drops the one-shot renderer that
+    arrives from a network nobody has catalogued yet.
+    """
     try:
         with connect() as conn:
-            r = conn.execute("SELECT COUNT(*) uniq, COALESCE(SUM(hits),0) hits FROM visits").fetchone()
+            r = conn.execute("SELECT COUNT(*) uniq, COALESCE(SUM(hits),0) hits "
+                             "FROM visits WHERE hits >= ?", (min_hits,)).fetchone()
             today = _now()[:10]
-            t = conn.execute("SELECT COUNT(*) n FROM visits WHERE substr(last_seen,1,10)=?", (today,)).fetchone()
+            t = conn.execute("SELECT COUNT(*) n FROM visits "
+                             "WHERE substr(last_seen,1,10)=? AND hits >= ?",
+                             (today, min_hits)).fetchone()
             return {"unique": r["uniq"], "hits": r["hits"], "today": t["n"]}
     except sqlite3.OperationalError:      # visits table not created yet (fresh deploy)
         return {"unique": 0, "hits": 0, "today": 0}

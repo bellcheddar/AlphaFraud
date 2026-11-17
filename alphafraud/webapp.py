@@ -16,6 +16,7 @@ Routes:
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -32,6 +33,46 @@ _BOT_UA = re.compile(
     r"zgrab|nuclei|petalbot|amazonbot|go-http|infrawat|cyberconvoy|internet-?measurement|libwww|"
     r"aiohttp|perl|paloalto|palo alto|cortex|visionheight|flowiq|genomecrawler|nokia|"
     r"claude-user|claude-code|python/|\(cow\)", re.I)
+
+# Networks whose traffic is never a person at a keyboard. The UA blocklist above
+# cannot reach these: 15 days of nginx logs showed ~950 addresses loading real
+# pages, executing this app's JavaScript and sending a Referer, while rotating
+# through six ordinary desktop Chrome user-agent strings -- 539 of them used more
+# than one. Whois put 82% in Tencent Cloud and 16% in a single China Unicom /24,
+# which is where the "proof of JS execution" gate below runs out: it proves a
+# browser engine ran, not that anybody was watching. Nobody browses freshly
+# deposited protein structures from a cloud instance.
+#
+# Kept in step with CLOUD_NETS in mdeller.com's mdeller-stats.py, which applies the
+# same prefixes to every app on the droplet. Each one was confirmed by whois against
+# addresses actually seen in these logs.
+_CLOUD_NETS = [ipaddress.ip_network(n) for n in (
+    "43.128.0.0/10",     # Tencent Cloud international (ACEVILLE PTE.LTD., Singapore)
+    "170.106.0.0/16",    # Tencent Cloud
+    "49.51.0.0/16",      # Tencent Cloud, Beijing
+    "142.86.0.0/16",     # Tencent
+    "116.179.32.0/20",   # Baidu's crawler allocation inside China Unicom CHINA169.
+                         # The /20, not the /16: CHINA169 is a residential ISP too.
+)]
+
+# How many times one visitor must call /api/stats before they count as having read
+# anything -- a dwell-time test, since the page polls every 60 seconds. Set to 1,
+# which is off, and that is the measured answer rather than timidity: _CLOUD_NETS
+# above removes 99.2% of the automated traffic by itself, and against what is left
+# a threshold of 3 discarded 14 of 18 visits, 12 of which had made exactly one
+# call. Once the cloud ranges are gone a single call no longer means a crawler, it
+# means somebody who looked for less than a minute -- which is most people, and
+# undercounting them is the error this whole exercise was trying to stop making.
+# Raise it only if a pool that defeats the prefixes shows up in the logs.
+_MIN_HITS = 1
+
+
+def _in_cloud(ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return any(addr in net for net in _CLOUD_NETS)
 
 # Metric groups drive the tidy tables on the entry page (label -> metric keys).
 METRIC_GROUPS = [
@@ -108,6 +149,10 @@ def create_app() -> Flask:
               or request.remote_addr or "")
         if not ip:
             return None
+        if _in_cloud(ip):
+            # A rendering engine on a cloud host. It passed every test above --
+            # see _CLOUD_NETS for what that cost us.
+            return None
         return hashlib.sha256(("af:" + ip).encode()).hexdigest()[:16]
 
     @app.route("/api/stats")
@@ -128,7 +173,7 @@ def create_app() -> Flask:
                         break
         except Exception:
             pass
-        vs = db.visitor_stats()
+        vs = db.visitor_stats(_MIN_HITS)
         st = db.overall_stats()
         analysed = st.get("n") or 0
         total = db.total_entity_count()      # real archive size, now the backfill is complete
@@ -404,7 +449,7 @@ def create_app() -> Flask:
         s = db.stats_bundle()
         e = s["e"]
         sysm = _system_metrics()
-        vs = db.visitor_stats()
+        vs = db.visitor_stats(_MIN_HITS)
         n = e.get("analysed") or 0
         total = db.total_entity_count()
 
